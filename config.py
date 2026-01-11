@@ -7,9 +7,14 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL",
-        "mysql+pymysql://terminarz:terminarz123@localhost/terminarz"
+    DB_USER = os.environ.get("MYSQLUSER")
+    DB_PASSWORD = os.environ.get("MYSQLPASSWORD")
+    DB_HOST = os.environ.get("MYSQLHOST")
+    DB_PORT = os.environ.get("MYSQLPORT")
+    DB_NAME = os.environ.get("MYSQLDATABASE")
+
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql+mysqldb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
