@@ -83,8 +83,8 @@ def create_app():
     # DB INIT + DEFAULT SETTINGS
     # =============================
     with app.app_context():
-        db.create_all()
-        init_default_settings()
+      init_default_settings()
+
 
     # =============================
     # BACKGROUND SCHEDULER (SMS)
