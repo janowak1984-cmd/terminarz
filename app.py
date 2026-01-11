@@ -89,7 +89,8 @@ def create_app():
     # =============================
     # BACKGROUND SCHEDULER (SMS)
     # =============================
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+    if os.environ.get("RAILWAY_ENVIRONMENT_NAME") == "production":
+
         scheduler = BackgroundScheduler(daemon=True)
 
         def reminder_job_wrapper():
