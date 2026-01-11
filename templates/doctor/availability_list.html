@@ -1,0 +1,78 @@
+{% extends "doctor/layout.html" %}
+
+{% block content %}
+<h2>🟩 Grafik – lista</h2>
+
+<div id="availability-container">
+    <em>Ładowanie grafiku…</em>
+</div>
+
+<br>
+<button onclick="deleteSelected()">🗑️ Usuń zaznaczone</button>
+
+<script>
+function loadGroupedAvailability() {
+    fetch('/doctor/availability/grouped')
+        .then(r => r.json())
+        .then(data => {
+            let html = '<div style="display:grid; grid-template-columns: repeat(5, 1fr); gap:20px;">';
+
+            for (const day in data) {
+                html += `<div><h3>${day}</h3><ul>`;
+
+                for (const hour in data[day]) {
+                    const g = data[day][hour];
+
+                    if (g.blocked) {
+                        const b = g.blocked_by;
+                        html += `
+                            <li style="color:#dc3545">
+                                🔴 ${g.label}<br>
+                                <strong>${b.patient}</strong><br>
+                                ${b.duration} min (${b.visit_type})<br>
+                                tel. ${b.phone}
+                            </li>`;
+                    } else {
+                        html += `
+                            <li style="color:#28a745">
+                                <label>
+                                    <input type="checkbox"
+                                           class="slot-group"
+                                           data-ids='${JSON.stringify(g.slot_ids)}'>
+                                    🟢 ${g.label}
+                                </label>
+                            </li>`;
+                    }
+                }
+
+                html += '</ul></div>';
+            }
+
+            html += '</div>';
+            document.getElementById('availability-container').innerHTML = html;
+        });
+}
+
+function deleteSelected() {
+    const ids = [];
+    document.querySelectorAll('.slot-group:checked').forEach(cb => {
+        ids.push(...JSON.parse(cb.dataset.ids));
+    });
+
+    if (!ids.length) {
+        alert('Nic nie zaznaczono');
+        return;
+    }
+
+    fetch('/doctor/availability/bulk-delete', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({slot_ids: ids})
+    })
+    .then(r => r.json())
+    .then(() => loadGroupedAvailability());
+}
+
+document.addEventListener('DOMContentLoaded', loadGroupedAvailability);
+</script>
+{% endblock %}

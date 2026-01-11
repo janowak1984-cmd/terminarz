@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}Rezerwacja wizyty{% endblock %}</title>
+
+  <!-- Bootstrap -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css"
+    rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='patient/css/theme.css') }}">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <style>
+    /* ===== RESET BODY ===== */
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ===== GŁÓWNA STRONA (700px) ===== */
+    .page-wrapper {
+      max-width: 700px;
+      margin: 10px auto;
+      padding: 0 10px;
+    }
+
+    h2, h3 {
+      margin-top: 10px;
+    }
+
+    /* ===== POWIĘKSZONY SELECT ===== */
+    select.form-control {
+      font-size: 20px;
+      height: 54px;
+      padding: 10px 12px;
+    }
+
+    select.form-control option {
+      font-size: 20px;
+      padding: 12px;
+    }
+
+    /* ===== INFO POD SELECTEM ===== */
+    .info {
+      font-size: 17px;
+      margin-top: 10px;
+      color: #444;
+    }
+
+    /* ===== KALENDARZ ===== */
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .calendar-header button {
+      font-size: 20px;
+      padding: 6px 14px;
+    }
+
+    .calendar-header strong {
+      font-size: 20px;
+    }
+
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .calendar-weekday {
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      padding: 6px 0;
+      background: #f5f5f5;
+      border-radius: 6px;
+    }
+
+    .calendar-day {
+      min-height: 56px;
+      border-radius: 8px;
+      padding: 4px 6px;
+      font-size: 16px;
+      text-align: right;
+    }
+
+    .calendar-day.disabled {
+      background: #f2f2f2;
+      color: #aaa;
+    }
+
+    .calendar-day.available {
+      background: #c8e6c9;
+      color: #1b5e20;
+      cursor: pointer;
+    }
+
+    .calendar-day.available:hover {
+      background: #b2dfdb;
+    }
+
+    .calendar-day.selected {
+      outline: 3px solid #2e7d32;
+    }
+
+    /* ===== GODZINY ===== */
+    .hours {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .hour-btn {
+      padding: 14px 0;
+      font-size: 18px;
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 10px;
+    }
+
+    .hour-btn.selected {
+      background: #333;
+      color: #fff;
+      border-color: #333;
+    }
+
+    hr {
+      margin: 20px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+<!-- ================= FLASH MESSAGE – PEŁNA SZEROKOŚĆ ================= -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="container">
+      {% for category, message in messages %}
+        {% if category.startswith("patient-") %}
+          <div class="alert alert-{{ category.replace("patient-", "") }}">
+            <button type="button" class="close js-alert-close">
+              <span>&times;</span>
+            </button>
+            {{ message }}
+          </div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- ================= STRONA (700px) ================= -->
+<div class="page-wrapper">
+  {% block content %}{% endblock %}
+</div>
+
+<script>
+  $(document).on("click", ".js-alert-close", function () {
+    $(this).closest(".alert").fadeOut(200, function () {
+      $(this).remove();
+    });
+  });
+
+  setTimeout(function () {
+    $(".alert").fadeOut(500, function () {
+      $(this).remove();
+    });
+  }, 7000);
+</script>
+
+</body>
+</html>

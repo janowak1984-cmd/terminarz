@@ -1,0 +1,210 @@
+/* ===============================
+   PATIENT THEME – INSPIRED BY SITE
+   =============================== */
+
+.patient-page {
+  font-family: "Open Sans", Arial, sans-serif;
+  background: #26272c;
+  color: #ddd;
+  min-height: 100vh;
+  padding: 40px 15px;
+}
+
+/* HEADERS */
+.patient-page h2,
+.patient-page h3 {
+  color: #fff;
+  font-weight: 400;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #d73930;
+  padding-bottom: 10px;
+}
+
+/* INFO */
+.patient-page .info {
+  margin-top: 10px;
+  font-size: 15px;
+  color: #ccc;
+}
+
+/* SELECT + INPUTS */
+.patient-page select,
+.patient-page input,
+.patient-page textarea {
+  background: #3e3f47;
+  border: none;
+  color: #fff;
+  padding: 14px;
+  font-size: 16px;
+  border-radius: 4px;
+}
+
+.patient-page select:focus,
+.patient-page input:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(215,57,48,0.4);
+}
+
+/* CALENDAR */
+.patient-page .calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.patient-page .calendar-header strong {
+  font-size: 18px;
+  color: #fff;
+}
+
+.patient-page .calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.patient-page .calendar-weekday {
+  text-align: center;
+  font-weight: bold;
+  color: #aaa;
+}
+
+.patient-page .calendar-day {
+  background: #1a1b1e;
+  padding: 14px 0;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 4px;
+  color: #bbb;
+}
+
+.patient-page .calendar-day.available {
+  background: #3e3f47;
+  color: #fff;
+}
+
+.patient-page .calendar-day.available:hover {
+  background: #d73930;
+}
+
+.patient-page .calendar-day.selected {
+  background: #d73930;
+  color: #fff;
+}
+
+.patient-page .calendar-day.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* HOURS */
+.patient-page .hours {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.patient-page .hour-btn {
+  background: #3e3f47;
+  color: #fff;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.patient-page .hour-btn:hover {
+  background: #d73930;
+}
+
+.patient-page .hour-btn.selected {
+  background: #d73930;
+}
+
+/* FORM */
+.patient-page .form-group label {
+  color: #ccc;
+  margin-bottom: 6px;
+}
+
+.patient-page .btn-primary {
+  background: #d73930;
+  border: none;
+  font-size: 16px;
+  letter-spacing: 1px;
+  padding: 14px;
+  border-radius: 4px;
+}
+
+.patient-page .btn-primary:hover {
+  background: #b92e27;
+}
+
+/* ERRORS */
+.patient-page .has-error {
+  box-shadow: 0 0 0 2px rgba(215,57,48,0.6);
+}
+
+.patient-page .field-error {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+/* ===== FULL BLACK BACKGROUND ===== */
+
+html, body {
+  background: #26272c !important;
+  min-height: 100%;
+}
+
+.patient-page {
+  background: #26272c;
+}
+
+/* usuń białe prześwity bootstrapa */
+.patient-page .container-fluid {
+  background: transparent;
+}
+
+/* ===== KALENDARZ – DNI ===== */
+
+.patient-page .calendar-day {
+  background: #1f2024;
+  color: #777;
+  border-radius: 4px;
+  padding: 10px 0;
+  text-align: center;
+  cursor: default;
+}
+
+/* ❌ niedostępne */
+.patient-page .calendar-day.disabled {
+  background: #1f2024;
+  color: #555;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ✅ dostępne – ZIELONE */
+.patient-page .calendar-day.available {
+  background: #1f3d2b;              /* ciemna zieleń */
+  color: #b9f6ca;
+  border: 1px solid #2ecc71;
+  cursor: pointer;
+}
+
+/* hover tylko dla dostępnych */
+.patient-page .calendar-day.available:hover {
+  background: #2ecc71;
+  color: #10261b;
+}
+
+/* ⭐ wybrany dzień */
+.patient-page .calendar-day.selected {
+  background: #2ecc71 !important;
+  color: #10261b !important;
+  font-weight: 700;
+  box-shadow: 0 0 0 2px rgba(46,204,113,0.6);
+}

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <title>Anulowanie wizyty</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f8f9fa;
+            padding: 40px;
+        }
+        .box {
+            max-width: 500px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 6px;
+            box-shadow: 0 0 10px rgba(0,0,0,.1);
+            text-align: center;
+        }
+        .success { color: #198754; }
+        .error { color: #dc3545; }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            color: #0d6efd;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    {% if success %}
+        <h2 class="success">✅ {{ message }}</h2>
+    {% else %}
+        <h2 class="error">❌ {{ message }}</h2>
+    {% endif %}
+
+    <a href="/">Powrót na stronę główną</a>
+</div>
+
+</body>
+</html>

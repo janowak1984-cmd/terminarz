@@ -1,0 +1,690 @@
+{% extends "doctor/layout.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h2>🗓️ Grafik – kalendarz</h2>
+
+<div style="margin-bottom:15px;">
+  <button id="btn-sync-google"
+          onclick="syncGoogle()"
+          class="btn btn-default">
+    🔄 Synchronizuj wizyty z Google
+  </button>
+</div>
+
+
+<script>
+function syncGoogle() {
+  if (!confirm("Synchronizować wizyty z Google Calendar?")) return;
+
+  fetch("/doctor/google/sync-batch", { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      alert(
+        `Zsynchronizowano: ${data.synced}\nPominięto: ${data.skipped}`
+      );
+    })
+    .catch(() => alert("Błąd synchronizacji"));
+}
+</script>
+
+
+<!-- ================================================= -->
+<!-- MODAL: AKCJE SLOTU (NIETKNIĘTY) -->
+<!-- ================================================= -->
+<div id="slotActionModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Termin</h4>
+      </div>
+      <div class="modal-body">
+        <p id="slot-info" class="text-center"></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-slot-deactivate" class="btn btn-danger btn-block">❌ Dezaktywuj termin</button>
+        <button id="btn-slot-add-visit" class="btn btn-success btn-block">➕ Dodaj wizytę</button>
+        <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= -->
+<!-- MODAL: AKCJE WIZYTY -->
+<!-- ================================================= -->
+<div id="appointmentActionModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Wizyta</h4>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-action-edit" class="btn btn-primary btn-block">✏️ Edytuj wizytę</button>
+        <button id="btn-action-move" class="btn btn-warning btn-block">📅 Przenieś wizytę</button>
+        <button id="btn-action-cancel" class="btn btn-danger btn-block">🗑 Anuluj wizytę</button>
+        <button id="btn-action-blacklist" class="btn btn-warning btn-block">➕ Dodaj do czarnej listy</button>
+        <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= -->
+<!-- MODAL: EDYCJA WIZYTY -->
+<!-- ================================================= -->
+<div id="editAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">✏️ Edycja wizyty</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Imię</label><input id="m-first-name" class="form-control"></div>
+        <div class="form-group"><label>Nazwisko</label><input id="m-last-name" class="form-control"></div>
+        <div class="form-group"><label>Telefon</label><input id="m-phone" class="form-control"></div>
+        <div class="form-group"><label>Email</label><input id="m-email" class="form-control"></div>
+        <div class="form-group"><label>Typ wizyty</label><select id="m-visit-type" class="form-control"></select></div>
+        <p><strong>Start:</strong> <span id="m-start"></span></p>
+        <p><strong>Koniec:</strong> <span id="m-end"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-visit" class="btn btn-primary">💾 Zapisz</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= -->
+<!-- MODAL: PRZENIESIENIE WIZYTY -->
+<!-- ================================================= -->
+<div id="moveAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">📅 Przenieś wizytę</h4>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label>Nowy dzień</label>
+          <input type="date" id="m-move-day" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Nowa godzina</label>
+          <div class="row">
+            <div class="col-xs-6">
+              <select id="m-move-hour-h" class="form-control">
+                <!-- godziny 08–19 -->
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+              </select>
+            </div>
+            <div class="col-xs-6">
+              <select id="m-move-hour-m" class="form-control">
+                <option value="00">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-move-visit" class="btn btn-warning">📅 Przenieś</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================= -->
+<!-- MODAL: DODAJ WIZYTĘ (EMAIL DODANY) -->
+<!-- ================================================= -->
+<div id="addAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">➕ Dodaj wizytę</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Imię</label><input id="a-first-name" class="form-control"></div>
+        <div class="form-group"><label>Nazwisko</label><input id="a-last-name" class="form-control"></div>
+        <div class="form-group"><label>Telefon</label><input id="a-phone" class="form-control"></div>
+        <div class="form-group"><label>Email</label><input id="a-email" class="form-control"></div>
+        <div class="form-group"><label>Typ wizyty</label><select id="a-visit-type" class="form-control"></select></div>
+        <p><strong>Termin:</strong> <span id="a-start"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="btn-create-visit">➕ Dodaj wizytę</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================= -->
+<!-- MODAL: BLACKLIST PACJENTA -->
+<!-- ================================================= -->
+<div id="blacklistModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">⛔ Dodaj pacjenta do czarnej listy</h4>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="blacklist-appointment-id">
+
+        <div class="form-group">
+          <label>Powód blokady</label>
+          <textarea id="blacklist-description"
+                    class="form-control"
+                    rows="4"></textarea>
+        </div>
+
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" id="blacklist-cancel-appointment">
+            Anuluj wizytę
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-default" data-dismiss="modal">Anuluj</button>
+        <button class="btn btn-danger" id="btn-confirm-blacklist">
+          Zablokuj pacjenta
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div id="availabilityCalendar"
+     data-hidden-days='{{ hidden_days | default([]) | tojson }}'
+     style="max-width:1100px; margin:20px auto;">
+</div>
+
+
+<script>
+  
+document.addEventListener('DOMContentLoaded', function () {
+
+let currentAppointmentId = null;
+let currentSlotEvent = null;
+
+const pad = n => n.toString().padStart(2,'0');
+const fmt = d => ({
+  date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+  time:`${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  full:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+});
+
+const calEl = document.getElementById('availabilityCalendar');
+
+let hiddenDays = [];
+try {
+  hiddenDays = JSON.parse(calEl.dataset.hiddenDays || '[]');
+} catch (e) {
+  console.warn('Błędne hiddenDays, używam []', e);
+  hiddenDays = [];
+}
+
+
+calendar = new FullCalendar.Calendar(calEl, {
+  initialView: 'timeGridWeek',
+  locale: 'pl',
+  firstDay: 1,
+  //weekends: false,
+
+  hiddenDays: hiddenDays, // ✅ TERAZ POPRAWNIE
+
+  slotMinTime: '08:00:00',
+  slotMaxTime: '20:00:00',
+  slotDuration: '00:15:00',
+  events: {
+  url: "{{ url_for('doctor.api_availability_calendar') }}"
+  },
+
+
+  eventClick(info) {
+
+    if (info.event.id.startsWith('appt-')) {
+      currentAppointmentId = info.event.extendedProps.appointment_id;
+      $('#appointmentActionModal').modal('show');
+      return;
+    }
+
+    if (info.event.id.startsWith('slot-')) {
+      currentSlotEvent = info.event;
+
+      const isVacation = info.event.extendedProps.is_vacation === true;
+      const btnAdd = document.getElementById('btn-slot-add-visit');
+      const btnDeactivate = document.getElementById('btn-slot-deactivate');
+      const infoEl = document.getElementById('slot-info');
+
+      if (!info.event.extendedProps.active) {
+
+        if (isVacation) {
+          infoEl.innerText = '⛔ Urlop – nie można aktywować terminu';
+          btnAdd.style.display = 'none';
+          btnDeactivate.style.display = 'none';
+          $('#slotActionModal').modal('show');
+          return;
+        }
+
+        fetch('/doctor/availability/toggle', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            slot_id: info.event.extendedProps.slot_id,
+            active: true
+          })
+        }).then(() => calendar.refetchEvents());
+
+        return;
+      }
+
+      if (isVacation) {
+        btnAdd.style.display = 'none';
+        btnDeactivate.style.display = 'none';
+        infoEl.innerText = '⛔ Urlop – brak możliwości dodania wizyty';
+      } else {
+        btnAdd.style.display = 'block';
+        btnDeactivate.style.display = 'block';
+        infoEl.innerText = info.event.start.toLocaleString();
+      }
+
+      $('#slotActionModal').modal('show');
+    }
+  }
+});
+
+calendar.render();
+
+
+
+/* ===== AKCJE WIZYTY ===== */
+
+document.getElementById('btn-action-edit').onclick = function(){
+  $('#appointmentActionModal').modal('hide');
+
+  Promise.all([
+    fetch(`/doctor/appointments/api/${currentAppointmentId}`).then(r=>r.json()),
+    fetch('/doctor/visit-types/api').then(r=>r.json())
+  ]).then(([a,types])=>{
+    const s=document.getElementById('m-visit-type');
+    s.innerHTML='';
+    types.forEach(t=>{
+      const o=document.createElement('option');
+      o.value=t.code; o.textContent=t.name;
+      s.appendChild(o);
+    });
+    document.getElementById('m-first-name').value=a.first_name;
+    document.getElementById('m-last-name').value=a.last_name;
+    document.getElementById('m-phone').value=a.phone;
+    document.getElementById('m-email').value = a.email || '';
+    document.getElementById('m-visit-type').value=a.visit_type;
+    document.getElementById('m-start').innerText=a.start;
+    document.getElementById('m-end').innerText=a.end;
+    $('#editAppointmentModal').modal('show');
+  });
+};
+
+document.getElementById('btn-action-move').onclick = function(){
+  $('#appointmentActionModal').modal('hide');
+
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`)
+    .then(r => r.json())
+    .then(a => {
+      const [day, time] = a.start.split(' ');
+      const [hh, mm] = time.split(':');
+
+      document.getElementById('m-move-day').value = day;
+      document.getElementById('m-move-hour-h').value = hh;
+      document.getElementById('m-move-hour-m').value = mm;
+
+      $('#moveAppointmentModal').modal('show');
+    });
+};
+
+
+document.getElementById('btn-action-cancel').onclick = function () {
+  if (!confirm('Anulować wizytę?')) return;
+
+  fetch(`/doctor/cancel/${currentAppointmentId}`, { method: 'POST' })
+    .then(() => {
+
+      // zamknij dowolny otwarty modal
+      $('.modal').modal('hide');
+
+      calendar.refetchEvents();
+    });
+};
+
+/* ===== SAVE / MOVE ===== */
+
+document.getElementById('btn-save-visit').onclick=function(){
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      first_name: document.getElementById('m-first-name').value,
+      last_name:  document.getElementById('m-last-name').value,
+      phone:      document.getElementById('m-phone').value,
+      email:      document.getElementById('m-email').value,
+      visit_type: document.getElementById('m-visit-type').value
+    })
+  }).then(()=>{
+    $('#editAppointmentModal').modal('hide');
+    calendar.refetchEvents();
+  });
+};
+
+document.getElementById('btn-move-visit').onclick = function () {
+
+  const day = document.getElementById('m-move-day').value;
+  const hh  = document.getElementById('m-move-hour-h').value;
+  const mm  = document.getElementById('m-move-hour-m').value;
+
+  if (!day || !hh || !mm) {
+    alert('Wybierz poprawny termin');
+    return;
+  }
+
+  // ⛔ NIE UŻYWAMY Date() ani toISOString()
+  const start = `${day} ${hh}:${mm}`;
+  
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`)
+    .then(r => r.json())
+    .then(a => {
+
+      const duration = a.duration; // minuty
+
+      // backend sam policzy sloty, my tylko przekazujemy okno
+      return fetch('/doctor/appointments/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentAppointmentId,
+          start: start,          // 🔥 lokalny czas
+          end: null,             // 🔥 backend policzy
+          duration: duration     // 🔥 jawnie
+        })
+      });
+    })
+    .then(async res => {
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Nie udało się przenieść wizyty');
+        return;
+      }
+
+      $('#moveAppointmentModal').modal('hide');
+      calendar.refetchEvents();
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Błąd połączenia z serwerem');
+    });
+};
+
+document.getElementById('btn-action-blacklist').onclick = function () {
+
+  document.getElementById('blacklist-appointment-id').value = currentAppointmentId;
+  document.getElementById('blacklist-description').value = '';
+  document.getElementById('blacklist-cancel-appointment').checked = false;
+
+  $('#appointmentActionModal').modal('hide');
+  $('#blacklistModal').modal('show');
+};
+ 
+
+/* ===== SLOTY – NIETKNIĘTE ===== */
+
+document.getElementById('btn-slot-add-visit').onclick=function(){
+  $('#slotActionModal').modal('hide');
+  const dt=fmt(currentSlotEvent.start);
+
+  fetch('/doctor/visit-types/api')
+    .then(r=>r.json())
+    .then(types=>{
+      const s=document.getElementById('a-visit-type');
+      s.innerHTML='';
+      types.forEach(t=>{
+        const o=document.createElement('option');
+        o.value=t.code; o.textContent=t.name;
+        s.appendChild(o);
+      });
+      document.getElementById('a-start').innerText=dt.full;
+      document.getElementById('a-first-name').value='';
+      document.getElementById('a-last-name').value='';
+      document.getElementById('a-phone').value='';
+      document.getElementById('a-email').value='';
+      $('#addAppointmentModal').modal('show');
+    });
+};
+
+document.getElementById('btn-create-visit').onclick = function () {
+  const dt = fmt(currentSlotEvent.start);
+
+  fetch('/doctor/appointments/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      first_name: document.getElementById('a-first-name').value,
+      last_name:  document.getElementById('a-last-name').value,
+      phone:      document.getElementById('a-phone').value,
+      email:      document.getElementById('a-email').value,
+      visit_type: document.getElementById('a-visit-type').value,
+      date: dt.date,
+      time: dt.time
+    })
+  })
+  .then(async res => {
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Nie udało się dodać wizyty');
+      return;
+    }
+
+    $('#addAppointmentModal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd połączenia z serwerem');
+  });
+};
+
+document.getElementById('btn-slot-deactivate').onclick=function(){
+  fetch('/doctor/availability/toggle',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      slot_id:currentSlotEvent.extendedProps.slot_id,
+      active:false
+    })
+  }).then(()=>{
+    $('#slotActionModal').modal('hide');
+    calendar.refetchEvents();
+  });
+};
+
+});
+
+document.getElementById('btn-confirm-blacklist').onclick = function () {
+
+  const appointmentId =
+    document.getElementById('blacklist-appointment-id').value;
+
+  const description =
+    document.getElementById('blacklist-description').value.trim();
+
+  const cancelAppointment =
+    document.getElementById('blacklist-cancel-appointment').checked;
+
+  if (!description) {
+    alert('Podaj powód blokady');
+    return;
+  }
+
+  fetch(`/doctor/appointments/${appointmentId}/blacklist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description: description,
+      cancel_appointment: cancelAppointment
+    })
+  })
+  .then(res => res.text())   // ✅ NIC WIĘCEJ
+  .then(() => {
+    $('#blacklistModal').modal('hide');
+    calendar.refetchEvents();
+    alert('Pacjent dodany do czarnej listy');
+  })
+  .catch(err => {
+    console.error('BLACKLIST ERROR:', err);
+    alert('Błąd techniczny – sprawdź konsolę');
+  });
+};
+
+let googleActionLock = false;
+const COOLDOWN_MS = 60_000; // 1 minuta
+
+function lockButtons(text) {
+  googleActionLock = true;
+
+  ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+
+    btn.disabled = true;
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = `⏳ ${text}`;
+  });
+}
+
+function unlockButtonsAfterCooldown() {
+  setTimeout(() => {
+    googleActionLock = false;
+
+    ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalText;
+    });
+  }, COOLDOWN_MS);
+}
+
+/* ================================
+   🔄 SYNC
+   ================================ */
+function syncGoogle() {
+  if (googleActionLock) {
+    alert("⏳ Synchronizacja już trwa lub niedawno się zakończyła");
+    return;
+  }
+
+  if (!confirm("Synchronizować wizyty z Google Calendar?")) return;
+
+  lockButtons("Synchronizacja…");
+
+  fetch("/doctor/google/sync-batch", { method: "POST" })
+    .then(r => r.json())
+    .then(data => {
+      alert(
+        `✅ Synchronizacja zakończona\n\n` +
+        `Zsynchronizowano: ${data.synced}\n` +
+        `Pominięto: ${data.skipped}\n\n` +
+        `⏳ Przyciski będą aktywne za 1 minutę`
+      );
+    })
+    .catch(() => {
+      alert("❌ Błąd synchronizacji");
+    })
+    .finally(() => {
+      unlockButtonsAfterCooldown();
+    });
+}
+
+/* ================================
+   ♻️ REBUILD
+   ================================ */
+function rebuildGoogle() {
+  if (googleActionLock) {
+    alert("⏳ Operacja już trwa lub niedawno się zakończyła");
+    return;
+  }
+
+  if (!confirm(
+    "⚠️ UWAGA!\n\n" +
+    "Ta operacja:\n" +
+    "• usunie wszystkie wizyty aplikacji z Google Calendar\n" +
+    "• utworzy je OD NOWA z bazy danych\n\n" +
+    "Czy na pewno chcesz kontynuować?"
+  )) return;
+
+  lockButtons("Odbudowa…");
+
+  fetch("/doctor/google/rebuild", { method: "POST" })
+    .then(r => {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.json();
+    })
+    .then(data => {
+      alert(
+        `♻️ Kalendarz Google odbudowany\n\n` +
+        `Usunięto: ${data.deleted}\n` +
+        `Utworzono: ${data.created}\n\n` +
+        `⏳ Przyciski będą aktywne za 1 minutę`
+      );
+    })
+    .catch(err => {
+      console.error("REBUILD ERROR:", err);
+      alert("❌ Błąd odbudowy kalendarza Google");
+    })
+    .finally(() => {
+      unlockButtonsAfterCooldown();
+    });
+}
+</script>
+
+
+{% endblock %}

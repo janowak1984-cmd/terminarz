@@ -1,0 +1,229 @@
+{% extends "doctor/layout.html" %}
+
+{% block content %}
+<h2>🧾 Typy wizyt</h2>
+
+<button onclick="openCreateModal()">➕ Dodaj typ wizyty</button>
+<br><br>
+
+<!-- ================= KAFELKI ================= -->
+<div class="vt-grid">
+{% for vt in visit_types %}
+  <div class="vt-card {% if not vt.active %}inactive{% endif %}">
+    <div class="vt-top">
+      <div class="vt-color" style="background:{{ google_colors[vt.color]}}"></div>
+
+      <div class="vt-main">
+        <div class="vt-name">{{ vt.name }}</div>
+        <div class="vt-meta">
+          {{ vt.code }} • {{ vt.duration_minutes }} min •
+          {{ "%.2f"|format(vt.price or 0) }} zł • #{{ vt.display_order }}
+        </div>
+      </div>
+
+      <div class="vt-status">
+        {% if vt.active %}
+          <span class="on">Aktywna</span>
+        {% else %}
+          <span class="off">Nieaktywna</span>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="vt-desc">
+      {{ vt.description or "Brak opisu" }}
+    </div>
+
+    <div class="vt-actions">
+      <button onclick="openEditModal({{ vt.id }})">✏️ Edytuj</button>
+
+      <form method="post" action="{{ url_for('doctor_visit_types.toggle', vt_id=vt.id) }}">
+        <button type="submit">
+          {{ "Dezaktywuj" if vt.active else "Aktywuj" }}
+        </button>
+      </form>
+
+      <form method="post"
+            action="{{ url_for('doctor_visit_types.delete', vt_id=vt.id) }}"
+            onsubmit="return confirm('Usunąć typ wizyty?');">
+        <button class="danger">🗑 Usuń</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <p>Brak typów wizyt</p>
+{% endfor %}
+</div>
+
+<!-- ================= MODAL ================= -->
+<div id="vt-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000;">
+  <div style="background:#fff; width:420px; margin:60px auto; border-radius:6px; display:flex; flex-direction:column; max-height:80vh;">
+    <h3 id="modal-title" style="padding:16px 20px; border-bottom:1px solid #eee;">
+      Nowy typ wizyty
+    </h3>
+
+    <div style="padding:20px; overflow-y:auto; flex:1;">
+      <input type="hidden" id="vt-id">
+
+      <p>Nazwa:<br><input id="vt-name"></p>
+      <p>Kod:<br><input id="vt-code"></p>
+
+      <p>
+        Kolejność (1 = najwyżej):<br>
+        <select id="vt-order">
+          {% for i in range(1, 21) %}
+            <option value="{{ i }}">{{ i }}</option>
+          {% endfor %}
+        </select>
+      </p>
+
+      <p>Opis:<br><textarea id="vt-description"></textarea></p>
+      <p>Cena (zł):<br><input type="number" step="0.01" id="vt-price"></p>
+
+      <p>
+        Czas trwania:<br>
+        <select id="vt-duration">
+          <option value="15">15 minut</option>
+          <option value="30">30 minut</option>
+          <option value="45">45 minut</option>
+          <option value="60">60 minut</option>
+        </select>
+      </p>
+
+      <p>
+        Kolor (Google Calendar):
+        <input type="hidden" id="vt-color">
+        <div id="color-picker" style="display:flex; gap:6px; flex-wrap:wrap;">
+         {% for id, hex in google_colors.items() %}
+          <span class="c" data-color="{{ id }}"></span>
+        {% endfor %}
+
+        </div>
+      </p>
+
+      <p>
+        <label>
+          <input type="checkbox" id="vt-active" checked> Aktywna
+        </label>
+      </p>
+    </div>
+
+    <div style="display:flex; justify-content:flex-end; gap:8px; padding:12px 20px; border-top:1px solid #eee; background:#fafafa;">
+      <button onclick="saveVisitType()">💾 Zapisz</button>
+      <button onclick="closeModal()">❌ Anuluj</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= STYLE ================= -->
+<style>
+.vt-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:16px; }
+.vt-card { background:#fff; border-radius:8px; box-shadow:0 3px 8px rgba(0,0,0,.1); display:flex; flex-direction:column; }
+.vt-card.inactive { opacity:.6 }
+.vt-top { display:flex; align-items:center; padding:12px; border-bottom:1px solid #eee; }
+.vt-color { width:10px; height:40px; border-radius:4px; margin-right:10px; }
+.vt-main { flex:1 }
+.vt-name { font-weight:600 }
+.vt-meta { font-size:12px;color:#666 }
+.vt-status span { font-size:12px; padding:4px 6px; border-radius:4px; }
+.vt-status .on { background:#d4edda;color:#155724 }
+.vt-status .off { background:#eee;color:#555 }
+.vt-desc { padding:10px 12px; font-size:13px; color:#444; min-height:42px; }
+.vt-actions { display:flex; gap:6px; padding:10px; border-top:1px solid #eee; }
+.vt-actions button { font-size:12px }
+.vt-actions .danger { background:#dc3545;color:#fff }
+#color-picker .c { width:22px;height:22px;border-radius:50%; cursor:pointer;border:2px solid transparent; }
+#color-picker .c.active { border-color:#000 }
+</style>
+
+<script>
+const DEFAULT_COLOR = "1";
+document.getElementById('vt-color').value = DEFAULT_COLOR;
+
+
+function closeModal() {
+  document.getElementById('vt-modal').style.display = 'none';
+}
+
+const GOOGLE_COLORS = {{ google_colors | tojson }};
+
+document.querySelectorAll('#color-picker .c').forEach(el => {
+  const id = el.dataset.color;
+  el.style.background = GOOGLE_COLORS[id];
+
+  el.onclick = () => {
+    document.querySelectorAll('#color-picker .c')
+      .forEach(x => x.classList.remove('active'));
+
+    el.classList.add('active');
+    document.getElementById('vt-color').value = id; // ⬅️ ZAPISUJEMY "1"–"11"
+  };
+});
+
+
+function saveVisitType() {
+  const id = document.getElementById('vt-id').value || null;
+
+  const payload = {
+    name: document.getElementById('vt-name').value.trim(),
+    code: document.getElementById('vt-code').value.trim(),
+    description: document.getElementById('vt-description').value.trim(),
+    price: document.getElementById('vt-price').value,
+    duration_minutes: document.getElementById('vt-duration').value,
+    color: document.getElementById('vt-color').value,
+    active: document.getElementById('vt-active').checked,
+    display_order: parseInt(document.getElementById('vt-order').value || 100)
+  };
+
+  const url = id ? `/doctor/visit-types/${id}` : `/doctor/visit-types`;
+  const method = id ? 'PUT' : 'POST';
+
+  fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  }).then(() => location.reload());
+}
+
+function openEditModal(id) {
+  fetch(`/doctor/visit-types/api/${id}`)
+    .then(r => r.json())
+    .then(vt => {
+      document.getElementById('modal-title').innerText = 'Edytuj typ wizyty';
+      document.getElementById('vt-id').value = vt.id;
+      document.getElementById('vt-name').value = vt.name;
+      document.getElementById('vt-code').value = vt.code;
+      document.getElementById('vt-description').value = vt.description || '';
+      document.getElementById('vt-price').value = vt.price ?? '';
+      document.getElementById('vt-duration').value = vt.duration_minutes;
+      document.getElementById('vt-color').value = vt.color;
+      document.getElementById('vt-active').checked = vt.active;
+      document.getElementById('vt-order').value = String(vt.display_order);
+
+      document.querySelectorAll('#color-picker .c')
+        .forEach(c => c.classList.toggle('active', c.dataset.color === vt.color));
+
+      document.getElementById('vt-modal').style.display = 'block';
+    });
+}
+
+function openCreateModal() {
+  document.getElementById('modal-title').innerText = 'Nowy typ wizyty';
+  document.getElementById('vt-id').value = '';
+  document.getElementById('vt-name').value = '';
+  document.getElementById('vt-code').value = '';
+  document.getElementById('vt-description').value = '';
+  document.getElementById('vt-price').value = '';
+  document.getElementById('vt-duration').value = '30';
+  document.getElementById('vt-active').checked = true;
+  document.getElementById('vt-order').value = 100;
+
+  document.getElementById('vt-color').value = DEFAULT_COLOR;
+  document.querySelectorAll('#color-picker .c').forEach(c => c.classList.remove('active'));
+  document.querySelector(`#color-picker .c[data-color="${DEFAULT_COLOR}"]`)?.classList.add('active');
+
+  document.getElementById('vt-modal').style.display = 'block';
+}
+</script>
+
+{% endblock %}

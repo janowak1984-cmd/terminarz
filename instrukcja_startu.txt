@@ -1,0 +1,245 @@
+📄 PLIK STANU PROJEKTU – TERMINARZ (Flask + MySQL)
+1️⃣ Ogólny opis
+
+Aplikacja do rejestracji wizyt w jednoosobowej przychodni (jeden lekarz).
+
+Technologie:
+
+Backend: Flask
+
+ORM: SQLAlchemy
+
+Auth: Flask-Login
+
+Frontend: HTML + Jinja2 + jQuery
+
+Kalendarz: FullCalendar
+
+DB: MySQL
+
+Projekt działa lokalnie (python app.py).
+
+2️⃣ Struktura aplikacji (aktualna)
+terminarz/
+│
+├── app.py
+├── config.py
+├── extensions.py
+├── models.py
+│
+├── blueprints/
+│   ├── auth.py
+│   ├── patient.py
+│   ├── doctor.py
+│   ├── doctor_generate.py
+│   ├── doctor_templates.py
+│   └── doctor_visit_types.py   ✅ NOWE
+│
+├── templates/
+│   ├── patient.html
+│   └── doctor/
+│       ├── layout.html
+│       ├── appointments.html
+│       ├── availability_list.html
+│       ├── availability_calendar.html
+│       ├── generate.html
+│       └── visit_types.html    ✅ NOWE
+│
+└── static/
+    └── style.css
+
+3️⃣ Modele bazy danych (models.py)
+✅ Doctor
+
+id
+
+username
+
+password_hash
+
+✅ Availability (sloty 15 min)
+
+id
+
+doctor_id
+
+start
+
+end
+
+✅ Appointment
+
+id
+
+doctor_id
+
+start
+
+end
+
+duration
+
+visit_type (string – docelowo klucz do VisitType.code)
+
+patient_first_name
+
+patient_last_name
+
+patient_phone
+
+cancel_token
+
+✅ ScheduleTemplate
+
+id
+
+doctor_id
+
+name
+
+days_json
+
+created_at
+
+✅ VisitType (NOWE – działa poprawnie)
+
+id
+
+name
+
+code (unique, przyszły klucz do Appointment.visit_type)
+
+description
+
+price
+
+duration_minutes
+
+active
+
+created_at
+
+updated_at
+
+4️⃣ Panel lekarza – zakładki
+📅 Terminarz
+
+Lista wizyt (tabela)
+
+Anulowanie wizyty
+
+API do FullCalendar działa (/doctor/api/calendar)
+
+To NIE jest kalendarz – to lista wizyt
+
+🟩 Grafik – lista
+
+Sloty pogrupowane po dniach i godzinach
+
+Blokada slotów przez wizyty
+
+Usuwanie wielu slotów naraz
+
+🗓 Grafik – kalendarz
+
+FullCalendar (timeGridWeek)
+
+Zielone tło = dostępność
+
+Czerwone = wizyty
+
+Jasnoczerwone = przerwa po wizycie
+
+⚙️ Generowanie grafiku
+
+Wybór roku/miesiąca
+
+Dni tygodnia + godziny
+
+Generowanie slotów 15-minutowych
+
+Szablony generowania:
+
+zapis
+
+update
+
+lista z DB
+
+backend gotowy
+
+🧾 Typy wizyt (NOWE – DZIAŁA)
+
+Tabela konfiguracyjna
+
+Dodawanie / edycja (modal + JSON API)
+
+Aktywacja / dezaktywacja
+
+Usuwanie
+
+Backend REST:
+
+GET /doctor/visit-types/
+
+POST /doctor/visit-types
+
+PUT /doctor/visit-types/<id>
+
+GET /doctor/visit-types/api/<id>
+
+POST /doctor/visit-types/toggle/<id>
+
+POST /doctor/visit-types/delete/<id>
+
+5️⃣ Panel pacjenta
+
+Brak logowania
+
+Wybór:
+
+typu wizyty (office / online / phone)
+
+dnia
+
+godziny
+
+Logika:
+
+sloty 15 min
+
+uwzględniona przerwa po wizycie
+
+sprawdzanie ciągłości slotów
+
+Rezerwacja zapisuje:
+
+Appointment
+
+przypisuje doctor_id z Availability
+
+6️⃣ Stan na teraz (KLUCZOWE)
+
+✅ Aplikacja działa stabilnie
+✅ Wszystkie główne zakładki lekarza działają
+✅ Typy wizyt zapisują się poprawnie
+✅ Frontend ↔ backend spójny
+⚠️ Appointment.visit_type jeszcze string, nie FK
+⚠️ Brak walidacji zależności (np. nie można jeszcze sprawdzić czy VisitType jest użyty)
+
+7️⃣ Plan na kolejną sesję (propozycja)
+
+🔗 Powiązać Appointment.visit_type → VisitType.code
+
+🧠 Pacjent wybiera typ wizyty z DB, nie hardcoded
+
+🔒 Zablokować usuwanie VisitType użytego w wizytach
+
+🧪 Walidacje (code lowercase, unique)
+
+🎨 Lekki CSS (tabele + modale)
+
+📌 Ten plik możesz wkleić jutro na start nowej rozmowy
+a ja będę dokładnie wiedziała gdzie jesteśmy i co dalej robić.
+
+Dobra robota – to już jest prawdziwy system, nie demo

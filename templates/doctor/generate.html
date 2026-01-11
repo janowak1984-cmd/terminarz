@@ -1,0 +1,279 @@
+{% extends "doctor/layout.html" %}
+{% block content %}
+
+<h2>📅 Generowanie grafiku</h2>
+
+<button type="button" onclick="openTemplateModal()">➕ Dodaj nowy szablon</button>
+
+<table style="width:100%; margin-top:20px; border-collapse:collapse;">
+    <thead>
+        <tr style="background:#f5f5f5;">
+            <th style="padding:8px;">Nazwa</th>
+            <th style="padding:8px;">Dni i godziny</th>
+            <th style="padding:8px;">Akcje</th>
+        </tr>
+    </thead>
+    <tbody id="template-table"></tbody>
+</table>
+
+<!-- ================= MODAL: DODAJ / EDYTUJ ================= -->
+<div id="template-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="modal-title">Nowy szablon</h3>
+
+        <input type="hidden" id="template-id">
+
+        <label>Nazwa szablonu</label>
+        <input type="text" id="template-name" style="width:100%;">
+
+        <h4 style="margin-top:15px;">Dni i godziny</h4>
+
+        {% set days = {
+            'mon': 'Poniedziałek',
+            'tue': 'Wtorek',
+            'wed': 'Środa',
+            'thu': 'Czwartek',
+            'fri': 'Piątek'
+        } %}
+
+        {% for key, label in days.items() %}
+        <div style="margin-bottom:10px;">
+            <label>
+                <input type="checkbox" class="day-check" data-day="{{ key }}">
+                <strong>{{ label }}</strong>
+            </label>
+
+            <div id="hours-{{ key }}" style="display:none; margin-left:20px;">
+                {% for h in range(8, 20) %}
+                <label style="display:inline-block; width:80px;">
+                    <input type="checkbox"
+                           class="hour-check"
+                           data-day="{{ key }}"
+                           value="{{ "%02d:00"|format(h) }}">
+                    {{ "%02d:00"|format(h) }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div style="margin-top:15px;">
+            <button type="button" onclick="saveTemplate()">💾 Zapisz</button>
+            <button type="button" onclick="closeTemplateModal()">❌ Anuluj</button>
+        </div>
+    </div>
+</div>
+
+<!-- ================= MODAL: GENERUJ ================= -->
+<div id="generate-modal" class="modal">
+    <div class="modal-content">
+        <h3>⚡ Generowanie grafiku</h3>
+        <p id="generate-template-name"></p>
+
+        <label>Rok</label>
+        <input type="number" id="gen-year">
+
+        <label>Miesiąc</label>
+        <select id="gen-month">
+            <option value="1">Styczeń</option>
+            <option value="2">Luty</option>
+            <option value="3">Marzec</option>
+            <option value="4">Kwiecień</option>
+            <option value="5">Maj</option>
+            <option value="6">Czerwiec</option>
+            <option value="7">Lipiec</option>
+            <option value="8">Sierpień</option>
+            <option value="9">Wrzesień</option>
+            <option value="10">Październik</option>
+            <option value="11">Listopad</option>
+            <option value="12">Grudzień</option>
+        </select>
+
+        <div style="margin-top:15px;">
+            <button type="button" onclick="generateFromTemplate()">⚡ Generuj</button>
+            <button type="button" onclick="closeGenerateModal()">❌ Anuluj</button>
+        </div>
+    </div>
+</div>
+
+<style>
+.modal {
+    display:none;
+    position:fixed;
+    top:0; left:0;
+    width:100%; height:100%;
+    background:rgba(0,0,0,0.4);
+}
+.modal-content {
+    background:#fff;
+    padding:20px;
+    width:600px;
+    margin:50px auto;
+    border-radius:6px;
+}
+</style>
+
+<script>
+let currentGenerateTemplate = null;
+
+/* ===== INIT ===== */
+const now = new Date();
+$('#gen-year').val(now.getFullYear());
+$('#gen-month').val(now.getMonth() + 1);
+
+$('.day-check').on('change', function () {
+    $('#hours-' + $(this).data('day')).toggle(this.checked);
+});
+
+/* ===== LOAD TABLE ===== */
+function loadTemplates() {
+    fetch('/doctor/templates/')
+        .then(r => r.json())
+        .then(data => {
+            const tbody = $('#template-table');
+            tbody.empty();
+
+            data.forEach(t => {
+                tbody.append(`
+                    <tr>
+                        <td>${t.name}</td>
+                        <td>${humanizeDays(t.days)}</td>
+                        <td>
+                            <button type="button" onclick='editTemplate(${JSON.stringify(t)})'>✏️</button>
+                            <button type="button" onclick='removeTemplate(${t.id})'>🗑️</button>
+                            <button type="button" onclick='openGenerateModal(${JSON.stringify(t)})'>⚡</button>
+                        </td>
+                    </tr>
+                `);
+            });
+        });
+}
+
+/* ===== OPIS DNI/GODZIN – OPCJA 1 ===== */
+function humanizeDays(days) {
+    const labels = { mon:'Pn', tue:'Wt', wed:'Śr', thu:'Cz', fri:'Pt' };
+    const result = [];
+
+    for (const day in days) {
+        const hours = [...days[day]].sort();
+        if (!hours.length) continue;
+
+        const ranges = [];
+        let start = hours[0];
+        let prev = hours[0];
+
+        for (let i = 1; i < hours.length; i++) {
+            const curr = hours[i];
+            if (hourToInt(curr) === hourToInt(prev) + 1) {
+                prev = curr;
+            } else {
+                ranges.push(formatRange(start, prev));
+                start = curr;
+                prev = curr;
+            }
+        }
+        ranges.push(formatRange(start, prev));
+        result.push(`${labels[day]} ${ranges.join(', ')}`);
+    }
+
+    return result.join('<br>');
+}
+
+function hourToInt(h) {
+    return parseInt(h.split(':')[0], 10);
+}
+function formatRange(start, end) {
+    return `${start}–${pad(hourToInt(end) + 1)}:00`;
+}
+function pad(n) {
+    return n < 10 ? '0' + n : n;
+}
+
+/* ===== MODAL LOGIC ===== */
+function openTemplateModal() {
+    $('#template-id').val('');
+    $('#template-name').val('');
+    resetCheckboxes();
+    $('#modal-title').text('Nowy szablon');
+    $('#template-modal').show();
+}
+function closeTemplateModal() {
+    $('#template-modal').hide();
+}
+function editTemplate(t) {
+    openTemplateModal();
+    $('#modal-title').text('Edytuj szablon');
+    $('#template-id').val(t.id);
+    $('#template-name').val(t.name);
+
+    for (const d in t.days) {
+        $(`.day-check[data-day="${d}"]`).prop('checked', true);
+        $('#hours-' + d).show();
+        t.days[d].forEach(h => {
+            $(`.hour-check[data-day="${d}"][value="${h}"]`).prop('checked', true);
+        });
+    }
+}
+
+/* ===== SAVE / DELETE / GENERATE ===== */
+function saveTemplate() {
+    const id = $('#template-id').val();
+    const name = $('#template-name').val();
+    if (!name) return alert('Podaj nazwę');
+
+    const days = {};
+    $('.hour-check:checked').each(function () {
+        const d = $(this).data('day');
+        days[d] = days[d] || [];
+        days[d].push(this.value);
+    });
+
+    fetch(id ? `/doctor/templates/${id}` : '/doctor/templates/', {
+        method: id ? 'PUT' : 'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ name, days })
+    }).then(() => {
+        closeTemplateModal();
+        loadTemplates();
+    });
+}
+
+function removeTemplate(id) {
+    if (!confirm('Usunąć szablon?')) return;
+    fetch(`/doctor/templates/${id}`, { method:'DELETE' })
+        .then(() => loadTemplates());
+}
+
+function openGenerateModal(t) {
+    currentGenerateTemplate = t;
+    $('#generate-template-name').text('Szablon: ' + t.name);
+    $('#generate-modal').show();
+}
+function closeGenerateModal() {
+    $('#generate-modal').hide();
+}
+function generateFromTemplate() {
+    fetch('/doctor/generate_schedule', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            year: $('#gen-year').val(),
+            month: $('#gen-month').val(),
+            days: currentGenerateTemplate.days
+        })
+    }).then(() => {
+        alert('✔ Grafik wygenerowany');
+        closeGenerateModal();
+    });
+}
+
+function resetCheckboxes() {
+    $('.day-check').prop('checked', false);
+    $('.hour-check').prop('checked', false);
+    $('[id^="hours-"]').hide();
+}
+
+loadTemplates();
+</script>
+
+{% endblock %}

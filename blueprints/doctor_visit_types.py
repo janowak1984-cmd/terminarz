@@ -1,0 +1,183 @@
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask_login import login_required
+
+from extensions import db
+from models import VisitType
+
+
+# ✅ Oficjalne kolory Google Calendar (event.colorId → HEX)
+GOOGLE_COLORS = {
+    "1": "#7986CB",   # Lavender
+    "2": "#33B679",   # Sage
+    "3": "#8E24AA",   # Grape
+    "4": "#E67C73",   # Flamingo
+    "5": "#F6BF26",   # Banana
+    "6": "#F4511E",   # Tangerine
+    "7": "#039BE5",   # Peacock
+    "8": "#616161",   # Graphite
+    "9": "#3F51B5",   # Blueberry
+    "10": "#0B8043",  # Basil
+    "11": "#D50000",  # Tomato
+}
+
+
+bp = Blueprint(
+    "doctor_visit_types",
+    __name__,
+    url_prefix="/doctor/visit-types"
+)
+
+# ===============================
+# LISTA (HTML)
+# ===============================
+@bp.route("/", methods=["GET"])
+@login_required
+def list_view():
+    visit_types = (
+        VisitType.query
+        .order_by(VisitType.display_order.asc(), VisitType.id.asc())
+        .all()
+    )
+
+    return render_template(
+        "doctor/visit_types.html",
+        active_page="visit_types",
+        visit_types=visit_types,
+        google_colors=GOOGLE_COLORS   # ✅ tylko to jest potrzebne w Jinja
+    )
+
+# ===============================
+# GET ONE (API – EDYCJA)
+# ===============================
+@bp.route("/api/<int:vt_id>", methods=["GET"])
+@login_required
+def get_one(vt_id):
+    vt = VisitType.query.get_or_404(vt_id)
+
+    return jsonify({
+        "id": vt.id,
+        "name": vt.name,
+        "code": vt.code,
+        "description": vt.description,
+        "price": float(vt.price) if vt.price is not None else None,
+        "duration_minutes": vt.duration_minutes,
+        "color": vt.color,                 # ⬅️ tu trzymamy HEX (Google 1:1)
+        "active": vt.active,
+        "display_order": vt.display_order
+    })
+
+# ===============================
+# CREATE
+# ===============================
+@bp.route("/", methods=["POST"])
+@login_required
+def create():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Brak danych"}), 400
+
+    new_order = int(data.get("display_order", 100))
+
+    # 🔁 Zrób miejsce na nową pozycję
+    VisitType.query.filter(
+        VisitType.display_order >= new_order
+    ).update(
+        {VisitType.display_order: VisitType.display_order + 1},
+        synchronize_session=False
+    )
+
+    vt = VisitType(
+        name=data["name"],
+        code=data["code"],
+        description=data.get("description"),
+        price=data.get("price"),
+        duration_minutes=int(data["duration_minutes"]),
+        color=data.get("color", GOOGLE_COLORS["1"]),  # ✅ default Google
+        active=data.get("active", True),
+        display_order=new_order
+    )
+
+    db.session.add(vt)
+    db.session.commit()
+
+    return jsonify({"status": "ok"})
+
+# ===============================
+# UPDATE
+# ===============================
+@bp.route("/<int:vt_id>", methods=["PUT"])
+@login_required
+def update(vt_id):
+    vt = VisitType.query.get_or_404(vt_id)
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Brak danych"}), 400
+
+    old_order = vt.display_order
+    new_order = int(data.get("display_order", old_order))
+
+    if new_order != old_order:
+        if new_order > old_order:
+            VisitType.query.filter(
+                VisitType.display_order > old_order,
+                VisitType.display_order <= new_order,
+                VisitType.id != vt.id
+            ).update(
+                {VisitType.display_order: VisitType.display_order - 1},
+                synchronize_session=False
+            )
+        else:
+            VisitType.query.filter(
+                VisitType.display_order >= new_order,
+                VisitType.display_order < old_order,
+                VisitType.id != vt.id
+            ).update(
+                {VisitType.display_order: VisitType.display_order + 1},
+                synchronize_session=False
+            )
+
+        vt.display_order = new_order
+
+    vt.name = data["name"]
+    vt.code = data["code"]
+    vt.description = data.get("description")
+    vt.price = data.get("price")
+    vt.duration_minutes = int(data["duration_minutes"])
+    vt.color = data.get("color", vt.color)   # ✅ nadal HEX
+    vt.active = data.get("active", True)
+
+    db.session.commit()
+    return jsonify({"status": "ok"})
+
+# ===============================
+# TOGGLE ACTIVE
+# ===============================
+@bp.route("/toggle/<int:vt_id>", methods=["POST"])
+@login_required
+def toggle(vt_id):
+    vt = VisitType.query.get_or_404(vt_id)
+    vt.active = not vt.active
+    db.session.commit()
+    return redirect(url_for("doctor_visit_types.list_view"))
+
+# ===============================
+# DELETE
+# ===============================
+@bp.route("/delete/<int:vt_id>", methods=["POST"])
+@login_required
+def delete(vt_id):
+    vt = VisitType.query.get_or_404(vt_id)
+
+    VisitType.query.filter(
+        VisitType.display_order > vt.display_order
+    ).update(
+        {VisitType.display_order: VisitType.display_order - 1},
+        synchronize_session=False
+    )
+
+    db.session.delete(vt)
+    db.session.commit()
+
+    flash("🗑 Typ wizyty usunięty")
+    return redirect(url_for("doctor_visit_types.list_view"))
+    

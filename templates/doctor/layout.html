@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% block title %}Panel lekarza{% endblock %}</title>
+
+  <!-- Bootstrap 3 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+
+  <!-- STARE STYLE PANELU -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=1">
+
+  <!-- NOWY THEME LEKARZA -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='doctor/css/theme-preview.css') }}">
+
+  <style>
+    body.doctor-page {
+      max-width: 1200px;
+      margin: 10px auto;
+      padding: 0 10px;
+    }
+
+    /* ===== MENU DOKTORA ===== */
+    .doctor-nav {
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .doctor-nav a {
+      display: inline-block;
+      margin-right: 10px;
+      margin-bottom: 6px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      text-decoration: none;
+      background: #f5f5f5;
+      color: #333;
+      font-weight: bold;
+    }
+
+    .doctor-nav a:hover {
+      background: #e0e0e0;
+    }
+
+    .doctor-nav a.active {
+      background: #337ab7;
+      color: #fff;
+    }
+
+    .doctor-nav a.logout {
+      float: right;
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .doctor-nav a.logout:hover {
+      background: #f1b0b7;
+    }
+
+    hr {
+      margin: 15px 0;
+    }
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="doctor-page">
+
+<!-- ===== NAWIGACJA ===== -->
+<div class="doctor-nav">
+  <a href="{{ url_for('doctor.appointments') }}"
+     class="{% if active_page == 'appointments' %}active{% endif %}">
+     Terminarz
+  </a>
+
+  <a href="{{ url_for('doctor.calendar') }}"
+     class="{% if active_page == 'calendar' %}active{% endif %}">
+     Grafik
+  </a>
+
+  <a href="{{ url_for('doctor.generate_view') }}"
+     class="{% if active_page == 'generate' %}active{% endif %}">
+     Generowanie
+  </a>
+
+  <a href="{{ url_for('doctor.statistics') }}"
+     class="{% if active_page == 'statistics' %}active{% endif %}">
+     Statystyki
+  </a>
+
+  <a href="{{ url_for('doctor_visit_types.list_view') }}"
+     class="{% if active_page == 'visit_types' %}active{% endif %}">
+     Typy wizyt
+  </a>
+
+  <a href="{{ url_for('doctor.vacations_view') }}"
+     class="{% if active_page == 'vacations' %}active{% endif %}">
+     Urlopy
+  </a>
+
+  <a href="{{ url_for('doctor.blacklist') }}"
+     class="{% if active_page == 'blacklist' %}active{% endif %}">
+     Czarna lista
+  </a>
+
+  <a href="{{ url_for('doctor.sms_list') }}"
+    class="{% if active_page == 'sms' %}active{% endif %}">
+    SMS
+  </a>
+
+
+  <a href="{{ url_for('doctor.settings_view') }}"
+     class="{% if active_page == 'settings' %}active{% endif %}">
+     Konfiguracja
+  </a>
+
+  <a href="{{ url_for('auth.logout') }}" class="logout">Wyloguj</a>
+</div>
+
+<hr>
+
+<main class="container doctor-container">
+
+  <!-- ===== FLASH MESSAGES ===== -->
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div id="flash-container">
+        {% for category, message in messages %}
+          <div class="alert alert-success alert-dismissible fade in flash-msg"
+               role="alert"
+               style="margin-top:10px;">
+            <button type="button"
+                    class="close"
+                    data-dismiss="alert"
+                    aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+            {{ message }}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ===== AUTO-ZAMYKANIE FLASH PO 5s ===== -->
+<script>
+  $(function () {
+    setTimeout(function () {
+      $('.flash-msg').fadeOut(400, function () {
+        $(this).remove();
+      });
+    }, 5000);
+  });
+</script>
+
+{% block extra_scripts %}{% endblock %}
+
+</body>
+</html>

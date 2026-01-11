@@ -1,0 +1,37 @@
+{% extends "doctor/layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <h3>Dodaj pacjenta do czarnej listy</h3>
+
+  <p class="text-muted">
+    Pacjent: <strong>{{ appointment.patient_first_name }} {{ appointment.patient_last_name }}</strong><br>
+    Telefon: <strong>{{ appointment.patient_phone }}</strong><br>
+    {% if appointment.patient_email %}
+      Email: <strong>{{ appointment.patient_email }}</strong>
+    {% endif %}
+  </p>
+
+  <form method="post">
+    <div class="form-group">
+      <label>Powód blokady</label>
+      <textarea
+        name="description"
+        class="form-control"
+        rows="5"
+        required
+      ></textarea>
+    </div>
+
+    <button type="submit" class="btn btn-danger">
+      Dodaj do czarnej listy
+    </button>
+
+    <a href="{{ url_for('doctor.appointments') }}" class="btn btn-default">
+      Anuluj
+    </a>
+  </form>
+
+</div>
+{% endblock %}
