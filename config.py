@@ -1,14 +1,18 @@
 import os
-from dotenv import load_dotenv
-
-load_dotenv()
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
 
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "sqlite:///dev.db"
+    SQLALCHEMY_DATABASE_URI = (
+        os.getenv("DATABASE_URL")
+        or (
+            f"mysql+pymysql://{os.environ.get('MYSQLUSER')}:"
+            f"{os.environ.get('MYSQLPASSWORD')}@"
+            f"{os.environ.get('MYSQLHOST')}:"
+            f"{os.environ.get('MYSQLPORT')}/"
+            f"{os.environ.get('MYSQLDATABASE')}"
+        )
+        or "sqlite:///dev.db"
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
