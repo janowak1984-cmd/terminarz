@@ -5,7 +5,8 @@ from config import Config
 from extensions import db, login_manager
 from models import Doctor
 from settings_defaults import init_default_settings
-
+from dotenv import load_dotenv
+load_dotenv()
 # ───────────────────────────────────────
 # SCHEDULER
 # ───────────────────────────────────────
@@ -14,6 +15,7 @@ from jobs.send_reminders import run as send_reminders_run
 
 
 def create_app():
+    
     app = Flask(__name__, static_folder="static")
     app.config.from_object(Config)
 

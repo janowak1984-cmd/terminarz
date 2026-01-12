@@ -3,22 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
 
-    DB_USER = os.environ.get("MYSQLUSER")
-    DB_PASSWORD = os.environ.get("MYSQLPASSWORD")
-    DB_HOST = os.environ.get("MYSQLHOST")
-    DB_PORT = os.environ.get("MYSQLPORT")
-    DB_NAME = os.environ.get("MYSQLDATABASE")
-
-    SQLALCHEMY_DATABASE_URI = (
-        f"mysql+mysqldb://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///dev.db"
     )
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI")
+    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
