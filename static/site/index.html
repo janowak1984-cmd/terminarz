@@ -101,7 +101,11 @@
 						<li><a href="#" data-nav-section="services"><span>Price list</span></a></li>
 						<li><a href="#" data-nav-section="team"><span>Important Information (FAQ)</span></a></li>
 						<li><a href="#" data-nav-section="contact"><span>Contact</span></a></li>
-						<li><a href="/rejestracja"><span>Appointment</span></a></li>
+						<li>
+							<a href="/rejestracja" class="external">
+								<span>Appointment</span>
+							</a>
+						</li>
 						<li><a href="#" data-nav-section="practice-areas"><span>Court Opinions</span></a></li>
 						<li><a data-nav-section="language" onclick="toggleLanguage()"><span>PL</span></a></li>
 					</ul>
@@ -254,13 +258,20 @@
 	<div class="getting-started getting-started-1">
 		<div class="container">
 			<div class="row">
-				<div class="col-md-6 to-animate">
-					<h3>Serdecznie zapraszam do mojego gabinetu</h3>
-					<p>Tu w przyjemnej atmosferze będzie czas na spokojną rozmowę oraz relax bla bla bla.</p>
+				<div class="col-md-6 to-animate lang lang-pl">
+					<h3>Serdecznie zapraszam do mojego gabinetu.</h3>
 				</div>
-				<div class="col-md-6 to-animate-2">
+				<div class="col-md-6 to-animate lang lang-en">
+					<h3>I warmly invite you to my medical practice.</h3>
+				</div>
+				<div class="col-md-6 to-animate-2 lang lang-pl">
 					<div class="call-to-action text-right">
 						<a href="/rejestracja" class="sign-up">Umów wizytę</a>
+					</div>
+				</div>
+				<div class="col-md-6 to-animate-2 lang lang-en">
+					<div class="call-to-action text-right">
+						<a href="/rejestracja" class="sign-up">Appointment</a>
 					</div>
 				</div>
 			</div>
@@ -704,7 +715,8 @@
 		<div class="container">
 			<div class="row">
 				<div class="col-md-4 to-animate">
-					<h4 class="section-title">Indywidualna Praktyka Lekarska<br>Kinga Bobińska</h4>
+					<h4 class="section-title lang lang-pl">Indywidualna Praktyka Lekarska<br>Kinga Bobińska</h4>
+					<h4 class="section-title lang lang-en">Individual Medical Practice<br>Kinga Bobińska</h4>
 					<ul class="contact-info">
 						<li><i class="icon-map-marker"></i>Sienkiewicza 59/31<br>(brama obok sklepu muzycznego)<br>90-009 Łódź</li>
 						<li><i class="icon-phone"></i>+48 698 554 077</li>
@@ -716,7 +728,8 @@
 				
 				<div class="col-md-4 to-animate"><div id="map"></div></div>	
 				<div class="col-md-4 to-animate">
-					<h4 class="section-title">Zapraszam do kontaktu</h4>
+					<h4 class="section-title lang lang-pl">Zapraszam do kontaktu</h4>
+					<h4 class="section-title lang lang-en">You are welcome to contact me.</h4>
 					<form class="contact-form">
 						<div class="form-group">
 							<label for="name" class="sr-only">Name</label>
@@ -730,7 +743,10 @@
 							<label for="message" class="sr-only">Message</label>
 							<textarea class="form-control" id="message" rows="7" placeholder="Message"></textarea>
 						</div>
-						<div class="form-group">
+						<div class="form-group lang lang-pl">
+							<input type="submit" id="btn-submit" class="btn btn-send-message btn-md" value="Wyślij wiadomość">
+						</div>
+						<div class="form-group lang lang-en">
 							<input type="submit" id="btn-submit" class="btn btn-send-message btn-md" value="Send Message">
 						</div>
 					</form>
