@@ -156,7 +156,7 @@ document.querySelectorAll('#color-picker .c').forEach(el => {
       .forEach(x => x.classList.remove('active'));
 
     el.classList.add('active');
-    document.getElementById('vt-color').value = id; // ⬅️ ZAPISUJEMY "1"–"11"
+    document.getElementById('vt-color').value = id;
   };
 });
 
@@ -180,13 +180,14 @@ function saveVisitType() {
 
   fetch(url, {
     method,
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   }).then(() => location.reload());
 }
 
 function openEditModal(id) {
-  fetch(`/doctor/visit-types/api/${id}`)
+  fetch(`/doctor/visit-types/api/${id}`, { credentials: 'same-origin' })
     .then(r => r.json())
     .then(vt => {
       document.getElementById('modal-title').innerText = 'Edytuj typ wizyty';
