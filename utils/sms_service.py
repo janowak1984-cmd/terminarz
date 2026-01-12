@@ -5,6 +5,8 @@ from extensions import db
 from models import SMSMessage, Appointment
 from utils.settings import get_setting
 
+from flask import current_app
+
 
 class SMSService:
     SMSAPI_URL = "https://api.smsapi.pl/sms.do"
@@ -13,11 +15,21 @@ class SMSService:
         # 🔌 GLOBALNY WŁĄCZNIK SMS
         self.enabled = get_setting("sms_enabled", "0") == "1"
 
-        # dane konfiguracyjne (ZAWSZE inicjalizowane)
-        self.api_token = get_setting("smsapi_token")
-        self.sender = get_setting("smsapi_sender", "SMSAPI")
+        self.api_token = (
+            current_app.config.get("SMSAPI_TOKEN")
+            or get_setting("smsapi_token")
+        )
 
-        self.base_url = get_setting("base_url", "").rstrip("/")
+        self.sender = (
+            current_app.config.get("SMSAPI_SENDER")
+            or get_setting("smsapi_sender", "SMSAPI")
+        )
+
+        self.base_url = (
+            current_app.config.get("BASE_URL")
+            or get_setting("base_url", "")
+        ).rstrip("/")
+
 
     # ───────────────────────────────────────
     # GUARD

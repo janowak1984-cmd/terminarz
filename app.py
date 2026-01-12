@@ -1,12 +1,13 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 from flask import Flask, redirect, url_for, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from extensions import db, login_manager
 from models import Doctor
 from settings_defaults import init_default_settings
-from dotenv import load_dotenv
-load_dotenv()
+
 # ───────────────────────────────────────
 # SCHEDULER
 # ───────────────────────────────────────
