@@ -1,5 +1,6 @@
 import os
 from flask import Flask, redirect, url_for, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from extensions import db, login_manager
 from models import Doctor
@@ -15,6 +16,12 @@ from jobs.send_reminders import run as send_reminders_run
 def create_app():
     app = Flask(__name__, static_folder="static")
     app.config.from_object(Config)
+
+    app.wsgi_app = ProxyFix(
+        app.wsgi_app,
+        x_proto=1,
+        x_host=1
+    )
 
     # =============================
     # INIT EXTENSIONS
@@ -83,8 +90,7 @@ def create_app():
     # DB INIT + DEFAULT SETTINGS
     # =============================
     with app.app_context():
-      init_default_settings()
-
+        init_default_settings()
 
     # =============================
     # BACKGROUND SCHEDULER (SMS)
