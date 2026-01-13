@@ -1,51 +1,12 @@
 from datetime import datetime
+from flask import current_app
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
-from flask import current_app
 
 from extensions import db
 from utils.settings import get_setting, set_setting
 from models import VisitType
-
-
-# ======================================================
-# 🎨 MAPOWANIE KOLORÓW VISIT TYPE → GOOGLE COLOR ID
-# ======================================================
-
-GOOGLE_COLOR_MAP = {
-    "#4285F4": "1",
-    "#1A73E8": "9",
-    "#3367D6": "9",
-    "#0D47A1": "9",
-    "#5C9DED": "1",
-    "#90CAF9": "1",
-
-    "#5C6BC0": "3",
-    "#7E57C2": "3",
-    "#8E24AA": "3",
-    "#A142F4": "3",
-    "#6A1B9A": "3",
-    "#B39DDB": "3",
-
-    "#FBBC05": "5",
-    "#FDD663": "5",
-    "#FFC107": "5",
-    "#FFB300": "5",
-
-    "#EA4335": "4",
-    "#D93025": "11",
-    "#C5221F": "11",
-
-    "#E91E63": "4",
-    "#EC407A": "4",
-    "#F06292": "4",
-    "#AD1457": "11",
-
-    "#9AA0A6": "8",
-    "#607D8B": "8",
-    "#455A64": "8",
-}
 
 
 # ======================================================
@@ -61,6 +22,12 @@ class GoogleCalendarNotConnected(Exception):
 # ======================================================
 
 class GoogleCalendarService:
+    """
+    JEDYNE miejsce w systemie, które:
+    - zna Google API
+    - zarządza tokenami
+    - tworzy / aktualizuje / usuwa eventy
+    """
 
     SCOPES = ["https://www.googleapis.com/auth/calendar"]
 
@@ -108,26 +75,15 @@ class GoogleCalendarService:
         set_setting("google_calendar_id", "")
 
     # --------------------------------------------------
-    # 📅 SYNC (CREATE / UPDATE) — BEZ DUPLIKATÓW
+    # 🧱 EVENT BUILDER (JEDNO ŹRÓDŁO PRAWDY)
     # --------------------------------------------------
 
     @staticmethod
-    def sync_appointment(appt, force_update=False):
-        try:
-            service = GoogleCalendarService.get_service()
-        except GoogleCalendarNotConnected:
-            return
-
-        calendar_id = get_setting("google_calendar_id") or "primary"
-
-        # ⛔ BLOKADA DUPLIKATÓW
-        if appt.google_sync_status == "synced" and not force_update:
-            return
-
+    def _build_event(appt):
         visit_type = VisitType.query.filter_by(code=appt.visit_type).first()
         color_id = visit_type.color if visit_type and visit_type.color else "1"
 
-        event_body = {
+        return {
             "summary": f"Wizyta: {appt.patient_first_name} {appt.patient_last_name}",
             "description": f"Telefon: {appt.patient_phone}",
             "start": {
@@ -141,6 +97,29 @@ class GoogleCalendarService:
             "colorId": color_id,
         }
 
+    # --------------------------------------------------
+    # 🔁 GŁÓWNA METODA (KOMPATYBILNA Z OBECNYM KODEM)
+    # --------------------------------------------------
+
+    @staticmethod
+    def sync_appointment(appt, force_update=False):
+        """
+        Zachowana kompatybilność z istniejącym doctor.py
+        """
+
+        try:
+            service = GoogleCalendarService.get_service()
+        except GoogleCalendarNotConnected:
+            return
+
+        calendar_id = get_setting("google_calendar_id") or "primary"
+
+        # ⛔ brak duplikatów (chyba że wymuszony update)
+        if appt.google_sync_status == "synced" and not force_update:
+            return
+
+        event_body = GoogleCalendarService._build_event(appt)
+
         try:
             # UPDATE
             if appt.google_event_id:
@@ -150,7 +129,7 @@ class GoogleCalendarService:
                     body=event_body
                 ).execute()
 
-            # CREATE — TYLKO RAZ
+            # CREATE
             else:
                 created = service.events().insert(
                     calendarId=calendar_id,
@@ -170,18 +149,54 @@ class GoogleCalendarService:
             )
 
     # --------------------------------------------------
-    # ✅ JAWNY UPDATE (OPCJA 1)
+    # 🟢 NOWE, JASNE METODY (DO UŻYCIA TERAZ / PÓŹNIEJ)
     # --------------------------------------------------
 
     @staticmethod
-    def sync_appointment_update(appt):
-        """
-        Używać PRZY KAŻDEJ ZMIANIE:
-        - przesunięcie wizyty
-        - zmiana godziny
-        - edycja z panelu lekarza
-        """
+    def on_created(appt):
+        GoogleCalendarService.sync_appointment(appt)
+
+    @staticmethod
+    def on_updated(appt):
         GoogleCalendarService.sync_appointment(appt, force_update=True)
+
+    @staticmethod
+    def on_deleted(appt):
+        GoogleCalendarService.delete_appointment(appt)
+
+    # --------------------------------------------------
+    # ➕ MANUALNE: DODAJ PONOWNIE DO GOOGLE
+    # --------------------------------------------------
+
+    @staticmethod
+    def add_again(appt):
+        """
+        Celowo NIE sprawdza duplikatów.
+        Tworzy nowy event nawet jeśli powstanie duplikat.
+        """
+        try:
+            service = GoogleCalendarService.get_service()
+        except GoogleCalendarNotConnected:
+            return
+
+        calendar_id = get_setting("google_calendar_id") or "primary"
+        event_body = GoogleCalendarService._build_event(appt)
+
+        try:
+            created = service.events().insert(
+                calendarId=calendar_id,
+                body=event_body
+            ).execute()
+
+            appt.google_event_id = created["id"]
+            appt.google_sync_status = "synced"
+            appt.google_last_sync_at = datetime.utcnow()
+            db.session.commit()
+
+        except Exception as e:
+            current_app.logger.error(
+                f"[GOOGLE] manual add failed appt={appt.id}: {e}"
+            )
 
     # --------------------------------------------------
     # 🗑 DELETE
@@ -213,3 +228,60 @@ class GoogleCalendarService:
         appt.google_sync_status = "deleted"
         appt.google_last_sync_at = datetime.utcnow()
         db.session.commit()
+
+    # --------------------------------------------------
+    # 🧱 EVENT BUILDER (WSPÓLNY)
+    # --------------------------------------------------
+    @staticmethod
+    def build_event(appt):
+        visit_type = VisitType.query.filter_by(code=appt.visit_type).first()
+
+        color_id = (
+            visit_type.color
+            if visit_type and visit_type.color
+            else "1"
+        )
+
+        return {
+            "summary": f"Wizyta: {appt.patient_first_name} {appt.patient_last_name}",
+            "description": f"Telefon: {appt.patient_phone}",
+            "start": {
+                "dateTime": appt.start.isoformat(),
+                "timeZone": "Europe/Warsaw",
+            },
+            "end": {
+                "dateTime": appt.end.isoformat(),
+                "timeZone": "Europe/Warsaw",
+            },
+            "colorId": color_id,
+        }
+
+
+    @staticmethod
+    def force_create_event(appt):
+        """
+        🔥 JAWNE DODANIE EVENTU
+        - ZAWSZE tworzy nowy event
+        - NIE sprawdza google_event_id
+        - MOŻE stworzyć duplikat
+        """
+        try:
+            service = GoogleCalendarService.get_service()
+        except GoogleCalendarNotConnected:
+            return
+
+        calendar_id = get_setting("google_calendar_id") or "primary"
+
+        event_body = GoogleCalendarService.build_event(appt)
+
+        created = service.events().insert(
+            calendarId=calendar_id,
+            body=event_body
+        ).execute()
+
+        # ⚠️ NADPISUJEMY ID — świadomie
+        appt.google_event_id = created["id"]
+        appt.google_sync_status = "synced"
+        appt.google_last_sync_at = datetime.utcnow()
+        db.session.commit()
+

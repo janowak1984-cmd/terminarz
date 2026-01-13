@@ -3,6 +3,8 @@ from flask_login import login_required
 
 from extensions import db
 from models import VisitType
+from sqlalchemy import func
+from flask import jsonify
 
 
 # ✅ Oficjalne kolory Google Calendar (event.colorId → HEX)
@@ -76,9 +78,23 @@ def create():
     if not data:
         return jsonify({"error": "Brak danych"}), 400
 
+    # 🔒 WALIDACJA WYMAGANYCH PÓL
+    for field in ("name", "code", "duration_minutes", "display_order"):
+        if not data.get(field):
+            return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
+
+    # 🔒 WALIDACJA UNIKALNOŚCI KODU
+    existing = VisitType.query.filter(
+        func.lower(VisitType.code) == data["code"].lower()
+    ).first()
+
+    if existing:
+        return jsonify({
+            "error": "Typ wizyty o takim kodzie już istnieje."
+        }), 400
+
     new_order = int(data.get("display_order", 100))
 
-    # 🔁 Zrób miejsce na nową pozycję
     VisitType.query.filter(
         VisitType.display_order >= new_order
     ).update(
@@ -90,9 +106,9 @@ def create():
         name=data["name"],
         code=data["code"],
         description=data.get("description"),
-        price=data.get("price"),
+        price=price,
         duration_minutes=int(data["duration_minutes"]),
-        color=data.get("color", GOOGLE_COLORS["1"]),  # ✅ default Google
+        color=data.get("color", GOOGLE_COLORS["1"]),
         active=data.get("active", True),
         display_order=new_order
     )
@@ -101,6 +117,7 @@ def create():
     db.session.commit()
 
     return jsonify({"status": "ok"})
+
 
 # ===============================
 # UPDATE
@@ -112,6 +129,22 @@ def update(vt_id):
     data = request.get_json()
     if not data:
         return jsonify({"error": "Brak danych"}), 400
+
+    # 🔒 WALIDACJA WYMAGANYCH PÓL
+    for field in ("name", "code", "duration_minutes", "display_order", "price"):
+        if not data.get(field):
+            return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
+
+    # 🔒 WALIDACJA UNIKALNOŚCI KODU (Z WYKLUCZENIEM BIEŻĄCEGO)
+    existing = VisitType.query.filter(
+        func.lower(VisitType.code) == data["code"].lower(),
+        VisitType.id != vt.id
+    ).first()
+
+    if existing:
+        return jsonify({
+            "error": "Typ wizyty o takim kodzie już istnieje."
+        }), 400
 
     old_order = vt.display_order
     new_order = int(data.get("display_order", old_order))
@@ -143,11 +176,12 @@ def update(vt_id):
     vt.description = data.get("description")
     vt.price = data.get("price")
     vt.duration_minutes = int(data["duration_minutes"])
-    vt.color = data.get("color", vt.color)   # ✅ nadal HEX
+    vt.color = data.get("color", vt.color)
     vt.active = data.get("active", True)
 
     db.session.commit()
     return jsonify({"status": "ok"})
+
 
 # ===============================
 # TOGGLE ACTIVE

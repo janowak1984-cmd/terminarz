@@ -269,7 +269,7 @@ $(function () {
     data.forEach(vt => {
       visitTypes[vt.code] = vt;
       $("#visit_type").append(
-        `<option value="${vt.code}">${vt.name} (${vt.duration_minutes} min)</option>`
+        `<option value="${vt.code}">${vt.name} (${vt.duration_minutes} min) – ${Number(vt.price).toFixed(2)} zł</option>`
       );
     });
   });

@@ -62,6 +62,11 @@
       Nowy typ wizyty
     </h3>
 
+    <!-- BŁĘDY -->
+    <div id="vt-error"
+         style="display:none; margin:12px 20px; padding:8px 12px; background:#f8d7da; color:#842029; border-radius:4px;">
+    </div>
+
     <div style="padding:20px; overflow-y:auto; flex:1;">
       <input type="hidden" id="vt-id">
 
@@ -97,7 +102,6 @@
          {% for id, hex in google_colors.items() %}
           <span class="c" data-color="{{ id }}"></span>
         {% endfor %}
-
         </div>
       </p>
 
@@ -140,8 +144,20 @@
 const DEFAULT_COLOR = "1";
 document.getElementById('vt-color').value = DEFAULT_COLOR;
 
+function showError(msg) {
+  const el = document.getElementById('vt-error');
+  el.innerText = msg;
+  el.style.display = 'block';
+}
+
+function clearError() {
+  const el = document.getElementById('vt-error');
+  el.innerText = '';
+  el.style.display = 'none';
+}
 
 function closeModal() {
+  clearError();
   document.getElementById('vt-modal').style.display = 'none';
 }
 
@@ -150,29 +166,39 @@ const GOOGLE_COLORS = {{ google_colors | tojson }};
 document.querySelectorAll('#color-picker .c').forEach(el => {
   const id = el.dataset.color;
   el.style.background = GOOGLE_COLORS[id];
-
   el.onclick = () => {
-    document.querySelectorAll('#color-picker .c')
-      .forEach(x => x.classList.remove('active'));
-
+    document.querySelectorAll('#color-picker .c').forEach(x => x.classList.remove('active'));
     el.classList.add('active');
     document.getElementById('vt-color').value = id;
   };
 });
 
-
 function saveVisitType() {
+  clearError();
+
   const id = document.getElementById('vt-id').value || null;
+  const name = document.getElementById('vt-name').value.trim();
+  const code = document.getElementById('vt-code').value.trim();
+  const duration = document.getElementById('vt-duration').value;
+  const order = document.getElementById('vt-order').value;
+  const priceRaw = document.getElementById('vt-price').value;
+
+  if (!name) return showError('Pole nazwa jest wymagane.');
+  if (!code) return showError('Pole kod jest wymagane.');
+  if (!duration) return showError('Pole czas trwania jest wymagane.');
+  if (!order) return showError('Pole kolejność jest wymagane.');
+  if (priceRaw === '') return showError('Pole cena jest wymagane.');
+  if (priceRaw !== '' && Number(priceRaw) < 0) return showError('Cena nie może być ujemna.');
 
   const payload = {
-    name: document.getElementById('vt-name').value.trim(),
-    code: document.getElementById('vt-code').value.trim(),
+    name,
+    code,
     description: document.getElementById('vt-description').value.trim(),
-    price: document.getElementById('vt-price').value,
-    duration_minutes: document.getElementById('vt-duration').value,
-    color: document.getElementById('vt-color').value,
+    price: priceRaw === '' ? null : Number(priceRaw),
+    duration_minutes: Number(duration),
+    color: document.getElementById('vt-color').value || null,
     active: document.getElementById('vt-active').checked,
-    display_order: parseInt(document.getElementById('vt-order').value || 100)
+    display_order: Number(order)
   };
 
   const url = id ? `/doctor/visit-types/${id}` : `/doctor/visit-types`;
@@ -183,10 +209,19 @@ function saveVisitType() {
     credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
-  }).then(() => location.reload());
+  })
+  .then(async r => {
+    if (!r.ok) {
+      const data = await r.json();
+      throw new Error(data.error || 'Błąd zapisu');
+    }
+    location.reload();
+  })
+  .catch(err => showError(err.message));
 }
 
 function openEditModal(id) {
+  clearError();
   fetch(`/doctor/visit-types/api/${id}`, { credentials: 'same-origin' })
     .then(r => r.json())
     .then(vt => {
@@ -200,6 +235,7 @@ function openEditModal(id) {
       document.getElementById('vt-color').value = vt.color;
       document.getElementById('vt-active').checked = vt.active;
       document.getElementById('vt-order').value = String(vt.display_order);
+      
 
       document.querySelectorAll('#color-picker .c')
         .forEach(c => c.classList.toggle('active', c.dataset.color === vt.color));
@@ -209,6 +245,7 @@ function openEditModal(id) {
 }
 
 function openCreateModal() {
+  clearError();
   document.getElementById('modal-title').innerText = 'Nowy typ wizyty';
   document.getElementById('vt-id').value = '';
   document.getElementById('vt-name').value = '';

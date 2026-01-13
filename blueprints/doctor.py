@@ -89,7 +89,18 @@ from datetime import datetime
 @login_required
 def appointments():
     page = request.args.get("page", 1, type=int)
-    q = request.args.get("q", "").strip()
+
+    # ─────────────────────────────
+    # PARAMETRY FILTRÓW
+    # ─────────────────────────────
+    first_name = request.args.get("first_name", "").strip()
+    last_name = request.args.get("last_name", "").strip()
+    phone = request.args.get("phone", "").strip()
+    email = request.args.get("email", "").strip()
+    visit_type = request.args.get("visit_type")
+    status = request.args.get("status")
+    date_from = request.args.get("date_from")
+    date_to = request.args.get("date_to")
     show_past = request.args.get("show_past") == "1"
 
     sort = request.args.get("sort", "start")
@@ -97,37 +108,65 @@ def appointments():
 
     now = datetime.now()
 
-    # =================================================
-    # 📌 BAZOWE ZAPYTANIE
-    # =================================================
+    # ─────────────────────────────
+    # 📌 BAZOWE ZAPYTANIE (ZAWSZE PIERWSZE)
+    # ─────────────────────────────
     query = Appointment.query.filter(
         Appointment.doctor_id == current_user.id
     )
 
-    # =================================================
-    # 🔍 WYSZUKIWANIE
-    # =================================================
-    if q:
-        like = f"%{q}%"
-        query = query.filter(or_(
-            Appointment.patient_first_name.ilike(like),
-            Appointment.patient_last_name.ilike(like),
-            Appointment.patient_phone.ilike(like),
-            Appointment.patient_email.ilike(like),
-            db.func.date_format(Appointment.start, "%Y-%m-%d").ilike(like),
-            db.func.date_format(Appointment.start, "%d-%m-%Y").ilike(like),
-            db.func.date_format(Appointment.start, "%d.%m.%Y").ilike(like),
-        ))
+    # ─────────────────────────────
+    # 🔍 FILTRY (JAK SMS)
+    # ─────────────────────────────
+    if first_name:
+        query = query.filter(
+            Appointment.patient_first_name.ilike(f"%{first_name}%")
+        )
 
-    # =================================================
-    # ⏱️ FILTR: tylko przyszłe (domyślnie)
-    # =================================================
+    if last_name:
+        query = query.filter(
+            Appointment.patient_last_name.ilike(f"%{last_name}%")
+        )
+
+    if phone:
+        query = query.filter(
+            Appointment.patient_phone.ilike(f"%{phone}%")
+        )
+
+    if email:
+        query = query.filter(
+            Appointment.patient_email.ilike(f"%{email}%")
+        )
+
+    if visit_type:
+        query = query.filter(Appointment.visit_type == visit_type)
+
+    if status:
+        query = query.filter(Appointment.status == status)
+
+    if date_from:
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d")
+            query = query.filter(Appointment.start >= df)
+        except ValueError:
+            pass
+
+    if date_to:
+        try:
+            dt = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(Appointment.start < dt)
+        except ValueError:
+            pass
+
+    # ─────────────────────────────
+    # ⏱️ TYLKO PRZYSZŁE (DOMYŚLNIE)
+    # ─────────────────────────────
     if not show_past:
         query = query.filter(Appointment.end >= now)
 
-    # =================================================
+    # ─────────────────────────────
     # 🧠 SORTOWANIE (WHITELIST)
-    # =================================================
+    # ─────────────────────────────
     SORTABLE_COLUMNS = {
         "start": Appointment.start,
         "end": Appointment.end,
@@ -148,8 +187,8 @@ def appointments():
 
     column = SORTABLE_COLUMNS[sort]
 
-    # 👑 DOMYŚLNE ZACHOWANIE (jak było)
     if sort == "start" and dir_ == "asc":
+        # najpierw przyszłe, potem przeszłe
         is_past = case(
             (Appointment.start < now, 1),
             else_=0
@@ -163,9 +202,9 @@ def appointments():
             column.desc() if dir_ == "desc" else column.asc()
         )
 
-    # =================================================
+    # ─────────────────────────────
     # 📄 PAGINACJA
-    # =================================================
+    # ─────────────────────────────
     pagination = query.paginate(
         page=page,
         per_page=PER_PAGE,
@@ -176,12 +215,17 @@ def appointments():
         "doctor/appointments.html",
         appointments=pagination.items,
         pagination=pagination,
-        q=q,
         show_past=show_past,
         sort=sort,
         dir=dir_,
+        visit_types=VisitType.query
+            .filter_by(active=True)
+            .order_by(VisitType.display_order.asc(), VisitType.id.asc())
+            .all(),
         active_page="appointments"
     )
+
+
 
 
 
@@ -682,6 +726,20 @@ def move_appointment():
 
     return jsonify({"status": "ok"})
 
+# =================================================
+# Wymuszenie dodania do kalendarza google
+# =================================================
+@doctor_bp.route("/appointments/<int:appointment_id>/google-force", methods=["POST"])
+@login_required
+def google_force_add(appointment_id):
+    appt = Appointment.query.filter_by(
+        id=appointment_id,
+        doctor_id=current_user.id
+    ).first_or_404()
+
+    GoogleCalendarService.force_create_event(appt)
+
+    return jsonify({"status": "ok"})
 
 
 
@@ -1230,7 +1288,16 @@ def statistics():
 @login_required
 
 def settings_view():
-    settings = Setting.query.all()
+    VISIBLE_SETTINGS = {
+    "calendar_visible_days",
+    "sms_enabled",
+    "sms_reminders_enabled",
+}
+
+    settings = Setting.query.filter(
+        Setting.key.in_(VISIBLE_SETTINGS)
+    ).all()
+
 
     for s in settings:
         if s.key == "calendar_visible_days":
@@ -1239,12 +1306,16 @@ def settings_view():
             except Exception:
                 s.value_list = []
 
+    
     return render_template(
-        "doctor/settings.html",
-        settings=settings,
-        doctor=current_user,   # 👈 TO DODAJ
-        active_page="settings"
+    "doctor/settings.html",
+    settings=settings,
+    doctor=current_user,
+    google_connected=get_setting("google_connected") == "1",
+    sms_enabled=get_setting("sms_enabled") == "1",
+    active_page="settings"
     )
+
 
 
 @doctor_bp.route("/settings/<key>", methods=["POST"])

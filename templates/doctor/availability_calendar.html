@@ -9,32 +9,6 @@
 
 {% block content %}
 <h2>🗓️ Grafik – kalendarz</h2>
-
-<div style="margin-bottom:15px;">
-  <button id="btn-sync-google"
-          onclick="syncGoogle()"
-          class="btn btn-default">
-    🔄 Synchronizuj wizyty z Google
-  </button>
-</div>
-
-
-<script>
-function syncGoogle() {
-  if (!confirm("Synchronizować wizyty z Google Calendar?")) return;
-
-  fetch("/doctor/google/sync-batch", { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      alert(
-        `Zsynchronizowano: ${data.synced}\nPominięto: ${data.skipped}`
-      );
-    })
-    .catch(() => alert("Błąd synchronizacji"));
-}
-</script>
-
-
 <!-- ================================================= -->
 <!-- MODAL: AKCJE SLOTU (NIETKNIĘTY) -->
 <!-- ================================================= -->
@@ -66,18 +40,20 @@ function syncGoogle() {
       <div class="modal-header">
         <button type="button" class="close" data-dismiss="modal">&times;</button>
         <h4 class="modal-title">Wizyta</h4>
+        <input type="hidden" id="appointment-id-holder">
       </div>
       <div class="modal-footer">
         <button id="btn-action-edit" class="btn btn-primary btn-block">✏️ Edytuj wizytę</button>
         <button id="btn-action-move" class="btn btn-warning btn-block">📅 Przenieś wizytę</button>
         <button id="btn-action-cancel" class="btn btn-danger btn-block">🗑 Anuluj wizytę</button>
         <button id="btn-action-blacklist" class="btn btn-warning btn-block">➕ Dodaj do czarnej listy</button>
+        <button id="btn-action-google-add" class="btn btn-info btn-block">  ➕ Dodaj do Google Calendar</button>
+
         <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
       </div>
     </div>
   </div>
 </div>
-
 <!-- ================================================= -->
 <!-- MODAL: EDYCJA WIZYTY -->
 <!-- ================================================= -->
@@ -284,10 +260,15 @@ calendar = new FullCalendar.Calendar(calEl, {
   eventClick(info) {
 
     if (info.event.id.startsWith('appt-')) {
-      currentAppointmentId = info.event.extendedProps.appointment_id;
+      const id = info.event.extendedProps.appointment_id;
+
+      currentAppointmentId = id; // zostaje – inne akcje go używają
+      document.getElementById('appointment-id-holder').value = id;
+
       $('#appointmentActionModal').modal('show');
       return;
     }
+
 
     if (info.event.id.startsWith('slot-')) {
       currentSlotEvent = info.event;
@@ -583,107 +564,38 @@ document.getElementById('btn-confirm-blacklist').onclick = function () {
   });
 };
 
-let googleActionLock = false;
-const COOLDOWN_MS = 60_000; // 1 minuta
+document.getElementById('btn-action-google-add').onclick = function () {
 
-function lockButtons(text) {
-  googleActionLock = true;
+  const apptId =
+    document.getElementById('appointment-id-holder').value;
 
-  ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-
-    btn.disabled = true;
-    btn.dataset.originalText = btn.innerHTML;
-    btn.innerHTML = `⏳ ${text}`;
-  });
-}
-
-function unlockButtonsAfterCooldown() {
-  setTimeout(() => {
-    googleActionLock = false;
-
-    ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-
-      btn.disabled = false;
-      btn.innerHTML = btn.dataset.originalText;
-    });
-  }, COOLDOWN_MS);
-}
-
-/* ================================
-   🔄 SYNC
-   ================================ */
-function syncGoogle() {
-  if (googleActionLock) {
-    alert("⏳ Synchronizacja już trwa lub niedawno się zakończyła");
-    return;
-  }
-
-  if (!confirm("Synchronizować wizyty z Google Calendar?")) return;
-
-  lockButtons("Synchronizacja…");
-
-  fetch("/doctor/google/sync-batch", { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      alert(
-        `✅ Synchronizacja zakończona\n\n` +
-        `Zsynchronizowano: ${data.synced}\n` +
-        `Pominięto: ${data.skipped}\n\n` +
-        `⏳ Przyciski będą aktywne za 1 minutę`
-      );
-    })
-    .catch(() => {
-      alert("❌ Błąd synchronizacji");
-    })
-    .finally(() => {
-      unlockButtonsAfterCooldown();
-    });
-}
-
-/* ================================
-   ♻️ REBUILD
-   ================================ */
-function rebuildGoogle() {
-  if (googleActionLock) {
-    alert("⏳ Operacja już trwa lub niedawno się zakończyła");
+  if (!apptId) {
+    alert("❌ Brak wybranej wizyty");
     return;
   }
 
   if (!confirm(
-    "⚠️ UWAGA!\n\n" +
-    "Ta operacja:\n" +
-    "• usunie wszystkie wizyty aplikacji z Google Calendar\n" +
-    "• utworzy je OD NOWA z bazy danych\n\n" +
-    "Czy na pewno chcesz kontynuować?"
+    "⚠️ To doda wizytę do Google Calendar.\n" +
+    "Może powstać duplikat.\n\n" +
+    "Kontynuować?"
   )) return;
 
-  lockButtons("Odbudowa…");
+  fetch(`/doctor/appointments/${apptId}/google-force`, {
+    method: 'POST'
+  })
+  .then(r => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(() => {
+    alert("✔ Wizyta dodana do Google Calendar");
+  })
+  .catch(err => {
+    console.error("GOOGLE FORCE ERROR:", err);
+    alert("❌ Błąd dodawania do Google Calendar");
+  });
+};
 
-  fetch("/doctor/google/rebuild", { method: "POST" })
-    .then(r => {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    })
-    .then(data => {
-      alert(
-        `♻️ Kalendarz Google odbudowany\n\n` +
-        `Usunięto: ${data.deleted}\n` +
-        `Utworzono: ${data.created}\n\n` +
-        `⏳ Przyciski będą aktywne za 1 minutę`
-      );
-    })
-    .catch(err => {
-      console.error("REBUILD ERROR:", err);
-      alert("❌ Błąd odbudowy kalendarza Google");
-    })
-    .finally(() => {
-      unlockButtonsAfterCooldown();
-    });
-}
 </script>
 
 

@@ -1295,4 +1295,27 @@ img {
   }
 }
 
+
+.cookie-banner {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #222;
+  color: #fff;
+  padding: 15px;
+  font-size: 14px;
+  z-index: 9999;
+  text-align: center;
+}
+
+.cookie-banner button {
+  margin-left: 10px;
+  padding: 6px 12px;
+  border: none;
+  background: #fff;
+  color: #000;
+  cursor: pointer;
+}
+
 /*# sourceMappingURL=style.css.map */

@@ -1,53 +1,33 @@
 {% extends "doctor/layout.html" %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container-fluid" style="max-width:1000px;">
 
   <h2>⚙️ Konfiguracja</h2>
   <br>
 
-  <!-- ===== GOOGLE CONNECT ===== -->
-  <div style="margin-bottom:20px;">
-    <a href="{{ url_for('doctor.google_connect') }}"
-       class="btn btn-success">
-       🔗 Połącz Google Calendar
-    </a>
+  <!-- ================================================= -->
+  <!-- 📅 KALENDARZ -->
+  <!-- ================================================= -->
+  <h4>📅 Kalendarz</h4>
 
-    {% if current_user.google_connected %}
-      <span class="label label-success" style="margin-left:10px;">
-        Połączono
-      </span>
-    {% endif %}
-  </div>
-
-  <!-- ===============================
-       OGÓLNE USTAWIENIA
-       =============================== -->
   <table class="table table-bordered table-striped">
     <thead>
       <tr>
-        <th>Klucz</th>
-        <th>Opis</th>
-        <th>Wartość</th>
-        <th></th>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
       </tr>
     </thead>
-
     <tbody>
-    {% for s in settings %}
-      {% if not s.key.startswith("google_")
-            and not s.key.startswith("smsapi_")
-            and s.key not in [
-              "sms_enabled",
-              "sms_reminders_enabled",
-              "sms_default_country_code",
-              "sms_dry_run"
-            ] %}
 
+    {% for s in settings %}
       {% if s.key == "calendar_visible_days" %}
       <tr>
         <form method="post"
               action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
           <td><code>{{ s.key }}</code></td>
           <td>{{ s.description }}</td>
           <td>
@@ -70,90 +50,51 @@
           </td>
         </form>
       </tr>
-      {% else %}
-      <tr>
-        <form method="post"
-              action="{{ url_for('doctor.update_setting', key=s.key) }}">
-          <td><code>{{ s.key }}</code></td>
-          <td>{{ s.description }}</td>
-          <td>
-            <input type="text"
-                   name="value"
-                   class="form-control"
-                   value="{{ s.value }}">
-          </td>
-          <td>
-            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
-          </td>
-        </form>
-      </tr>
-      {% endif %}
       {% endif %}
     {% endfor %}
+
     </tbody>
   </table>
 
   <hr>
 
-  <!-- ===============================
-       KONFIGURACJA SMS (SMSAPI)
-       =============================== -->
-  <h3>📨 SMS (SMSAPI)</h3>
-  <br>
+  <!-- ================================================= -->
+  <!-- 📨 SMS -->
+  <!-- ================================================= -->
+  <h4>📨 SMS</h4>
 
-  <table class="table table-bordered">
+  <table class="table table-bordered table-striped">
     <thead>
       <tr>
-        <th>Klucz</th>
-        <th>Opis</th>
-        <th>Wartość</th>
-        <th></th>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
       </tr>
     </thead>
-
     <tbody>
+
     {% for s in settings %}
-      {% if s.key in [
-            "sms_enabled",
-            "sms_reminders_enabled",
-            "sms_dry_run",
-            "sms_default_country_code"
-          ] or s.key.startswith("smsapi_") %}
+      {% if s.key in ["sms_enabled", "sms_reminders_enabled"] %}
       <tr>
         <form method="post"
               action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
           <td><code>{{ s.key }}</code></td>
           <td>{{ s.description }}</td>
           <td>
-
-            {% if s.key in ["sms_enabled", "sms_reminders_enabled", "sms_dry_run"] %}
-              <input type="hidden" name="value" value="0">
-              <label>
-                <input type="checkbox"
-                       name="value"
-                       value="1"
-                       {% if s.value == "1" %}checked{% endif %}>
-                {% if s.key == "sms_enabled" %}
-                  Wysyłka SMS aktywna
-                {% elif s.key == "sms_reminders_enabled" %}
-                  Automatyczne przypomnienia SMS (48h)
-                {% else %}
-                  Tryb testowy (nie wysyłaj SMS)
-                {% endif %}
-              </label>
-
-            {% elif s.key == "smsapi_token" %}
-              <input type="password"
+            <input type="hidden" name="value" value="0">
+            <label>
+              <input type="checkbox"
                      name="value"
-                     class="form-control"
-                     value="{{ s.value }}">
-            {% else %}
-              <input type="text"
-                     name="value"
-                     class="form-control"
-                     value="{{ s.value }}">
-            {% endif %}
-
+                     value="1"
+                     {% if s.value == "1" %}checked{% endif %}>
+              {% if s.key == "sms_enabled" %}
+                Wysyłka SMS aktywna
+              {% elif s.key == "sms_reminders_enabled" %}
+                Automatyczne przypomnienia SMS (48h)
+              {% endif %}
+            </label>
           </td>
           <td>
             <button class="btn btn-xs btn-primary">💾 Zapisz</button>
@@ -162,173 +103,50 @@
       </tr>
       {% endif %}
     {% endfor %}
+
     </tbody>
   </table>
 
   <hr>
 
-  <!-- ===============================
-       GOOGLE CALENDAR
-       =============================== -->
-  <h3>📅 Google Calendar</h3>
-  <br>
+  <!-- ================================================= -->
+  <!-- 📅 GOOGLE CALENDAR -->
+  <!-- ================================================= -->
+  <h4>📅 Google Calendar</h4>
 
-  <div class="alert alert-warning">
-    <strong>Uwaga:</strong><br>
-    Odbudowa kalendarza Google usuwa wszystkie wizyty aplikacji
-    z Google Calendar i tworzy je ponownie na podstawie bazy danych.
-    <br>
-    Użyj tylko w przypadku problemów z synchronizacją
-    (duplikaty, brakujące wizyty, ręczne zmiany w Google).
-  </div>
-
-  <button id="btn-rebuild-google"
-        onclick="rebuildGoogle()"
-        class="btn btn-danger"
-        style="margin-left:10px;">
-  ♻️ Odbuduj kalendarz Google
-  </button>
-
-  <table class="table table-bordered">
+  <table class="table table-bordered table-striped">
     <thead>
       <tr>
-        <th>Klucz</th>
-        <th>Opis</th>
-        <th>Wartość</th>
-        <th></th>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
       </tr>
     </thead>
-
     <tbody>
-    {% for s in settings %}
-      {% if s.key.startswith("google_") %}
+
       <tr>
-        <form method="post"
-              action="{{ url_for('doctor.update_setting', key=s.key) }}">
-          <td><code>{{ s.key }}</code></td>
-          <td>{{ s.description }}</td>
-          <td>
-            <input type="text"
-                   name="value"
-                   class="form-control"
-                   value="{{ s.value }}"
-                   {% if s.key == "google_connected" %}readonly{% endif %}>
-          </td>
-          <td>
-            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
-          </td>
-        </form>
+        <td><code>google_connected</code></td>
+        <td>Status połączenia z Google Calendar</td>
+        <td>
+          {% if google_connected %}
+            <span class="label label-success">🟢 Połączono</span>
+          {% else %}
+            <span class="label label-danger">🔴 Niepołączono</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if not google_connected %}
+            <a href="{{ url_for('doctor.google_connect') }}"
+               class="btn btn-xs btn-success">
+              🔗 Połącz
+            </a>
+          {% endif %}
+        </td>
       </tr>
-      {% endif %}
-    {% endfor %}
+
     </tbody>
   </table>
 
 </div>
-
-<script>
-let googleActionLock = false;
-const COOLDOWN_MS = 60_000; // 1 minuta
-
-function lockButtons(text) {
-  googleActionLock = true;
-
-  ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
-    const btn = document.getElementById(id);
-    if (!btn) return;
-
-    btn.disabled = true;
-    btn.dataset.originalText = btn.innerHTML;
-    btn.innerHTML = `⏳ ${text}`;
-  });
-}
-
-function unlockButtonsAfterCooldown() {
-  setTimeout(() => {
-    googleActionLock = false;
-
-    ["btn-sync-google", "btn-rebuild-google"].forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-
-      btn.disabled = false;
-      btn.innerHTML = btn.dataset.originalText;
-    });
-  }, COOLDOWN_MS);
-}
-
-/* ================================
-   🔄 SYNC
-   ================================ */
-function syncGoogle() {
-  if (googleActionLock) {
-    alert("⏳ Synchronizacja już trwa lub niedawno się zakończyła");
-    return;
-  }
-
-  if (!confirm("Synchronizować wizyty z Google Calendar?")) return;
-
-  lockButtons("Synchronizacja…");
-
-  fetch("/doctor/google/sync-batch", { method: "POST" })
-    .then(r => r.json())
-    .then(data => {
-      alert(
-        `✅ Synchronizacja zakończona\n\n` +
-        `Zsynchronizowano: ${data.synced}\n` +
-        `Pominięto: ${data.skipped}\n\n` +
-        `⏳ Przyciski będą aktywne za 1 minutę`
-      );
-    })
-    .catch(() => {
-      alert("❌ Błąd synchronizacji");
-    })
-    .finally(() => {
-      unlockButtonsAfterCooldown();
-    });
-}
-
-/* ================================
-   ♻️ REBUILD
-   ================================ */
-function rebuildGoogle() {
-  if (googleActionLock) {
-    alert("⏳ Operacja już trwa lub niedawno się zakończyła");
-    return;
-  }
-
-  if (!confirm(
-    "⚠️ UWAGA!\n\n" +
-    "Ta operacja:\n" +
-    "• usunie wszystkie wizyty aplikacji z Google Calendar\n" +
-    "• utworzy je OD NOWA z bazy danych\n\n" +
-    "Czy na pewno chcesz kontynuować?"
-  )) return;
-
-  lockButtons("Odbudowa…");
-
-  fetch("/doctor/google/rebuild", { method: "POST" })
-    .then(r => {
-      if (!r.ok) throw new Error("HTTP " + r.status);
-      return r.json();
-    })
-    .then(data => {
-      alert(
-        `♻️ Kalendarz Google odbudowany\n\n` +
-        `Usunięto: ${data.deleted}\n` +
-        `Utworzono: ${data.created}\n\n` +
-        `⏳ Przyciski będą aktywne za 1 minutę`
-      );
-    })
-    .catch(err => {
-      console.error("REBUILD ERROR:", err);
-      alert("❌ Błąd odbudowy kalendarza Google");
-    })
-    .finally(() => {
-      unlockButtonsAfterCooldown();
-    });
-}
-</script>
-
-
 {% endblock %}

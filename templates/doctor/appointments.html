@@ -2,262 +2,416 @@
 
 {% block content %}
 
-{# =================================================
-   MACRO: LINK SORTOWANIA
-   ================================================= #}
-{% macro sort_link(label, field) %}
-    {% if sort == field and dir == "asc" %}
-        {% set new_dir = "desc" %}
-    {% else %}
-        {% set new_dir = "asc" %}
-    {% endif %}
+<style>
+  /* ===== FILTRY ===== */
 
-    <a href="{{ url_for('doctor.appointments',
-        q=q,
-        show_past='1' if show_past else None,
-        sort=field,
-        dir=new_dir
-    ) }}">
-        {{ label }}
-        {% if sort == field %}
-            {% if dir == "asc" %}▲{% else %}▼{% endif %}
-        {% endif %}
-    </a>
+  .filters-row {
+    margin-bottom: 6px;
+  }
+
+  .filters-row input,
+  .filters-row select {
+    height: 38px;
+    font-size: 14px;
+  }
+
+  .filters-row .form-control {
+    padding: 6px 10px;
+  }
+
+  /* SELECTY – +40% */
+  .filter-select {
+    height: 46px !important;
+    padding: 10px 12px !important;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* MNIEJSZE ODSTĘPY */
+  .filters-row > div {
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+
+  .show-past-box {
+  display: flex;
+  align-items: center;
+  height: 46px;
+}
+
+.show-past-box .form-check {
+  margin: 0;
+  padding-left: 2.5em;
+}
+
+.show-past-box .form-check-input {
+  width: 2.5em;
+  height: 1.4em;
+  cursor: pointer;
+}
+
+.show-past-box .form-check-label {
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+
+  /* PRZYCISKI */
+  .filters-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 46px;
+  }
+
+  .filters-actions .btn {
+    min-width: 150px;
+    height: 44px;
+    font-size: 15px;
+    margin-left: 6px;
+  }
+
+  .filters-separator {
+    margin: 12px 0 10px;
+  }
+
+
+/* WSPÓLNE */
+.badge-status {
+  display: inline-block;
+  min-width: 95px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+/* 🔵 ZAPLANOWANA */
+.badge-scheduled {
+  background-color: #0d6efd; /* bootstrap blue */
+  color: #fff;
+}
+
+/* 🟢 ZREALIZOWANA */
+.badge-completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+
+
+/* 🔴 ANULOWANA – jasna */
+.badge-cancelled {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+</style>
+
+{% macro sort_link(label, field) %}
+  {% set new_dir = "desc" if sort == field and dir == "asc" else "asc" %}
+  <a href="{{ url_for(
+      'doctor.appointments',
+      page=1,
+      sort=field,
+      dir=new_dir,
+      first_name=request.args.first_name,
+      last_name=request.args.last_name,
+      phone=request.args.phone,
+      email=request.args.email,
+      visit_type=request.args.visit_type,
+      status=request.args.status,
+      date_from=request.args.date_from,
+      date_to=request.args.date_to,
+      show_past=request.args.show_past
+  ) }}">
+    {{ label }}
+    {% if sort == field %}
+      {% if dir == "asc" %}▲{% else %}▼{% endif %}
+    {% endif %}
+  </a>
 {% endmacro %}
 
 <h2>📅 Terminarz – lista wizyt</h2>
 
-{# =================================================
-   FILTRY
-   ================================================= #}
-<form method="get" id="filtersForm" class="form-inline" style="margin-bottom:15px;">
-    <input type="hidden" name="page" value="1">
-    <input type="hidden" name="sort" value="{{ sort }}">
-    <input type="hidden" name="dir" value="{{ dir }}">
+<form method="get">
 
-    <div class="form-group">
-        <input
-            type="text"
-            name="q"
-            class="form-control"
-            placeholder="Szukaj: nazwisko, imię, telefon, email"
-            value="{{ q or '' }}"
-            style="width:300px;"
-        >
+  <input type="hidden" name="page" value="1">
+  <input type="hidden" name="sort" value="{{ sort }}">
+  <input type="hidden" name="dir" value="{{ dir }}">
+
+  <!-- ===== GÓRNA BELKA ===== -->
+  <div class="row filters-row align-items-center">
+    <div class="col-md-2">
+      <input type="date" name="date_from" class="form-control"
+             value="{{ request.args.date_from }}">
     </div>
 
-    <div class="checkbox" style="margin-left:10px;">
-        <label>
-            <input type="checkbox"
-                   name="show_past"
-                   value="1"
-                   {% if show_past %}checked{% endif %}>
-            pokaż odbyte wizyty
-        </label>
+    <div class="col-md-2">
+      <input type="date" name="date_to" class="form-control"
+             value="{{ request.args.date_to }}">
     </div>
 
-    <button type="submit" class="btn btn-primary" style="margin-left:10px;">
-        🔍 Filtruj
-    </button>
+<div class="col-md-3 show-past-box">
+  <div class="form-check form-switch">
+    <input class="form-check-input"
+           type="checkbox"
+           role="switch"
+           id="showPastSwitch"
+           name="show_past"
+           value="1"
+           {% if request.args.show_past == "1" %}checked{% endif %}>
+    <label class="form-check-label" for="showPastSwitch">
+      pokaż przeszłe wizyty
+    </label>
+  </div>
+</div>
 
-    {% if q or show_past %}
-        <a href="{{ url_for('doctor.appointments') }}"
-           class="btn btn-default"
-           style="margin-left:5px;">
-            ✖ Wyczyść
-        </a>
-    {% endif %}
+    <div class="col-md-5 filters-actions">
+      <button class="btn btn-primary">
+        🔍 Szukaj
+      </button>
+      <a href="{{ url_for('doctor.appointments') }}"
+         class="btn btn-secondary">
+        ✖ Reset
+      </a>
+    </div>
+  </div>
+
+  <hr class="filters-separator">
+
+  <!-- ===== DOLNA BELKA ===== -->
+  <div class="row filters-row">
+    <!-- krótsze o ~20% -->
+    <div class="col-md-2">
+      <input type="text" name="last_name" class="form-control"
+             placeholder="Nazwisko"
+             value="{{ request.args.last_name }}">
+    </div>
+
+    <div class="col-md-2">
+      <input type="text" name="first_name" class="form-control"
+             placeholder="Imię"
+             value="{{ request.args.first_name }}">
+    </div>
+
+    <div class="col-md-2">
+      <input type="text" name="phone" class="form-control"
+             placeholder="Telefon"
+             value="{{ request.args.phone }}">
+    </div>
+
+    <div class="col-md-2">
+      <input type="text" name="email" class="form-control"
+             placeholder="Email"
+             value="{{ request.args.email }}">
+    </div>
+
+    <!-- SZERSZY -->
+    <div class="col-md-3">
+      <select name="visit_type" class="form-control filter-select">
+        <option value="">Typ wizyty</option>
+        {% for vt in visit_types %}
+          <option value="{{ vt.code }}"
+            {% if request.args.visit_type == vt.code %}selected{% endif %}>
+            {{ vt.name }}
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- krótszy -->
+    <div class="col-md-1">
+      <select name="status" class="form-control filter-select">
+        <option value="">Status</option>
+        <option value="scheduled" {% if request.args.status == "scheduled" %}selected{% endif %}>
+          Zapl.
+        </option>
+        <option value="completed" {% if request.args.status == "completed" %}selected{% endif %}>
+          Odbyta
+        </option>
+        <option value="cancelled" {% if request.args.status == "cancelled" %}selected{% endif %}>
+          Anul.
+        </option>
+      </select>
+    </div>
+  </div>
+
 </form>
 
-{# =================================================
-   TABELA
-   ================================================= #}
-<table class="table table-bordered table-striped">
-    <thead>
-        <tr>
-            <th>{{ sort_link("Data", "start") }}</th>
-            <th>Godzina</th>
-            <th>{{ sort_link("Pacjent", "patient_last_name") }}</th>
-            <th>{{ sort_link("Telefon", "patient_phone") }}</th>
-            <th>{{ sort_link("Email", "patient_email") }}</th>
-            <th>{{ sort_link("Typ", "visit_type") }}</th>
-            <th>{{ sort_link("Status", "status") }}</th>
-            <th></th>
-        </tr>
-    </thead>
-    <tbody>
+<!-- ===== TABELA ===== -->
+<table class="table table-sm table-striped table-hover align-middle mt-3">
+  <thead>
+    <tr>
+      <th>{{ sort_link("Data", "start") }}</th>
+      <th>Godzina</th>
+      <th>{{ sort_link("Nazwisko", "patient_last_name") }}</th>
+      <th>Imię</th>
+      <th>{{ sort_link("Telefon", "patient_phone") }}</th>
+      <th>Email</th>
+      <th>{{ sort_link("Typ", "visit_type") }}</th>
+      <th>{{ sort_link("Status", "status") }}</th>
+      <th></th>
+    </tr>
+  </thead>
 
-    {% for a in appointments %}
-        <tr class="
-            {% if a.status == 'completed' %}active{% endif %}
-            {% if a.status == 'cancelled' %}danger{% endif %}
-        ">
-            <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
+  <tbody>
+  {% for a in appointments %}
+    <tr>
+      <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
+      <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
+      <td>{{ a.patient_last_name }}</td>
+      <td>{{ a.patient_first_name }}</td>
+      <td>{{ a.patient_phone }}</td>
+      <td>{{ a.patient_email or "—" }}</td>
+      <td>{{ a.visit_type }}</td>
+    <td>
+  {% if a.status == "scheduled" %}
+    <span class="badge badge-status badge-scheduled">
+      zaplanowana
+    </span>
+  {% elif a.status == "completed" %}
+    <span class="badge badge-status badge-completed">
+      zrealizowana
+    </span>
+  {% elif a.status == "cancelled" %}
+    <span class="badge badge-status badge-cancelled">
+      anulowana
+    </span>
+  {% endif %}
+</td>
 
-            <td>
-                {{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}
-            </td>
+      <td>
+  {% if a.status == "scheduled" %}
 
-            <td>{{ a.patient_first_name }} {{ a.patient_last_name }}</td>
+    <!-- ✔ ZREALIZOWANA -->
+    <form method="post"
+          action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+          style="display:inline">
 
-            <td>{{ a.patient_phone }}</td>
+      {% for k, v in request.args.items() %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
 
-            <td>
-                {% if a.patient_email %}
-                    <a href="mailto:{{ a.patient_email }}">{{ a.patient_email }}</a>
-                {% else %}
-                    <span class="text-muted">—</span>
-                {% endif %}
-            </td>
+      <button class="btn btn-sm btn-success"
+              title="Oznacz wizytę jako zrealizowaną">
+        ✔
+      </button>
+    </form>
 
-            <td>{{ a.visit_type }}</td>
+    <!-- ❌ ANULUJ -->
+    <form method="post"
+          action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
+          style="display:inline; margin-left:4px;">
 
-            <td>
-                {% if a.status == "scheduled" %}
-                    <span class="label label-primary">zaplanowana</span>
-                {% elif a.status == "completed" %}
-                    <span class="label label-default">odbyta</span>
-                {% elif a.status == "cancelled" %}
-                    <span class="label label-danger">anulowana</span>
-                {% endif %}
-            </td>
+      {% for k, v in request.args.items() %}
+        <input type="hidden" name="{{ k }}" value="{{ v }}">
+      {% endfor %}
 
-            <td style="white-space:nowrap;">
-              {% if a.status == "scheduled" %}
+      <button class="btn btn-sm btn-danger"
+              title="Anuluj wizytę">
+        ✖
+      </button>
+    </form>
 
-                <form method="post"
-                      action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
-                      style="display:inline;">
-                  <input type="hidden" name="show_past" value="{{ '1' if show_past else '' }}">
-                  <input type="hidden" name="q" value="{{ q }}">
-                  <input type="hidden" name="page" value="{{ pagination.page }}">
-                  <input type="hidden" name="sort" value="{{ sort }}">
-                  <input type="hidden" name="dir" value="{{ dir }}">
-                  <button class="btn btn-success btn-xs">✔ Zrealizowana</button>
-                </form>
+  {% else %}
+    —
+  {% endif %}
+</td>
 
-                <form method="post"
-                      action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
-                      style="display:inline; margin-left:4px;">
-                  <input type="hidden" name="show_past" value="{{ '1' if show_past else '' }}">
-                  <input type="hidden" name="q" value="{{ q }}">
-                  <input type="hidden" name="page" value="{{ pagination.page }}">
-                  <input type="hidden" name="sort" value="{{ sort }}">
-                  <input type="hidden" name="dir" value="{{ dir }}">
-                  <button class="btn btn-danger btn-xs">❌ Anuluj</button>
-                </form>
-
-              {% else %}
-                <span class="text-muted">—</span>
-              {% endif %}
-            </td>
-        </tr>
-    {% endfor %}
-
-    </tbody>
+    </tr>
+  {% else %}
+    <tr>
+      <td colspan="9" class="text-center text-muted">
+        Brak wizyt
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
 </table>
+{% set args = request.args.to_dict() %}
+{% if 'page' in args %}
+  {% set _ = args.pop('page') %}
+{% endif %}
+{% if pagination.pages > 1 %}
+<nav aria-label="Paginacja terminarza" class="mt-3">
+  <ul class="pagination justify-content-center">
 
-{# =================================================
-   PAGINACJA
-   ================================================= #}
-{% if pagination %}
-<nav class="text-center">
-  <ul class="pagination">
+    {# ◀ POPRZEDNIA #}
+    <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+      <a class="page-link"
+   href="{{ url_for(
+     'doctor.appointments',
+     page=pagination.prev_num,
+     **args
+   ) }}">
+  ‹
+</a>
 
-    {% if pagination.has_prev %}
-      <li>
-        <a href="{{ url_for('doctor.appointments',
-            page=pagination.prev_num,
-            q=q,
-            show_past='1' if show_past else None,
-            sort=sort,
-            dir=dir
-        ) }}">&laquo;</a>
-      </li>
-    {% endif %}
+    </li>
 
-    {% for p in pagination.iter_pages(left_edge=2, right_edge=2, left_current=2, right_current=2) %}
+    {# NUMERY STRON #}
+    {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
       {% if p %}
-        <li class="{% if p == pagination.page %}active{% endif %}">
-          <a href="{{ url_for('doctor.appointments',
-              page=p,
-              q=q,
-              show_past='1' if show_past else None,
-              sort=sort,
-              dir=dir
-          ) }}">{{ p }}</a>
+        <li class="page-item {% if p == pagination.page %}active{% endif %}">
+          <a class="page-link"
+   href="{{ url_for(
+     'doctor.appointments',
+     page=p,
+     **args
+   ) }}">
+  {{ p }}
+</a>
+
         </li>
       {% else %}
-        <li class="disabled"><span>…</span></li>
+        <li class="page-item disabled">
+          <span class="page-link">…</span>
+        </li>
       {% endif %}
     {% endfor %}
 
-    {% if pagination.has_next %}
-      <li>
-        <a href="{{ url_for('doctor.appointments',
-            page=pagination.next_num,
-            q=q,
-            show_past='1' if show_past else None,
-            sort=sort,
-            dir=dir
-        ) }}">&raquo;</a>
-      </li>
-    {% endif %}
+    {# ▶ NASTĘPNA #}
+    <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+      <a class="page-link"
+   href="{{ url_for(
+     'doctor.appointments',
+     page=pagination.next_num,
+     **args
+   ) }}">
+  ›
+</a>
+
+    </li>
 
   </ul>
-</nav>
 
-<p class="text-muted text-center">
+  <p class="text-center text-muted small mt-1">
     Wyświetlono {{ pagination.items|length }} z {{ pagination.total }} wizyt
-</p>
+  </p>
+</nav>
 {% endif %}
 
-{% if not appointments %}
-<div class="alert alert-info">
-    Brak wizyt spełniających kryteria.
-</div>
-{% endif %}
 
-{# =================================================
-   AUTO-SUBMIT CHECKBOXA
-   ================================================= #}
+
 <script>
-document.addEventListener('DOMContentLoaded', function () {
-  const form = document.getElementById('filtersForm');
-  const input = form.querySelector('input[name="q"]');
-  const checkbox = form.querySelector('input[name="show_past"]');
+document.addEventListener("DOMContentLoaded", function () {
+  const form = document.querySelector("form");
+  const showPast = document.getElementById("showPastSwitch");
 
-  // ✅ ZAWSZE ustaw focus na polu wyszukiwania po reloadzie
-  if (input) {
-    input.focus();
-
-    // opcjonalnie: kursor na koniec tekstu
-    const val = input.value;
-    input.value = '';
-    input.value = val;
-  }
-
-  // ⌨️ ENTER w polu wyszukiwania = submit
-  if (input) {
-    input.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter') {
-        const pageInput = form.querySelector('input[name="page"]');
-        if (pageInput) pageInput.value = 1;
-        form.submit();
-      }
-    });
-  }
-
-  // ☑️ checkbox = auto-submit (jak było)
-  if (checkbox) {
-    checkbox.addEventListener('change', function () {
+  if (showPast && form) {
+    showPast.addEventListener("change", function () {
+      // zawsze resetuj paginację jak przy "Szukaj"
       const pageInput = form.querySelector('input[name="page"]');
       if (pageInput) pageInput.value = 1;
+
       form.submit();
     });
   }
 });
 </script>
-
 
 {% endblock %}
