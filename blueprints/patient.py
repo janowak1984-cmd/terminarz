@@ -234,7 +234,7 @@ def reserve():
     doctor_id = slots[0].doctor_id
 
     if is_phone_blacklisted(doctor_id, phone):
-        flash("Nie możesz umówić wizyty online...", "patient-danger")
+        flash("Rezerwacja wizyty za pośrednictwem strony internetowej jest niedostępna. Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077.", "patient-danger")
         return redirect(url_for("patient.index"))
 
     appointment = Appointment(
