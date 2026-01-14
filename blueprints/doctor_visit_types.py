@@ -80,10 +80,10 @@ def create():
 
     # 🔒 WALIDACJA WYMAGANYCH PÓL
     for field in ("name", "code", "duration_minutes", "display_order"):
-        if not data.get(field):
+        if data.get(field) in (None, ""):
             return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
 
-    # 🔒 WALIDACJA UNIKALNOŚCI KODU
+    # 🔒 WALIDACJA UNIKALNOŚCI KODU (case-insensitive)
     existing = VisitType.query.filter(
         func.lower(VisitType.code) == data["code"].lower()
     ).first()
@@ -93,6 +93,7 @@ def create():
             "error": "Typ wizyty o takim kodzie już istnieje."
         }), 400
 
+    # 🔢 KOLEJNOŚĆ WYŚWIETLANIA
     new_order = int(data.get("display_order", 100))
 
     VisitType.query.filter(
@@ -102,6 +103,14 @@ def create():
         synchronize_session=False
     )
 
+    # 💰 PRICE – BEZPIECZNE PARSOWANIE
+    price_raw = data.get("price")
+    price = float(price_raw) if price_raw not in (None, "", []) else None
+
+    if price is not None and price < 0:
+        return jsonify({"error": "Cena nie może być ujemna"}), 400
+
+    # ✅ UTWORZENIE TYPU WIZYTY
     vt = VisitType(
         name=data["name"],
         code=data["code"],
@@ -109,14 +118,14 @@ def create():
         price=price,
         duration_minutes=int(data["duration_minutes"]),
         color=data.get("color", GOOGLE_COLORS["1"]),
-        active=data.get("active", True),
+        active=bool(data.get("active", True)),
         display_order=new_order
     )
 
     db.session.add(vt)
     db.session.commit()
 
-    return jsonify({"status": "ok"})
+    return jsonify({"status": "ok", "id": vt.id})
 
 
 # ===============================
