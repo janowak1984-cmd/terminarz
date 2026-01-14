@@ -1201,6 +1201,30 @@ def blacklist_from_appointment_ajax(appointment_id):
     return jsonify({"status": "ok"})
 
 
+# =================================================
+# CZARNA LISTA – EDYCJA
+# =================================================
+@doctor_bp.route("/blacklist/<int:item_id>/edit", methods=["POST"])
+@login_required
+def blacklist_edit(item_id):
+    item = BlacklistPatient.query.filter_by(
+        id=item_id,
+        doctor_id=current_user.id
+    ).first_or_404()
+
+    item.first_name = request.form.get("first_name", "").strip()
+    item.last_name = request.form.get("last_name", "").strip()
+    item.phone = request.form.get("phone", "").strip()
+    item.email = request.form.get("email", "").strip() or None
+    item.description = request.form.get("description", "").strip()
+
+    if not item.first_name or not item.last_name or not item.phone:
+        flash("Imię, nazwisko i telefon są wymagane", "doctor-danger")
+        return redirect(url_for("doctor.blacklist"))
+
+    db.session.commit()
+    flash("✔ Dane pacjenta zaktualizowane", "doctor-success")
+    return redirect(url_for("doctor.blacklist"))
 
 
 # =================================================

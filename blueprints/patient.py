@@ -1,14 +1,14 @@
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, current_app
 from datetime import datetime, timedelta, time
 import uuid
-from utils.cancel_policy import can_cancel_appointment
 
-from utils.sms_service import SMSService
 from extensions import db
 from models import Availability, Appointment, VisitType, Vacation
+from utils.cancel_policy import can_cancel_appointment
+from utils.sms_service import SMSService
 from utils.blacklist import is_phone_blacklisted
 from utils.google_calendar import GoogleCalendarService
-from flask import current_app
+
 
 
 patient_bp = Blueprint(
@@ -349,3 +349,66 @@ def cancel_short(token):
     return redirect(
         url_for("patient.cancel_by_token", token=token)
     )
+
+# ───────────────────────────────────────
+# API: STATUS URLOPU (PUBLICZNE)
+# ───────────────────────────────────────
+
+from flask import jsonify, request
+from datetime import datetime
+
+@patient_bp.route("/api/vacation-status", methods=["GET"])
+def vacation_status():
+    date_str = request.args.get("date")
+
+    if not date_str:
+        return jsonify({"is_vacation": False})
+
+    try:
+        today = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"is_vacation": False})
+
+    vacation = (
+        Vacation.query
+        .filter(
+            Vacation.doctor_id == 1,
+            Vacation.active.is_(True),          # tylko AKTYWNE
+            Vacation.date_from <= today,
+            Vacation.date_to >= today
+        )
+        .first()
+    )
+
+    if not vacation:
+        return jsonify({"is_vacation": False})
+
+    # 🔴 TYLKO JEDEN DZIEŃ = DZIŚ
+    if vacation.date_from == today and vacation.date_to == today:
+        message_pl = (
+            "W dniu dzisiejszym gabinet jest nieczynny.<br>"
+            "Kontakt możliwy przez formularz w zakładce Kontakt."
+        )
+        message_en = (
+            "The clinic is closed today.<br>"
+            "Please contact us via the contact form in the Contact section."
+        )
+
+    # 🟢 KAŻDY INNY PRZYPADEK = ZAKRES
+    else:
+        message_pl = (
+            f"Gabinet jest nieczynny od {vacation.date_from.strftime('%d.%m.%Y')} "
+            f"do {vacation.date_to.strftime('%d.%m.%Y')}.<br>"
+            "Kontakt możliwy przez formularz w zakładce Kontakt."
+        )
+        message_en = (
+            f"The clinic is closed from {vacation.date_from.strftime('%Y-%m-%d')} "
+            f"to {vacation.date_to.strftime('%Y-%m-%d')}.<br>"
+            "Please contact us via the contact form in the Contact section."
+        )
+
+    return jsonify({
+        "is_vacation": True,
+        "message_pl": message_pl,
+        "message_en": message_en
+    })

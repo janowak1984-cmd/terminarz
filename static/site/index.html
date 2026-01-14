@@ -889,6 +889,43 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 });
 
+document.addEventListener("DOMContentLoaded", function () {
+
+  // lokalna data (PL) w formacie YYYY-MM-DD
+  const today = new Date().toLocaleDateString("en-CA");
+
+  fetch(`/rejestracja/api/vacation-status?date=${today}`, {
+    headers: { "Accept": "application/json" },
+    credentials: "same-origin"
+  })
+  .then(resp => {
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    return resp.json();
+  })
+  .then(data => {
+    console.log("VACATION:", data);
+
+    if (data.is_vacation === true) {
+      const pl = document.getElementById("vacation-message-pl");
+      const en = document.getElementById("vacation-message-en");
+
+      if (pl) pl.innerHTML = data.message_pl;
+      if (en) en.innerHTML = data.message_en;
+
+      $('#vacationModal').modal({
+        backdrop: 'static',
+        keyboard: false
+      });
+    }
+  })
+  .catch(err => console.warn("Vacation check failed:", err));
+
+});
+
+
+
+
+
 </script>
 	<script src="/static/site/js/leaflet.js"></script>
 	<script src="/static/site/js/map.js"></script>
@@ -903,6 +940,33 @@ document.addEventListener("DOMContentLoaded", function () {
     <button onclick="acceptCookies()">Accept</button>
   </div>
 </div>
+
+<div class="modal fade" id="vacationModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">
+          <span>&times;</span>
+        </button>
+        <h4 class="modal-title lang lang-pl">Informacja</h4>
+        <h4 class="modal-title lang lang-en">Information</h4>
+      </div>
+
+      <div class="modal-body">
+        <p class="lang lang-pl" id="vacation-message-pl"></p>
+        <p class="lang lang-en" id="vacation-message-en"></p>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-dismiss="modal">OK</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
 
 	</body>
 </html>
