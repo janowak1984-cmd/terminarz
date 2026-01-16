@@ -66,8 +66,9 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .lang.active {
-    display: inline-block; /* pokaz tylko aktywne */
+    display: block;   /* ZAMIAST inline-block */
 }
+
 
 #fh5co-header {
   position: absolute;
@@ -1109,13 +1110,6 @@ img {
   }
 }
 
-.btn {
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  -webkit-transition: 0.3s;
-  -o-transition: 0.3s;
-  transition: 0.3s;
-}
 .btn.btn-primary {
   background: #d73930;
   color: #fff;
@@ -1191,14 +1185,9 @@ img {
   border-radius: 50%;
 }
 
-#map {
-  width: 100%;
-  height: 500px;
-  position: relative;
-}
 @media screen and (max-width: 768px) {
   #map {
-    height: 200px;
+    height: 220px;
   }
 }
 
@@ -1319,3 +1308,243 @@ img {
 }
 
 /*# sourceMappingURL=style.css.map */
+/* ===== Specjalizacje – jasnoszary tekst, czerwone ikony ===== */
+/* ===== Specjalizacje – jasnoszary tekst, czerwone ikony ===== */
+.specializations-list .list-nav li {
+    color: #b0b7c3 !important;
+}
+
+/* ikony zostają czerwone – nie nadpisujemy koloru */
+.specializations-list .list-nav li i {
+    margin-right: 6px; /* kosmetyka */
+}
+
+/* ===== Pricing / notes section – jasnoszary tekst ===== */
+.pricing-notes p {
+    color: #b0b7c3;          /* jasnoszary – spójny z poprzednim */
+    text-align: left;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* pogrubiony pierwszy akapit – nadal jasny, ale czytelny */
+.pricing-notes p b {
+    color: #c3c9d4;
+    font-weight: 600;
+}
+
+/* czerwone oznaczenia *, **, *** */
+.pricing-notes .note-mark {
+    color: #d73930;          /* ten sam czerwony co reszta strony */
+    font-weight: 600;
+    margin-right: 4px;
+}
+
+/* ===== FOOTER LAYOUT FIX ===== */
+
+.footer-main {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.footer-column {
+    display: flex;
+    flex-direction: column;
+}
+
+/* MAPA */
+.footer-map #map {
+    flex: 1;
+    min-height: 360px;
+    border-radius: 4px;
+}
+
+/* FORMULARZ */
+.footer-form {
+    flex: 1;
+}
+
+.footer-form textarea {
+    resize: none;
+}
+
+/* ===== FOOTER CONTACT BUTTON ===== */
+#fh5co-footer .btn-send-message {
+    background: #d73930;
+    color: #fff;
+    border: none;
+    padding: 12px 30px;
+    font-size: 14px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+#fh5co-footer .btn-send-message:hover,
+#fh5co-footer .btn-send-message:focus {
+    background: #c53028;
+    color: #fff;
+}
+
+/* ===== FOOTER MAP – HEIGHT FIX ===== */
+#fh5co-footer #map {
+    width: 100%;
+    height: 360px;                    /* ⬅️ było 400px */
+    position: relative;
+}
+
+@media (max-width: 768px) {
+    #fh5co-footer #map {
+        height: 280px;                /* delikatnie krócej na mobile */
+    }
+}
+
+/* ===== FOOTER CONTACT FORM – MATCH MAP ===== */
+#fh5co-footer .contact-form {
+    height: 360px;                    /* ⬅️ było 450px */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+#fh5co-footer .contact-form textarea {
+    min-height: 225px;                /* ⬅️ było 290px */
+    resize: none;
+}
+
+@media (max-width: 768px) {
+    #fh5co-footer .contact-form {
+        height: auto;
+    }
+
+    #fh5co-footer .contact-form textarea {
+        min-height: 120px;
+    }
+}
+
+/* ===== OFFICE HOURS – LIGHT GREY ===== */
+#fh5co-footer .contact-info li strong {
+    color: #c3c9d4;
+}
+
+#fh5co-footer .contact-info li small {
+    color: #b0b7c3;
+    line-height: 1.5;
+}
+
+/* ===== FORCE RED BUTTON (OVERRIDE TEMPLATE) ===== */
+#fh5co-footer .btn,
+#fh5co-footer .btn:hover,
+#fh5co-footer .btn:focus,
+#fh5co-footer .btn:active {
+    background: #d73930 !important;
+    color: #fff !important;
+    border: none;
+}
+
+/* ===== FOOTER – REMOVE BOOTSTRAP ROW SPACING ===== */
+#fh5co-footer .row {
+    margin-bottom: 0 !important;
+}
+
+/* ===== FIX: MAPA NIE ROZCIĄGA SIĘ DO WYSOKOŚCI KOLUMNY ===== */
+#fh5co-footer .col-md-4 {
+    display: block;
+}
+
+#fh5co-footer .col-md-4 > #map {
+    height: 535px !important;
+    max-height: 535px;
+}
+
+/* ===== EXPLORE SECTION – COMPACT ===== */
+#fh5co-explore.explore-compact {
+    padding-bottom: 2em; /* było ~5em */
+}
+
+/* nagłówki nie pchają belki */
+#fh5co-explore .explore-heading {
+    margin-bottom: 1.5em;
+    padding-bottom: 0;
+}
+
+/* ===== FOOTER BAR – PULL UP ===== */
+.footer-bottom-compact {
+    margin-top: 20px;   /* było 40px */
+    padding-top: 12px;
+}
+
+
+/* ===== FULL WIDTH DIVIDER ===== */
+.section-divider-full {
+    width: 100%;
+    height: 1px;
+    margin: 30px 0 25px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+/* ==============================
+   LANGUAGE SWITCH – FINAL (FILES)
+   ============================== */
+
+#fh5co-header #navbar li a.lang-switch {
+    display: flex;
+    align-items: center;      /* idealna linia */
+    height: 50px;             /* dokładnie jak reszta menu */
+    gap: 6px;
+    padding: 0;
+}
+
+/* usuń underline / pseudo-elementy FH5CO */
+#fh5co-header #navbar li a.lang-switch:before,
+#fh5co-header #navbar li a.lang-switch:after,
+#fh5co-header #navbar li a.lang-switch span:before {
+    display: none !important;
+    content: none !important;
+}
+
+/* tekst */
+.lang-label {
+    font-size: 14px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* ikona flagi */
+.lang-flag {
+    width: 18px;
+    height: 12px;
+    display: inline-block;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    border-radius: 2px;
+}
+
+/* PL */
+.flag-pl {
+    background-image: url("/static/site/images/flag-pl.svg");
+}
+
+/* EN (USA) */
+.flag-en {
+    background-image: url("/static/site/images/flag-en.svg");
+}
+
+/* ===== LANGUAGE SWITCH – VERTICAL MICRO ADJUST ===== */
+#fh5co-header #navbar li a.lang-switch {
+    position: relative;
+    top: 5px;   /* ⬅️ obniża o ~5px */
+}
+
+
+/* ===== MOBILE MENU – COMPACT HEIGHT ===== */
+@media screen and (max-width: 768px) {
+
+  #fh5co-header #navbar li a {
+    padding-top: 7px !important;
+    padding-bottom: 7px !important;
+    font-size: 15px;
+    line-height: 1.2;
+  }
+
+}

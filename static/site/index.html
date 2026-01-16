@@ -81,33 +81,59 @@
 				<div id="navbar" class="navbar-collapse collapse">
 					<ul class="nav navbar-nav navbar-right lang lang-pl">
 						<li class="active"><a href="#" data-nav-section="home"><span>Strona główna</span></a></li>
+                        <li><a href="#" data-nav-section="contact"><span>Kontakt</span></a></li>
 						<li><a href="#" data-nav-section="about"><span>O mnie</span></a></li>
 						<li><a href="#" data-nav-section="testimony"><span>Gabinet</span></a></li>
 						<li><a href="#" data-nav-section="services"><span>Cennik</span></a></li>
 						<li><a href="#" data-nav-section="team"><span>Ważne informacje</span></a></li>
-						<li><a href="#" data-nav-section="contact"><span>Kontakt</span></a></li>
 						<li>
 							<a href="/rejestracja" class="external">
 								<span>Umów wizytę</span>
 							</a>
 						</li>
 						<li><a href="#" data-nav-section="practice-areas"><span>Opinie sądowe</span></a></li>
-						<li><a data-nav-section="language" onclick="toggleLanguage()"><span>EN</span></a></li>
+		<li>
+    <a class="lang-switch" onclick="toggleLanguage()">
+        <span class="lang-label">EN</span>
+        <span class="lang-flag flag-en"></span>
+    </a>
+</li>
+
+
+
+
+
+
+
+
+
 					</ul>
 					<ul class="nav navbar-nav navbar-right lang lang-en">
 						<li class="active"><a href="#" data-nav-section="home"><span>Home page</span></a></li>
+						<li><a href="#" data-nav-section="contact"><span>Contact</span></a></li>
 						<li><a href="#" data-nav-section="about"><span>About me</span></a></li>
 						<li><a href="#" data-nav-section="testimony"><span>Office</span></a></li>
 						<li><a href="#" data-nav-section="services"><span>Price list</span></a></li>
 						<li><a href="#" data-nav-section="team"><span>Important Information (FAQ)</span></a></li>
-						<li><a href="#" data-nav-section="contact"><span>Contact</span></a></li>
 						<li>
 							<a href="/rejestracja" class="external">
 								<span>Appointment</span>
 							</a>
 						</li>
 						<li><a href="#" data-nav-section="practice-areas"><span>Court Opinions</span></a></li>
-						<li><a data-nav-section="language" onclick="toggleLanguage()"><span>PL</span></a></li>
+		<li>
+    <a class="lang-switch" onclick="toggleLanguage()">
+        <span class="lang-label">PL</span>
+        <span class="lang-flag flag-pl"></span>
+    </a>
+</li>	
+
+
+
+
+
+
+
 					</ul>
 				</div>
 			</div>
@@ -132,7 +158,144 @@
 			</div>
 		</div>
 	</section>
+<section id="fh5co-footer" data-section="contact" role="contentinfo">
+    <div class="container">
 
+        <!-- GÓRNA CZĘŚĆ -->
+        <div class="row footer-main">
+
+            <!-- DANE KONTAKTOWE -->
+            <div class="col-md-4 to-animate footer-column">
+
+                <h4 class="section-title lang lang-pl">
+                    Indywidualna Praktyka Lekarska<br>Kinga Bobińska
+                </h4>
+
+                <h4 class="section-title lang lang-en">
+                    Individual Medical Practice<br>Kinga Bobińska
+                </h4>
+
+                <ul class="contact-info">
+
+                    <li>
+                        <i class="icon-map-marker"></i>
+                        Sienkiewicza 59/31<br>
+                        (brama obok sklepu muzycznego)<br>
+                        90-009 Łódź
+                    </li>
+
+                    <li class="lang lang-pl">
+                        <i class="icon-clock"></i>
+                        <strong class="office-hours">Godziny pracy gabinetu:</strong><br>
+                        Poniedziałek: 10:00 – 18:00<br>
+                        Środa: 09:00 – 14:00<br>
+                        Czwartek: 10:00 – 18:00<br><br>
+                    </li>
+
+                    <li class="lang lang-en">
+                        <i class="icon-clock"></i>
+                        <strong class="office-hours">Office hours:</strong><br>
+                        Monday: 10:00 – 18:00<br>
+                        Wednesday: 09:00 – 14:00<br>
+                        Thursday: 10:00 – 18:00<br><br>
+                    </li>
+
+                    <li><i class="icon-phone"></i><b>+48 698 554 077</b><br>
+						<small class="lang lang-pl">W razie naszej nieobecności, prosimy o przesłanie sms-a z krótkim opisem sprawy bądź skorzystanie z formularza kontaktowego na stronie internetowej.</small>
+						<small class="lang lang-en">If we are unavailable, please send a text message with a brief description of the matter or use the contact form available on the website.</small>
+					</li>
+
+                    <li>
+                        <i class="icon-envelope"></i>
+                        <a href="mailto:bobinska.gabinet@gmail.com">bobinska.gabinet@gmail.com</a>
+                    </li>
+
+                    <li>
+                        <i class="icon-bank"></i>
+                        <b>70 1140 2004 0000 3502 5354 7449</b> mBank
+                    </li>
+
+                    <li>
+                        <i class="icon-globe2"></i>
+                        <a href="https://kingabobinska.pl/" target="_blank">
+                            https://kingabobinska.pl/
+                        </a>
+                    </li>
+
+                </ul>
+            </div>
+
+            <!-- MAPA -->
+            <div class="col-md-4 to-animate footer-column footer-map">
+                <div id="map"></div>
+            </div>
+
+            <!-- FORMULARZ -->
+            <div class="col-md-4 to-animate footer-column footer-form">
+
+                <h4 class="section-title lang lang-pl">Zapraszam do kontaktu</h4>
+                <h4 class="section-title lang lang-en">You are welcome to contact me.</h4>
+
+                <form class="contact-form">
+
+                    <div class="form-group lang lang-pl">
+                        <input type="text" class="form-control" name="name"
+                               placeholder="Imię i nazwisko">
+                    </div>
+
+                    <div class="form-group lang lang-en">
+                        <input type="text" class="form-control" name="name"
+                               placeholder="Full name">
+                    </div>
+
+                    <div class="form-group lang lang-pl">
+                        <input type="email" class="form-control" name="email"
+                               placeholder="Adres e-mail">
+                    </div>
+
+                    <div class="form-group lang lang-en">
+                        <input type="email" class="form-control" name="email"
+                               placeholder="Email address">
+                    </div>
+
+                    <div class="form-group lang lang-pl">
+                        <input type="tel" class="form-control" name="phone"
+                               placeholder="Numer telefonu">
+                    </div>
+
+                    <div class="form-group lang lang-en">
+                        <input type="tel" class="form-control" name="phone"
+                               placeholder="Phone number">
+                    </div>
+
+                    <div class="form-group lang lang-pl">
+                        <textarea class="form-control" rows="8"
+                                  placeholder="Treść wiadomości"></textarea>
+                    </div>
+
+                    <div class="form-group lang lang-en">
+                        <textarea class="form-control" rows="8"
+                                  placeholder="Your message"></textarea>
+                    </div>
+
+                    <div class="form-group lang lang-pl">
+                        <input type="submit"
+                               class="btn btn-primary btn-md btn-send-message"
+                               value="Wyślij wiadomość">
+                    </div>
+
+                    <div class="form-group lang lang-en">
+                        <input type="submit"
+                               class="btn btn-primary btn-md btn-send-message"
+                               value="Send message">
+                    </div>
+
+                </form>
+            </div>
+
+        </div>
+    </div>
+</section>
 	<section id="fh5co-about" data-section="about">
 		<div class="container">
 
@@ -157,12 +320,13 @@
 					</div>						
 				</div>
 				<div class="row">
-				<div class="col-md-12 lang lang-pl">
+				<div class="col-md-12 lang lang-pl specializations-list">
 					<h5>Specjalizuję się w leczeniu m.in.:</h5>
+
 					<ul class="list-nav">
 						<li><i class="icon-check2"></i>Zaburzeń nastroju (depresja, zaburzenia dwubiegunowe /CHAD/)</li>
 						<li><i class="icon-check2"></i>Psychoz (schizofrenia, paranoja)</li>
-						<li><i class="icon-check2"></i>Zaburzenia lękowe (zaburzenia „nerwicowe”, lekowe uogólnione, napady lęku panicznego, fobia społeczna, zaburzenia obsesyjno-kompulsywne /„nerwica natręctw”/, zespół stresu pourazowego /PTSD/)</li>
+						<li><i class="icon-check2"></i>Zaburzenia lękowe (zaburzenia „nerwicowe”, lękowe uogólnione, napady lęku panicznego, fobia społeczna, zaburzenia obsesyjno-kompulsywne /„nerwica natręctw”/, zespół stresu pourazowego /PTSD/)</li>
 						<li><i class="icon-check2"></i>Zaburzenia snu</li>
 						<li><i class="icon-check2"></i>Choroby wieku podeszłego (otępienie)</li>
 						<li><i class="icon-check2"></i>Choroba alkoholowa, uzależnienie od alkoholu</li>
@@ -170,7 +334,7 @@
 						<li><i class="icon-check2"></i>Zaburzenia funkcji seksualnych</li>
 					</ul>
 				</div>
-				<div class="col-md-12 lang lang-en">
+				<div class="col-md-12 lang lang-en specializations-list">
 					<h5>I specialize in the treatment of a wide range of mental disorders, including:</h5>
 					<ul class="list-nav">
 						<li><i class="icon-check2"></i>Mood disorders (depression, bipolar disorder /BD/)</li>
@@ -290,8 +454,9 @@
           <div class="box-services">
             <i class="icon-user-plus to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Wizyta pierwszorazowa (do 60 min) - 450 zł</h3>
-              <p>(stacjonarna/online)</p>
+              <h3>Wizyta pierwszorazowa<br></h3>
+			  <h5>(do 60 min) - 450 zł</h5>
+              <h6>(stacjonarna/online)</h6>
             </div>
           </div>
         </div>
@@ -300,8 +465,9 @@
           <div class="box-services">
             <i class="icon-user to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Wizyta kolejna (do 60 min) - 380 zł</h3>
-              <p>(stacjonarna/online)</p>
+              <h3>Wizyta kolejna<br></h3>
+			  <h5> (do 60 min) - 380 zł</h5>
+              <h6>(stacjonarna/online)</h6>
             </div>
           </div>
         </div>
@@ -310,8 +476,9 @@
           <div class="box-services">
             <i class="icon-phone to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Teleporada<span style="color:red;">*</span> (do 15 min) - 250 zł</h3>
-              <p>(krótka porada poprzez kontakt telefoniczny)</p>
+              <h3>Teleporada<span style="color:red;">*</span><br></h3>
+			  <h5> (do 15 min) - 250 zł</h5>
+			  <h6>(krótka porada poprzez kontakt telefoniczny)</h6>
             </div>
           </div>
         </div>
@@ -320,8 +487,9 @@
           <div class="box-services">
             <i class="icon-heart to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Konsultacja seksuologiczna pary<span style="color:red;">**</span> (do 120 min) - 800 zł</h3>
-              <p>(tylko stacjonarna, do 60 min/osobę)</p>
+              <h3>Konsultacja seksuologiczna<br> pary<span style="color:red;">**</span> </h3>
+			  <h5>(do 120 min) - 800 zł</h5>
+			  <h6>(tylko stacjonarna, do 60 min/osobę)</h6>
             </div>
           </div>
         </div>
@@ -330,8 +498,9 @@
           <div class="box-services">
             <i class="icon-user-plus to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Wizyta pierwszorazowa w j. angielskim (60 min) – 500 zł</h3>
-              <p>(stacjonarna/online)</p>
+              <h3>Wizyta pierwszorazowa <br> w j. angielskim</h3>
+			  <h5>(60 min) – 500 zł</h5>
+			  <h6>(stacjonarna/online)</h6>
             </div>
           </div>
         </div>
@@ -340,8 +509,9 @@
           <div class="box-services">
             <i class="icon-user to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Wizyta kolejna w j. angielskim (60 min) – 430 zł</h3>
-              <p>(stacjonarna/online)</p>
+              <h3>Wizyta kolejna <br>w j. angielskim</h3>
+			  <h5> (60 min) – 430 zł</h5>
+			  <h6>(stacjonarna/online)</h6>
             </div>
           </div>
         </div>
@@ -350,7 +520,8 @@
           <div class="box-services">
             <i class="icon-pencil to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Przedłużenie recept - 100 zł/osoba</h3>
+              <h3>Przedłużenie recept<br></h3>
+			  <h5>110 zł/osoba</h5>
               <p>&nbsp;</p>
             </div>
           </div>
@@ -360,8 +531,9 @@
           <div class="box-services">
             <i class="icon-clipboard to-animate-2"></i>
             <div class="fh5co-post to-animate">
-              <h3>Zaświadczenie dot. leczenia <span style="color:red;">***</span> - 100 zł/osoba</h3>
-              <p>&nbsp;</p>
+              <h3>Zaświadczenie dot. leczenia <span style="color:red;">***</span><br></h3>
+              <h5>110 zł/osoba</h5>
+			  <p>&nbsp;</p>
             </div>
           </div>
         </div>
@@ -453,27 +625,25 @@
         </div>
 
       </div>
-
-	  				<div class="col-md-12 section-heading text-center">
-					<div class="row lang lang-pl">
-						<div class="col-md-12 subtext">
-							<p style="text-align:left;"><b>Z uwagi na charakter pracy gabinetu odbiór dokumentacji medycznej oraz zaświadczeń realizowane są po uprzednim ustaleniu drogą telefoniczną</b></p>
-							<p style="text-align:left;"><span style="color:red;">*</span> Pacjenci mogą korzystać z tej formy wizyty po uzyskaniu zgody lekarza prowadzącego.</p>
-							<p style="text-align:left;"><span style="color:red;">**</span> Konsultacja jest rozmową diagnostyczną, psychiatryczno-seksuologiczną, umożliwiającą podjęcie właściwego leczenia. Informuję, że gabinet nie prowadzi terapii seksuologicznej par w znaczeniu psychoterapii.</p>
-							<p style="text-align:left;"><span style="color:red;">***</span> Zaświadczenia odnośnie aktualnego stanu zdrowia psychicznego wystawiane są tylko i wyłącznie w trakcie wizyty</p>
-						</div>
-					</div>
-				
-						<div class="row lang lang-en">
-							<div class="col-md-12 subtext">
-								<p style="text-align:left;"><b>Due to the nature of the practice, the collection of medical records and certificates is carried out only after prior arrangement by phone.</b></p>
-								<p style="text-align:left;"><span style="color:red;">*</span> Patients may use this type of visit only after obtaining the consent of the attending physician.</p>
-								<p style="text-align:left;"><span style="color:red;">**</span> The consultation is a diagnostic psychiatric and sexological interview enabling appropriate treatment decisions. Please note that the practice does not provide couple sex therapy in the sense of psychotherapy.</p>
-								<p style="text-align:left;"><span style="color:red;">***</span> Certificates regarding the current mental health status are issued exclusively during a medical visit.</p>
-							</div>
-						</div>
+		<div class="col-md-12 section-heading text-center pricing-notes">
+			<div class="row lang lang-pl">
+				<div class="col-md-12 subtext">
+					<p><b>Z uwagi na charakter pracy gabinetu odbiór dokumentacji medycznej oraz zaświadczeń realizowane są po uprzednim ustaleniu drogą telefoniczną</b></p>
+					<p><span class="note-mark">*</span> Pacjenci mogą korzystać z tej formy wizyty po uzyskaniu zgody lekarza prowadzącego.</p>
+					<p><span class="note-mark">**</span> Konsultacja jest rozmową diagnostyczną, psychiatryczno-seksuologiczną, umożliwiającą podjęcie właściwego leczenia. Informuję, że gabinet nie prowadzi terapii seksuologicznej par w znaczeniu psychoterapii.</p>
+					<p><span class="note-mark">***</span> Zaświadczenia odnośnie aktualnego stanu zdrowia psychicznego <b>(OL-9, N-14, Zaśw. dla Zds.OoN)</b> wystawiane są tylko i wyłącznie w trakcie wizyty</p>
 				</div>
+			</div>
 
+			<div class="row lang lang-en">
+				<div class="col-md-12 subtext">
+					<p><b>Due to the nature of the practice, the collection of medical records and certificates is carried out only after prior arrangement by phone.</b></p>
+					<p><span class="note-mark">*</span> Patients may use this type of visit only after obtaining the consent of the attending physician.</p>
+					<p><span class="note-mark">**</span> The consultation is a diagnostic psychiatric and sexological interview enabling appropriate treatment decisions. Please note that the practice does not provide couple sex therapy in the sense of psychotherapy.</p>
+					<p><span class="note-mark">***</span> Certificates regarding the current mental health status <b>(OL-9, N-14, Zaśw. dla Zds.OoN)</b> are issued exclusively during a medical visit.</p>
+				</div>
+			</div>
+		</div>
     </div>
   </div>
 </section>
@@ -505,7 +675,7 @@
 					<div class="col-md-4 lang lang-pl">
 						<div class="team-box text-center to-animate-2">
 							<h3><a onclick="document.getElementById('fq1').classList.toggle('hidden');">1. Pierwsza wizyta</a></h3>
-							<span id="fq1" class="position hidden">Pierwsza wizyta zawsze odbywa się osobiście. Nie ma możliwości przeprowadzenia jej jako teleporady.</span>
+							<span id="fq1" class="position hidden">Pierwsza wizyta odbywa się osobiście lub online. Nie ma możliwości przeprowadzenia jej jako teleporady. W przypadku wyboru opcji online pacjent otrzyma mailem link do połączenia - konieczne jest więc podanie przy zapisie adresu email oraz przygotowanie dokumentu tożsamości umożliwiającego identyfikację.</span>
 						</div>
 					</div>
 
@@ -585,7 +755,7 @@
 					<div class="col-md-4 lang lang-pl">
 						<div class="team-box text-center to-animate-2">
 							<h3><a onclick="document.getElementById('fq12').classList.toggle('hidden');">12. Odwoływanie wizyt</a></h3>
-							<span id="fq12" class="position hidden"><b>Jeśli nie możesz przyjść, prosimy o informację najpóźniej 24 h wcześniej — pozwoli to skorzystać z terminu innym osobom. <b>W przypadku braku odwołania obowiązuje pełna opłata za wizytę oraz brak możliwości umówienia się po raz kolejny bez uiszczenia wcześniejszej opłaty.</b></span>
+							<span id="fq12" class="position hidden">Jeśli nie możesz przyjść, prosimy o informację najpóźniej 24 h wcześniej — pozwoli to skorzystać z terminu innym osobom. W przypadku braku odwołania obowiązuje pełna opłata za wizytę oraz brak możliwości umówienia się po raz kolejny bez uiszczenia wcześniejszej opłaty.</span>
 						</div>
 					</div>
 				</div>
@@ -606,7 +776,7 @@
 					<div class="col-md-4 lang lang-pl">
 						<div class="team-box text-center to-animate-2">
 							<h3><a onclick="document.getElementById('fq15').classList.toggle('hidden');">15. Wizyty online</a></h3>
-							<span id="fq15" class="position hidden"><b>Po zapisie na wizytę w formie online pacjent otrzymuje link do połączenia (MS Teams, Zoom, WhatsApp). W celu ustalenia szczegółów należy kontaktować się z gabinetem.</b></span>
+							<span id="fq15" class="position hidden">Po zapisie na wizytę w formie online pacjent otrzymuje link do połączenia (MS Teams, Zoom, WhatsApp). W celu ustalenia szczegółów należy kontaktować się z gabinetem.</span>
 						</div>
 					</div>
 				</div>
@@ -614,7 +784,7 @@
 					<div class="col-md-4 lang lang-en">
 						<div class="team-box text-center to-animate-2">
 							<h3><a onclick="document.getElementById('fq1en').classList.toggle('hidden');">1. First Visit</a></h3>
-							<span id="fq1en" class="position hidden">The first visit must always take place in person. It cannot be conducted as a teleconsultation.</span>
+							<span id="fq1en" class="position hidden">The first appointment is conducted either in person or online. It cannot be carried out as a telephone consultation. If the online option is selected, the patient will receive a connection link by email; therefore, providing a valid email address during registration is required, as well as having an identity document ready for verification.</span>
 						</div>
 					</div>
 
@@ -721,67 +891,6 @@
 			</div>
 		</div>
 	</section>
-
-	
-	
-
-	<section id="fh5co-footer" data-section="contact" role="contentinfo">
-		<div class="container">
-			<div class="row">
-				<div class="col-md-4 to-animate">
-					<h4 class="section-title lang lang-pl">Indywidualna Praktyka Lekarska<br>Kinga Bobińska</h4>
-					<h4 class="section-title lang lang-en">Individual Medical Practice<br>Kinga Bobińska</h4>
-					<ul class="contact-info">
-						<li><i class="icon-map-marker"></i>Sienkiewicza 59/31<br>(brama obok sklepu muzycznego)<br>90-009 Łódź</li>
-						<li><i class="icon-phone"></i>+48 698 554 077</li>
-						<li><i class="icon-envelope"></i><a href="#">bobinska.gabinet@gmail.com</a></li>
-						<li><i class="icon-bank"></i>70 1140 2004 0000 3502 5354 7449 mBank</li>
-						<li><i class="icon-globe2"></i><a href="#">https://bobinska-gabinet.pl/</a></li>
-					</ul>
-				</div>
-				
-				<div class="col-md-4 to-animate"><div id="map"></div></div>	
-				<div class="col-md-4 to-animate">
-					<h4 class="section-title lang lang-pl">Zapraszam do kontaktu</h4>
-					<h4 class="section-title lang lang-en">You are welcome to contact me.</h4>
-					<form class="contact-form">
-						<div class="form-group">
-							<label for="name" class="sr-only">Name</label>
-							<input type="name" class="form-control" id="name" placeholder="Name">
-						</div>
-						<div class="form-group">
-							<label for="email" class="sr-only">Email</label>
-							<input type="email" class="form-control" id="email" placeholder="Email">
-						</div>
-						<div class="form-group">
-							<label for="message" class="sr-only">Message</label>
-							<textarea class="form-control" id="message" rows="7" placeholder="Message"></textarea>
-						</div>
-						<div class="form-group lang lang-pl">
-							<input type="submit" id="btn-submit" class="btn btn-send-message btn-md" value="Wyślij wiadomość">
-						</div>
-						<div class="form-group lang lang-en">
-							<input type="submit" id="btn-submit" class="btn btn-send-message btn-md" value="Send Message">
-						</div>
-					</form>
-				</div>
-				
-			</div>
-			<div class="row">
-				 <div class="col-md-4 to-animate">
-					
-					<p class="copy-right">Zdjęcia<br>
-						<img src="/static/site/images/foto_logo.png" alt="Opis" width="100" height="50">	
-					</p>
-				</div>
-                <div class="col-md-4 to-animate">				
-					<p class="copy-right">&copy; 2015 Legal Free Template. <br>All Rights Reserved.<br>
-						Designed by <a href="http://freehtml5.co/" target="_blank">FreeHTML5.co</a>
-					</p>
-				</div>		
-			</div>
-		</div>
-	</section>
 	
 	<section id="fh5co-explore" data-section="practice-areas">
 		<div class="container">
@@ -808,7 +917,28 @@
 						</div>
 					</div>
 				</div>
-			</div>
+			<!-- LINIA ODDZIELAJĄCA -->
+<div class="col-md-12">
+    <div class="section-divider-full"></div>
+</div>
+
+
+
+            <div class="col-md-4 to-animate footer-meta">
+                <p class="copy-right">
+                    Zdjęcia<br>
+                    <img src="/static/site/images/foto_logo.png" width="100" height="50">
+                </p>
+            </div>
+
+            <div class="col-md-4 to-animate footer-meta">
+                <p class="copy-right">
+                    &copy; 2015 Legal Free Template.<br>
+                    Designed by <a href="http://freehtml5.co/" target="_blank">FreeHTML5.co</a>
+                </p>
+            </div>
+
+        </div>
 		</div>
 	</section>
 
