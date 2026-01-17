@@ -1548,3 +1548,24 @@ img {
   }
 
 }
+
+
+@media (max-width: 768px) {
+  #fh5co-header .navbar-default {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  #fh5co-header #navbar li a span {
+    white-space: normal !important;
+  }
+}
+
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.lang-switch {
+  min-width: 52px;
+}
