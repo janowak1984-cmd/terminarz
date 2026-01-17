@@ -1569,3 +1569,31 @@ html, body {
 .lang-switch {
   min-width: 52px;
 }
+
+/* ===== OFFICE HOURS – ALIGN FIX ===== */
+.office-hours .hours {
+  margin-top: 6px;
+}
+
+.office-hours .hours > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.6;
+}
+
+/* lewa kolumna – dni */
+.office-hours .hours span:first-child {
+  color: #c3c9d4;
+}
+
+/* prawa kolumna – GODZINY (wyrównane idealnie) */
+/* prawa kolumna – GODZINY (mniejsze, nadal równo) */
+.office-hours .hours span:last-child {
+  min-width: 100px;      /* było 110px */
+  text-align: right;
+  font-weight: 400;      /* było 500 */      /* ⬅️ klucz */
+  color: #b0b7c3;
+  font-size: 12.5px;
+}
+
