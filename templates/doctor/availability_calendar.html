@@ -247,6 +247,9 @@ calendar = new FullCalendar.Calendar(calEl, {
   locale: 'pl',
   firstDay: 1,
 
+  height: 'auto',      // 🔥 KLUCZ
+  expandRows: true,    // 🔥 wypełnia dostępne miejsce
+
   initialDate: savedDate ? savedDate : undefined,
 
   hiddenDays: hiddenDays,

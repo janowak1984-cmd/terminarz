@@ -136,7 +136,6 @@ def api_days():
 
     return jsonify(sorted(days))
 
-
 @patient_bp.route("/api/hours")
 def api_hours():
     visit_code = request.args.get("visit_type")
@@ -164,13 +163,13 @@ def api_hours():
             Availability.doctor_id == 1,
             Availability.start >= datetime.combine(day, time.min),
             Availability.start < datetime.combine(day + timedelta(days=1), time.min),
-            Availability.active == True
+            Availability.active.is_(True)
         )
         .order_by(Availability.start)
         .all()
     )
 
-    # ───── istniejące wizyty tego dnia
+    # ───── istniejące wizyty
     appointments = (
         Appointment.query
         .filter(
@@ -183,16 +182,18 @@ def api_hours():
 
     is_empty_day = len(appointments) == 0
 
+    # ✅ JEDYNE ŹRÓDŁO PRAWDY – dozwolone minuty startu
     def is_nice_start(start):
-        if visit_minutes >= 60:
+        if visit_minutes == 60:
             return start.minute == 0
-        if visit_minutes == 45:
-            return start.minute in (0, 15)
         if visit_minutes == 30:
             return start.minute in (0, 30)
+        if visit_minutes == 45:
+            return start.minute in (0, 15)
         return True
 
     candidates = []
+    all_starts = []
 
     for i in range(len(slots)):
         window = slots[i:i + required_slots]
@@ -205,8 +206,8 @@ def api_hours():
         start = window[0].start
         end = start + timedelta(minutes=visit_minutes)
 
-        # ⛔ pusty dzień → tylko „ładne” godziny
-        if is_empty_day and not is_nice_start(start):
+        # ⛔ twarda blokada złych minut (ZAWSZE)
+        if not is_nice_start(start):
             continue
 
         score = 0
@@ -214,9 +215,9 @@ def api_hours():
         if not is_empty_day:
             for appt in appointments:
                 if appt.end == start:
-                    score += 50   # doklejenie po wizycie
+                    score += 50   # doklejenie po
                 if appt.start == end:
-                    score += 40   # doklejenie przed wizytą
+                    score += 40   # doklejenie przed
 
         if start.hour <= 12:
             score += 10
@@ -224,18 +225,41 @@ def api_hours():
             score += 10
 
         candidates.append({
-            "time": start.strftime("%H:%M"),
-            "score": score,
-            "start": start
+            "start": start,
+            "score": score
         })
 
-    # ───── sortowanie: najlepsze + wcześniejsze
+        all_starts.append(start)
+
+    # ───── PUSTY DZIEŃ + 30 MIN → STRATEGICZNE GODZINY
+    if is_empty_day and visit_minutes == 30 and all_starts:
+        all_starts = sorted(set(all_starts))
+
+        idx = [
+            0,
+            int(len(all_starts) * 0.25),
+            len(all_starts) // 2,
+            int(len(all_starts) * 0.75),
+            len(all_starts) - 1
+        ]
+
+        picked = [all_starts[i] for i in idx if 0 <= i < len(all_starts)]
+        picked = sorted(set(picked))
+
+        return jsonify([dt.strftime("%H:%M") for dt in picked[:5]])
+
+    # ───── NORMALNY TRYB (SCORING)
     candidates.sort(key=lambda x: (-x["score"], x["start"]))
 
-    # ───── max 5 godzin
-    result = [c["time"] for c in candidates[:5]]
+    chosen = [c["start"] for c in candidates[:5]]
 
-    return jsonify(result)
+    # ✅ KOŃCOWE SORTOWANIE PREZENTACYJNE
+    chosen.sort()
+
+    return jsonify([dt.strftime("%H:%M") for dt in chosen])
+
+
+
 
 
 
