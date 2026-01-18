@@ -240,14 +240,17 @@ try {
   hiddenDays = [];
 }
 
+const savedDate = localStorage.getItem('doctor_calendar_date');
 
 calendar = new FullCalendar.Calendar(calEl, {
   initialView: 'timeGridWeek',
   locale: 'pl',
   firstDay: 1,
-  //weekends: false,
 
-  hiddenDays: hiddenDays, // ✅ TERAZ POPRAWNIE
+  initialDate: savedDate ? savedDate : undefined,
+
+  hiddenDays: hiddenDays,
+// ✅ TERAZ POPRAWNIE
 
   slotMinTime: '08:00:00',
   slotMaxTime: '20:00:00',
@@ -256,6 +259,15 @@ calendar = new FullCalendar.Calendar(calEl, {
   events: {
     url: "{{ url_for('doctor.api_availability_calendar') }}"
   },
+
+    datesSet: function(info) {
+    // zapisujemy pierwszy dzień aktualnego widoku (bez godziny)
+    localStorage.setItem(
+      'doctor_calendar_date',
+      info.startStr.substring(0, 10)
+    );
+  },
+
 
   eventContent: function(arg) {
     // tylko wizyty

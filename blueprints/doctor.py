@@ -1,20 +1,56 @@
-import os 
-os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash, session
-from flask_login import login_required, current_user
-from sqlalchemy import extract
+import os
+import json
+import secrets
 from datetime import datetime, timedelta, date, time
 from calendar import monthrange
+
+import holidays
+
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    jsonify,
+    redirect,
+    url_for,
+    flash,
+    session,
+    current_app,
+)
+from flask_login import login_required, current_user
+
+from sqlalchemy import (
+    extract,
+    func,
+    case,
+    or_,
+)
+
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from flask import current_app
-import secrets
-import holidays
-import json
+
+from extensions import db
+from models import (
+    Appointment,
+    Availability,
+    VisitType,
+    Vacation,
+    BlacklistPatient,
+    Setting,
+    SMSMessage,
+)
+
 from utils.settings import get_setting
 from utils.google_calendar import GoogleCalendarService
 from utils.sms_service import SMSService
+
+
+# ⚠️ TYLKO DO DEV / HTTP (nie produkcja!)
+if os.environ.get("FLASK_ENV") == "development":
+    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+
+
 
 
 GOOGLE_COLORS = {
@@ -35,10 +71,6 @@ GOOGLE_COLORS = {
 
 #pl_holidays = holidays.country_holidays("PL")
 
-
-from extensions import db
-from models import Appointment, Availability, VisitType, Vacation, BlacklistPatient, Setting, SMSMessage
-
 def is_polish_holiday(d: date) -> bool:
     pl_holidays = holidays.PL(years={d.year})
     return d in pl_holidays
@@ -54,13 +86,6 @@ doctor_bp = Blueprint("doctor", __name__, url_prefix="/doctor")
 def dashboard():
     return redirect(url_for("doctor.appointments"))
 
-# =================================================
-# TERMINARZ – LISTA
-# =================================================
-from sqlalchemy import or_
-from flask import request
-from datetime import datetime
-
 PER_PAGE = 20
 
 # =================================================
@@ -75,14 +100,12 @@ SORTABLE_COLUMNS = {
     "patient_phone": Appointment.patient_phone,
     "patient_email": Appointment.patient_email,
     "status": Appointment.status,
+    "created_by": Appointment.created_by,
     "visit_type": Appointment.visit_type,
 }
 
 
 from sqlalchemy import or_, and_, case
-from datetime import datetime
-
-from sqlalchemy import or_, case
 from datetime import datetime
 
 @doctor_bp.route("/appointments")
@@ -99,6 +122,7 @@ def appointments():
     email = request.args.get("email", "").strip()
     visit_type = request.args.get("visit_type")
     status = request.args.get("status")
+    created_by = request.args.get("created_by")
     date_from = request.args.get("date_from")
     date_to = request.args.get("date_to")
     show_past = request.args.get("show_past") == "1"
@@ -144,6 +168,9 @@ def appointments():
     if status:
         query = query.filter(Appointment.status == status)
 
+    if created_by in ("doctor", "patient"):
+        query = query.filter(Appointment.created_by == created_by)
+
     if date_from:
         try:
             df = datetime.strptime(date_from, "%Y-%m-%d")
@@ -164,21 +191,6 @@ def appointments():
     if not show_past:
         query = query.filter(Appointment.end >= now)
 
-    # ─────────────────────────────
-    # 🧠 SORTOWANIE (WHITELIST)
-    # ─────────────────────────────
-    SORTABLE_COLUMNS = {
-        "start": Appointment.start,
-        "end": Appointment.end,
-        "duration": Appointment.duration,
-        "patient_first_name": Appointment.patient_first_name,
-        "patient_last_name": Appointment.patient_last_name,
-        "patient_phone": Appointment.patient_phone,
-        "patient_email": Appointment.patient_email,
-        "status": Appointment.status,
-        "visit_type": Appointment.visit_type,
-    }
-
     if sort not in SORTABLE_COLUMNS:
         sort = "start"
 
@@ -190,9 +202,10 @@ def appointments():
     if sort == "start" and dir_ == "asc":
         # najpierw przyszłe, potem przeszłe
         is_past = case(
-            (Appointment.start < now, 1),
+    (Appointment.end < now, 1),
             else_=0
         )
+
         query = query.order_by(
             is_past.asc(),
             Appointment.start.asc()
@@ -610,7 +623,9 @@ def appointment_api(appointment_id):
             "visit_type": appt.visit_type,
             "start": appt.start.strftime("%Y-%m-%d %H:%M"),
             "end": appt.end.strftime("%Y-%m-%d %H:%M"),
-            "duration": appt.duration
+            "duration": appt.duration,
+            "created_by": appt.created_by
+
         })
 
     # ---------- PUT ----------
@@ -1241,9 +1256,6 @@ def is_phone_blacklisted(doctor_id, phone):
         BlacklistPatient.active.is_(True)
     ).first() is not None
 
-from datetime import datetime
-from sqlalchemy import extract, func
-
 @doctor_bp.route("/statistics")
 @login_required
 def statistics():
@@ -1317,10 +1329,11 @@ def statistics():
 
 def settings_view():
     VISIBLE_SETTINGS = {
-    "calendar_visible_days",
-    "sms_enabled",
-    "sms_reminders_enabled",
-}
+        "calendar_visible_days",
+        "sms_enabled",
+        "sms_reminders_enabled",
+    }
+
 
     settings = Setting.query.filter(
         Setting.key.in_(VISIBLE_SETTINGS)
@@ -1495,13 +1508,6 @@ def get_google_service():
         scopes=["https://www.googleapis.com/auth/calendar"]
     )
     return build("calendar", "v3", credentials=creds)
-
-from flask import redirect, url_for, flash
-from flask_login import login_required
-from extensions import db
-from models import Appointment
-from utils.google_calendar import GoogleCalendarService
-
 
 @doctor_bp.route("/google/rebuild", methods=["POST"])
 @login_required

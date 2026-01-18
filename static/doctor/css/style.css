@@ -1,92 +1,309 @@
-/* ================================
-   GLOBAL – DARK BACKGROUND
-================================ */
+/* =========================================================
+   LUXMED-LIKE – CLINIC LIGHT
+   ========================================================= */
 
-html, body {
-  min-height: 100%;
+/* ===== PALETA ===== */
+:root {
+  --bg-main: #f4f8f7;
+  --bg-card: #ffffff;
+  --bg-soft: #eef5f3;
+
+  --accent-main: #00a88f;      /* luxmedowa zieleń */
+  --accent-soft: #e3f4f1;
+  --accent-dark: #008b75;
+
+  --blue-main: #1f6fd1;        /* akcent systemowy */
+  --text-main: #1f2933;
+  --text-muted: #6b7280;
+
+  --border-light: #dde5ea;
+  --border-strong: #cfd8df;
+
+  --danger: #e04848;
 }
 
-.doctor-container {
-    max-width: 1500px;   /* było ~1140–1320 */
+/* ===== BODY ===== */
+body.doctor-page {
+  background: var(--bg-main);
+  color: var(--text-main);
 }
 
+/* ===== KARTY ===== */
+.doctor-page .container,
+.doctor-page .container-fluid {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 22px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-light);
+  box-shadow: 0 2px 10px rgba(16, 24, 40, 0.04);
+}
 
-/* ================================
-   GŁÓWNY KONTEJNER (KARTA)
-================================ */
+/* ===== NAGŁÓWKI ===== */
+.doctor-page h1,
+.doctor-page h2,
+.doctor-page h3 {
+  color: var(--text-main);
+  font-weight: 600;
+}
 
-.container,
-.container-fluid {
-  max-width: 1100px;
-  margin: 0 auto;
+.doctor-page h2 {
+  font-size: 19px;
+  margin-bottom: 16px;
+}
+
+/* ===== MENU ===== */
+.doctor-nav a {
   background: #ffffff;
-  color: #000000;
-  padding: 20px;
+  color: var(--text-muted);
+  border: 1px solid var(--border-light);
   border-radius: 8px;
+  padding: 8px 16px;
+  transition: all .15s ease;
 }
 
-/* ================================
-   TABELKI
-================================ */
+.doctor-nav a:hover {
+  background: var(--bg-soft);
+  color: var(--text-main);
+}
 
-table {
+.doctor-nav a.active {
+  background: var(--accent-main);
+  color: #ffffff;
+  border-color: var(--accent-main);
+}
+
+.doctor-nav a.logout {
+  background: #fff5f5;
+  color: var(--danger);
+  border-color: #f1caca;
+}
+
+/* ===== TABELKI ===== */
+.doctor-page table {
   width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 1rem;
-}
-
-th, td {
-  border: 1px solid #ddd;
-  padding: 8px;
-  text-align: left;
-}
-
-/* ================================
-   PRZYCISKI
-================================ */
-
-button {
-  padding: 6px 10px;
-  border-radius: 4px;
-}
-
-/* ================================
-   FLASH MESSAGE
-================================ */
-
-.flashes {
-  list-style: none;
-  padding: 0;
-}
-
-.flashes li.success {
-  color: green;
-}
-
-.flashes li.danger {
-  color: red;
-}
-
-/* ================================
-   FULLCALENDAR – DROBNE DOSTOSOWANIE
-================================ */
-
-.fc {
   background: #ffffff;
-  border-radius: 6px;
-  padding: 10px;
+  border-radius: 8px;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
 }
 
-.fc-toolbar-title {
-  font-weight: bold;
+.doctor-page table th {
+  background: var(--bg-soft);
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 12px;
+  border-bottom: 1px solid var(--border-strong);
+  font-size: 13px;
+}
+
+.doctor-page table td {
+  padding: 12px;
+  border-top: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.doctor-page table tr:hover td {
+  background: #f7fbfa;
+}
+
+/* statusy */
+.doctor-page tr.active td {
+  background: var(--accent-soft);
+}
+
+.doctor-page tr.danger td {
+  background: #fdeaea;
+}
+
+/* ===== LABELKI ===== */
+.doctor-page .label {
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.doctor-page .label-primary {
+  background: var(--accent-main);
+  color: #fff;
+}
+
+.doctor-page .label-default {
+  background: #edf2f5;
+  color: var(--text-muted);
+}
+
+.doctor-page .label-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ===== PRZYCISKI ===== */
+.doctor-page .btn {
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all .15s ease;
+}
+
+.doctor-page .btn-primary {
+  background: var(--accent-main);
+  border: none;
+  color: #fff;
+}
+
+.doctor-page .btn-primary:hover {
+  background: var(--accent-dark);
+}
+
+.doctor-page .btn-success {
+  background: var(--blue-main);
+  border: none;
+  color: #fff;
+}
+
+.doctor-page .btn-danger {
+  background: var(--danger);
+  border: none;
+}
+
+/* ===== FORMULARZE ===== */
+.doctor-page input,
+.doctor-page select,
+.doctor-page textarea {
+  border-radius: 8px;
+  border: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  background: #ffffff;
+}
+
+.doctor-page input:focus,
+.doctor-page select:focus,
+.doctor-page textarea:focus {
+  border-color: var(--accent-main);
+  box-shadow: 0 0 0 3px rgba(0,168,143,0.18);
+}
+
+/* ===== KALENDARZ ===== */
+.doctor-page .calendar-day {
+  height: 44px;
+  line-height: 44px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.doctor-page .calendar-day.available {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border: 1px solid rgba(0,168,143,.35);
+}
+
+.doctor-page .calendar-day.selected {
+  background: var(--accent-main);
+  color: #fff;
+}
+
+.doctor-page .hour-btn {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  border: 1px solid rgba(0,168,143,.35);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.doctor-page .hour-btn.selected {
+  background: var(--accent-main);
+  color: #fff;
+}
+
+/* ===== ALERTY ===== */
+.doctor-page .alert-info {
+  background: var(--accent-soft);
+  border-color: #bfe8e1;
+  color: var(--accent-dark);
+}
+
+/* ===== DROBNE ===== */
+.doctor-page hr {
+  border-top: 1px solid var(--border-light);
+}
+
+.doctor-page .text-muted {
+  color: var(--text-muted);
 }
 
 /* ================================
-   MODALE (BOOTSTRAP)
+   BOOTSTRAP 3 OVERRIDES – DOCTOR
 ================================ */
 
-.modal-content {
-  border-radius: 6px;
+/* 🔥 USUWAMY SZTYWNE 34px */
+.doctor-container .form-control {
+  height: auto !important;
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 14px;
+  line-height: 1.4;
 }
 
+/* SELECTY */
+.doctor-container select.form-control {
+  min-height: 46px;
+  padding: 10px 12px;
+  font-weight: 500;
+}
 
+/* INPUTY + SELECTY – FOCUS */
+.doctor-container .form-control:focus {
+  border-color: #337ab7;
+  box-shadow: 0 0 0 2px rgba(51, 122, 183, 0.15);
+}
+
+/* ================================
+   BADGE – STATUS / ŹRÓDŁO
+================================ */
+
+.badge-status {
+  display: inline-block;
+  min-width: 95px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 6px;
+  line-height: 1.2;
+}
+
+.badge-scheduled {
+  background-color: #337ab7;
+  color: #fff;
+}
+
+.badge-completed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge-cancelled {
+  background-color: #f8d7da;
+  color: #842029;
+}
+
+/* ================================
+   TABELKI – LEPSZA CZYTELNOŚĆ
+================================ */
+
+.doctor-container table th,
+.doctor-container table td {
+  vertical-align: middle;
+}
+
+/* ================================
+   SELECTY Z IKONAMI (👤 ✍️)
+================================ */
+
+.doctor-container select option {
+  padding: 6px 10px;
+}

@@ -137,10 +137,6 @@ def api_days():
     return jsonify(sorted(days))
 
 
-# ───────────────────────────────────────
-# API: DOSTĘPNE GODZINY
-# ───────────────────────────────────────
-
 @patient_bp.route("/api/hours")
 def api_hours():
     visit_code = request.args.get("visit_type")
@@ -161,6 +157,7 @@ def api_hours():
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
 
+    # ───── dostępne sloty dnia
     slots = (
         Availability.query
         .filter(
@@ -173,17 +170,74 @@ def api_hours():
         .all()
     )
 
-    hours = set()
+    # ───── istniejące wizyty tego dnia
+    appointments = (
+        Appointment.query
+        .filter(
+            Appointment.status.in_(["scheduled", "completed"]),
+            Appointment.start >= datetime.combine(day, time.min),
+            Appointment.start < datetime.combine(day + timedelta(days=1), time.min)
+        )
+        .all()
+    )
+
+    is_empty_day = len(appointments) == 0
+
+    def is_nice_start(start):
+        if visit_minutes >= 60:
+            return start.minute == 0
+        if visit_minutes == 45:
+            return start.minute in (0, 15)
+        if visit_minutes == 30:
+            return start.minute in (0, 30)
+        return True
+
+    candidates = []
 
     for i in range(len(slots)):
         window = slots[i:i + required_slots]
         if len(window) < required_slots:
             continue
 
-        if _window_is_free_and_continuous(window):
-            hours.add(window[0].start.strftime("%H:%M"))
+        if not _window_is_free_and_continuous(window):
+            continue
 
-    return jsonify(sorted(hours))
+        start = window[0].start
+        end = start + timedelta(minutes=visit_minutes)
+
+        # ⛔ pusty dzień → tylko „ładne” godziny
+        if is_empty_day and not is_nice_start(start):
+            continue
+
+        score = 0
+
+        if not is_empty_day:
+            for appt in appointments:
+                if appt.end == start:
+                    score += 50   # doklejenie po wizycie
+                if appt.start == end:
+                    score += 40   # doklejenie przed wizytą
+
+        if start.hour <= 12:
+            score += 10
+        if start.hour >= 16:
+            score += 10
+
+        candidates.append({
+            "time": start.strftime("%H:%M"),
+            "score": score,
+            "start": start
+        })
+
+    # ───── sortowanie: najlepsze + wcześniejsze
+    candidates.sort(key=lambda x: (-x["score"], x["start"]))
+
+    # ───── max 5 godzin
+    result = [c["time"] for c in candidates[:5]]
+
+    return jsonify(result)
+
+
 
 
 # ───────────────────────────────────────

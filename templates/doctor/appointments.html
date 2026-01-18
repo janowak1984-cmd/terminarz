@@ -118,15 +118,19 @@
       page=1,
       sort=field,
       dir=new_dir,
-      first_name=request.args.first_name,
-      last_name=request.args.last_name,
-      phone=request.args.phone,
-      email=request.args.email,
-      visit_type=request.args.visit_type,
-      status=request.args.status,
-      date_from=request.args.date_from,
-      date_to=request.args.date_to,
-      show_past=request.args.show_past
+
+      first_name=request.args.get('first_name'),
+      last_name=request.args.get('last_name'),
+      phone=request.args.get('phone'),
+      email=request.args.get('email'),
+
+      visit_type=request.args.get('visit_type'),
+      status=request.args.get('status'),
+      created_by=request.args.get('created_by'),
+
+      date_from=request.args.get('date_from'),
+      date_to=request.args.get('date_to'),
+      show_past=request.args.get('show_past')
   ) }}">
     {{ label }}
     {% if sort == field %}
@@ -134,6 +138,7 @@
     {% endif %}
   </a>
 {% endmacro %}
+
 
 <h2>📅 Terminarz – lista wizyt</h2>
 
@@ -145,30 +150,35 @@
 
   <!-- ===== GÓRNA BELKA ===== -->
   <div class="row filters-row align-items-center">
+
     <div class="col-md-2">
-      <input type="date" name="date_from" class="form-control"
+      <input type="date"
+             name="date_from"
+             class="form-control"
              value="{{ request.args.date_from }}">
     </div>
 
     <div class="col-md-2">
-      <input type="date" name="date_to" class="form-control"
+      <input type="date"
+             name="date_to"
+             class="form-control"
              value="{{ request.args.date_to }}">
     </div>
 
-<div class="col-md-3 show-past-box">
-  <div class="form-check form-switch">
-    <input class="form-check-input"
-           type="checkbox"
-           role="switch"
-           id="showPastSwitch"
-           name="show_past"
-           value="1"
-           {% if request.args.show_past == "1" %}checked{% endif %}>
-    <label class="form-check-label" for="showPastSwitch">
-      pokaż przeszłe wizyty
-    </label>
-  </div>
-</div>
+    <div class="col-md-3 show-past-box">
+      <div class="form-check form-switch">
+        <input class="form-check-input"
+               type="checkbox"
+               role="switch"
+               id="showPastSwitch"
+               name="show_past"
+               value="1"
+               {% if request.args.show_past == "1" %}checked{% endif %}>
+        <label class="form-check-label" for="showPastSwitch">
+          pokaż przeszłe wizyty
+        </label>
+      </div>
+    </div>
 
     <div class="col-md-5 filters-actions">
       <button class="btn btn-primary">
@@ -179,39 +189,47 @@
         ✖ Reset
       </a>
     </div>
+
   </div>
 
   <hr class="filters-separator">
 
   <!-- ===== DOLNA BELKA ===== -->
   <div class="row filters-row">
-    <!-- krótsze o ~20% -->
+
     <div class="col-md-2">
-      <input type="text" name="last_name" class="form-control"
+      <input type="text"
+             name="last_name"
+             class="form-control"
              placeholder="Nazwisko"
              value="{{ request.args.last_name }}">
     </div>
 
     <div class="col-md-2">
-      <input type="text" name="first_name" class="form-control"
+      <input type="text"
+             name="first_name"
+             class="form-control"
              placeholder="Imię"
              value="{{ request.args.first_name }}">
     </div>
 
     <div class="col-md-2">
-      <input type="text" name="phone" class="form-control"
+      <input type="text"
+             name="phone"
+             class="form-control"
              placeholder="Telefon"
              value="{{ request.args.phone }}">
     </div>
 
     <div class="col-md-2">
-      <input type="text" name="email" class="form-control"
+      <input type="text"
+             name="email"
+             class="form-control"
              placeholder="Email"
              value="{{ request.args.email }}">
     </div>
 
-    <!-- SZERSZY -->
-    <div class="col-md-3">
+    <div class="col-md-2">
       <select name="visit_type" class="form-control filter-select">
         <option value="">Typ wizyty</option>
         {% for vt in visit_types %}
@@ -223,25 +241,45 @@
       </select>
     </div>
 
-    <!-- krótszy -->
     <div class="col-md-1">
       <select name="status" class="form-control filter-select">
         <option value="">Status</option>
-        <option value="scheduled" {% if request.args.status == "scheduled" %}selected{% endif %}>
+        <option value="scheduled"
+          {% if request.args.status == "scheduled" %}selected{% endif %}>
           Zapl.
         </option>
-        <option value="completed" {% if request.args.status == "completed" %}selected{% endif %}>
+        <option value="completed"
+          {% if request.args.status == "completed" %}selected{% endif %}>
           Odbyta
         </option>
-        <option value="cancelled" {% if request.args.status == "cancelled" %}selected{% endif %}>
+        <option value="cancelled"
+          {% if request.args.status == "cancelled" %}selected{% endif %}>
           Anul.
         </option>
       </select>
     </div>
+
+    <!-- 🆕 ŹRÓDŁO WIZYTY -->
+    <div class="col-md-1">
+      <select name="created_by" class="form-control filter-select">
+        <option value="">Źródło</option>
+        <option value="patient"
+          {% if request.args.created_by == "patient" %}selected{% endif %}>
+          👤
+        </option>
+        <option value="doctor"
+          {% if request.args.created_by == "doctor" %}selected{% endif %}>
+          ✍️
+        </option>
+      </select>
+    </div>
+
   </div>
 
 </form>
 
+
+<!-- ===== TABELA ===== -->
 <!-- ===== TABELA ===== -->
 <table class="table table-sm table-striped table-hover align-middle mt-3">
   <thead>
@@ -253,84 +291,107 @@
       <th>{{ sort_link("Telefon", "patient_phone") }}</th>
       <th>Email</th>
       <th>{{ sort_link("Typ", "visit_type") }}</th>
+      <!-- 🆕 ŹRÓDŁO -->
+      <th class="text-center">
+        {{ sort_link("Źródło", "created_by") }}
+      </th>
       <th>{{ sort_link("Status", "status") }}</th>
       <th></th>
     </tr>
   </thead>
 
-  <tbody>
-  {% for a in appointments %}
-    <tr>
-      <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
-      <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
-      <td>{{ a.patient_last_name }}</td>
-      <td>{{ a.patient_first_name }}</td>
-      <td>{{ a.patient_phone }}</td>
-      <td>{{ a.patient_email or "—" }}</td>
-      <td>{{ a.visit_type }}</td>
+
+
+ <tbody>
+{% for a in appointments %}
+  <tr>
+    <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
+    <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
+    <td>{{ a.patient_last_name }}</td>
+    <td>{{ a.patient_first_name }}</td>
+    <td>{{ a.patient_phone }}</td>
+    <td>{{ a.patient_email or "—" }}</td>
+    <td>{{ a.visit_type }}</td>
+
+    <!-- 🆕 ŹRÓDŁO WIZYTY -->
+    <td class="text-center">
+      {% if a.created_by == "patient" %}
+        <span title="Rezerwacja online">👤</span>
+      {% elif a.created_by == "doctor" %}
+        <span title="Dodana ręcznie przez lekarza">✍️</span>
+      {% else %}
+        —
+      {% endif %}
+    </td>
+
+    <!-- STATUS -->
     <td>
-  {% if a.status == "scheduled" %}
-    <span class="badge badge-status badge-scheduled">
-      zaplanowana
-    </span>
-  {% elif a.status == "completed" %}
-    <span class="badge badge-status badge-completed">
-      zrealizowana
-    </span>
-  {% elif a.status == "cancelled" %}
-    <span class="badge badge-status badge-cancelled">
-      anulowana
-    </span>
-  {% endif %}
-</td>
+      {% if a.status == "scheduled" %}
+        <span class="badge badge-status badge-scheduled">
+          zaplanowana
+        </span>
+      {% elif a.status == "completed" %}
+        <span class="badge badge-status badge-completed">
+          zrealizowana
+        </span>
+      {% elif a.status == "cancelled" %}
+        <span class="badge badge-status badge-cancelled">
+          anulowana
+        </span>
+      {% endif %}
+    </td>
+    
 
-      <td>
-  {% if a.status == "scheduled" %}
+    <!-- AKCJE -->
+    <td>
+      {% if a.status == "scheduled" %}
 
-    <!-- ✔ ZREALIZOWANA -->
-    <form method="post"
-          action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
-          style="display:inline">
+        <!-- ✔ ZREALIZOWANA -->
+        <form method="post"
+              action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+              style="display:inline">
 
-      {% for k, v in request.args.items() %}
-        <input type="hidden" name="{{ k }}" value="{{ v }}">
-      {% endfor %}
+          {% for k, v in request.args.items() %}
+            <input type="hidden" name="{{ k }}" value="{{ v }}">
+          {% endfor %}
 
-      <button class="btn btn-sm btn-success"
-              title="Oznacz wizytę jako zrealizowaną">
-        ✔
-      </button>
-    </form>
+          <button class="btn btn-sm btn-success"
+                  title="Oznacz wizytę jako zrealizowaną">
+            ✔
+          </button>
+        </form>
 
-    <!-- ❌ ANULUJ -->
-    <form method="post"
-          action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
-          style="display:inline; margin-left:4px;">
+        <!-- ❌ ANULUJ -->
+        <form method="post"
+              action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
+              style="display:inline; margin-left:4px;">
 
-      {% for k, v in request.args.items() %}
-        <input type="hidden" name="{{ k }}" value="{{ v }}">
-      {% endfor %}
+          {% for k, v in request.args.items() %}
+            <input type="hidden" name="{{ k }}" value="{{ v }}">
+          {% endfor %}
 
-      <button class="btn btn-sm btn-danger"
-              title="Anuluj wizytę">
-        ✖
-      </button>
-    </form>
+          <button class="btn btn-sm btn-danger"
+                  title="Anuluj wizytę">
+            ✖
+          </button>
+        </form>
 
-  {% else %}
-    —
-  {% endif %}
-</td>
+      {% else %}
+        —
+      {% endif %}
+    </td>
 
-    </tr>
-  {% else %}
-    <tr>
-      <td colspan="9" class="text-center text-muted">
-        Brak wizyt
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
+  </tr>
+{% else %}
+  <tr>
+    <td colspan="10" class="text-center text-muted">
+      Brak wizyt
+    </td>
+  </tr>
+{% endfor %}
+</tbody>
+
+
 </table>
 {% set args = request.args.to_dict() %}
 {% if 'page' in args %}
