@@ -252,9 +252,29 @@ calendar = new FullCalendar.Calendar(calEl, {
   slotMinTime: '08:00:00',
   slotMaxTime: '20:00:00',
   slotDuration: '00:15:00',
+
   events: {
-  url: "{{ url_for('doctor.api_availability_calendar') }}"
+    url: "{{ url_for('doctor.api_availability_calendar') }}"
   },
+
+  eventContent: function(arg) {
+    // tylko wizyty
+    if (!arg.event.id.startsWith('appt-')) {
+      return;
+    }
+
+    const createdBy = arg.event.extendedProps.created_by;
+    const icon = createdBy === 'patient' ? '👤' : '✍️';
+
+    return {
+      html: `
+        <div class="fc-event-title">
+          ${arg.event.title} ${icon}
+        </div>
+      `
+    };
+  },
+
 
 
   eventClick(info) {

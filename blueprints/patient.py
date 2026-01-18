@@ -246,8 +246,10 @@ def reserve():
         patient_first_name=request.form["first_name"],
         patient_last_name=request.form["last_name"],
         patient_phone=phone,
-        cancel_token=uuid.uuid4().hex
+        cancel_token=uuid.uuid4().hex,
+        created_by="patient"   # 👤 KLUCZOWE
     )
+
 
     db.session.add(appointment)
     db.session.commit()

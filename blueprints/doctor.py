@@ -368,20 +368,22 @@ def api_availability_calendar():
         color_hex = GOOGLE_COLORS.get(color_id, "#3788d8")
 
         events.append({
-            "id": f"appt-{a.id}",
-            "title": f"{a.patient_first_name} {a.patient_last_name}",
-            "start": a.start.isoformat(),
-            "end": a.end.isoformat(),
-            "display": "block",
-            "backgroundColor": color_hex,
-            "borderColor": color_hex,
-            "extendedProps": {
-                "appointment_id": a.id,
-                "phone": a.patient_phone,
-                "visit_type": a.visit_type,
-                "duration": a.duration
-            }
-        })
+        "id": f"appt-{a.id}",
+        "title": f"{a.patient_first_name} {a.patient_last_name}",
+        "start": a.start.isoformat(),
+        "end": a.end.isoformat(),
+        "display": "block",
+        "backgroundColor": color_hex,
+        "borderColor": color_hex,
+        "extendedProps": {
+            "appointment_id": a.id,
+            "phone": a.patient_phone,
+            "visit_type": a.visit_type,
+            "duration": a.duration,
+            "created_by": a.created_by   # 👤 / ✍️ źródło wizyty
+        }
+    })
+
 
 
 
@@ -820,18 +822,20 @@ def create_appointment_doctor():
 
     # 6️⃣ ZAPIS
     appt = Appointment(
-    doctor_id=current_user.id,
-    patient_first_name=data.get("first_name", "").strip(),
-    patient_last_name=data.get("last_name", "").strip(),
-    patient_phone=data.get("phone", "").strip(),
-    patient_email=data.get("email") or None,
-    visit_type=visit_type.code,
-    duration=visit_type.duration_minutes,
-    start=start,
-    end=end,
-    status="scheduled",   # 🔴 TO JEST KLUCZ
-    cancel_token=secrets.token_urlsafe(16)
+        doctor_id=current_user.id,
+        patient_first_name=data.get("first_name", "").strip(),
+        patient_last_name=data.get("last_name", "").strip(),
+        patient_phone=data.get("phone", "").strip(),
+        patient_email=data.get("email") or None,
+        visit_type=visit_type.code,
+        duration=visit_type.duration_minutes,
+        start=start,
+        end=end,
+        status="scheduled",
+        cancel_token=secrets.token_urlsafe(16),
+        created_by="doctor"   # ✍️ KLUCZOWE
     )
+
 
 
     db.session.add(appt)

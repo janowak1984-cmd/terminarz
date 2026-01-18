@@ -73,6 +73,11 @@ class Appointment(db.Model):
         nullable=False
     )
 
+    created_by = db.Column(
+        db.Enum("patient", "doctor", name="appointment_created_by"),
+        nullable=False
+    )
+
     cancel_token = db.Column(db.String(64), unique=True, index=True)
     cancelled_at = db.Column(db.DateTime)
 
@@ -98,6 +103,7 @@ class Appointment(db.Model):
         lazy="dynamic",
         cascade="all, delete-orphan"
     )
+
 
 
 
