@@ -127,6 +127,8 @@
       visit_type=request.args.get('visit_type'),
       status=request.args.get('status'),
       created_by=request.args.get('created_by'),
+      client_ip=request.args.get('client_ip'),
+
 
       date_from=request.args.get('date_from'),
       date_to=request.args.get('date_to'),
@@ -228,6 +230,14 @@
              placeholder="Email"
              value="{{ request.args.email }}">
     </div>
+    
+    <div class="col-md-2">
+      <input type="text"
+            name="client_ip"
+            class="form-control"
+            placeholder="IP klienta"
+            value="{{ request.args.client_ip }}">
+    </div>
 
     <div class="col-md-2">
       <select name="visit_type" class="form-control filter-select">
@@ -290,6 +300,7 @@
       <th>Imię</th>
       <th>{{ sort_link("Telefon", "patient_phone") }}</th>
       <th>Email</th>
+      <th>{{ sort_link("IP", "client_ip") }}</th>
       <th>{{ sort_link("Typ", "visit_type") }}</th>
       <!-- 🆕 ŹRÓDŁO -->
       <th class="text-center">
@@ -311,6 +322,14 @@
     <td>{{ a.patient_first_name }}</td>
     <td>{{ a.patient_phone }}</td>
     <td>{{ a.patient_email or "—" }}</td>
+    <td>
+        {% if a.client_ip %}
+          <code>{{ a.client_ip }}</code>
+        {% else %}
+          —
+        {% endif %}
+    </td>
+
     <td>{{ a.visit_type }}</td>
 
     <!-- 🆕 ŹRÓDŁO WIZYTY -->

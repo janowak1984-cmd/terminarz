@@ -7,7 +7,7 @@ def can_cancel_appointment(appt):
         return False, "Ta wizyta nie może zostać anulowana"
 
     # 🔒 blokada przed potwierdzeniem SMS
-    if not appt.sms_confirmation_sent_at:
+    if not (appt.sms_confirmation_sent_at or appt.email_confirmation_sent_at):
         return False, "Wizyta nie została jeszcze potwierdzona"
 
     if appt.start <= now:

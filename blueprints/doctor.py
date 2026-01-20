@@ -99,6 +99,7 @@ SORTABLE_COLUMNS = {
     "patient_last_name": Appointment.patient_last_name,
     "patient_phone": Appointment.patient_phone,
     "patient_email": Appointment.patient_email,
+    "client_ip": Appointment.client_ip,
     "status": Appointment.status,
     "created_by": Appointment.created_by,
     "visit_type": Appointment.visit_type,
@@ -120,6 +121,7 @@ def appointments():
     last_name = request.args.get("last_name", "").strip()
     phone = request.args.get("phone", "").strip()
     email = request.args.get("email", "").strip()
+    client_ip = request.args.get("client_ip", "").strip()
     visit_type = request.args.get("visit_type")
     status = request.args.get("status")
     created_by = request.args.get("created_by")
@@ -160,6 +162,10 @@ def appointments():
     if email:
         query = query.filter(
             Appointment.patient_email.ilike(f"%{email}%")
+        )
+    if client_ip:
+        query = query.filter(
+            Appointment.client_ip.ilike(f"%{client_ip}%")
         )
 
     if visit_type:
@@ -1326,13 +1332,15 @@ def statistics():
 # =================================================
 @doctor_bp.route("/settings")
 @login_required
-
 def settings_view():
     VISIBLE_SETTINGS = {
         "calendar_visible_days",
         "sms_enabled",
         "sms_reminders_enabled",
+        "email_enabled",
+        "email_reminders_enabled",
     }
+
 
 
     settings = Setting.query.filter(
@@ -1378,19 +1386,16 @@ def update_setting(key):
         setting.value = ",".join(days)
 
     # ===============================
-    # WŁĄCZNIK SMS
+    # WŁĄCZNIKI SMS / EMAIL
     # ===============================
-    elif key == "sms_enabled":
+    elif key in (
+        "sms_enabled",
+        "sms_reminders_enabled",
+        "email_enabled",
+        "email_reminders_enabled",
+    ):
         values = request.form.getlist("value")
         setting.value = "1" if "1" in values else "0"
-
-    # ===============================
-    # POZOSTAŁE
-    # ===============================
-    else:
-        value = request.form.getlist("value")[-1]
-        if value is not None:
-            setting.value = value
 
     db.session.commit()
     flash("✔ Zapisano konfigurację", "doctor-success")

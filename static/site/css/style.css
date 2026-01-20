@@ -1612,3 +1612,163 @@ html, body {
   }
 
 }
+
+/* ===============================
+   CONTACT SUCCESS MODAL
+   BLACK / RED / WHITE – FINAL
+   =============================== */
+
+#contactSuccessModal .modal-content {
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== HEADER ===== */
+#contactSuccessModal .modal-header {
+  background: #000000;
+  border-bottom: 3px solid #d73930;
+}
+
+#contactSuccessModal .modal-title {
+  color: #ffffff;
+  font-family: "Open Sans", Arial, sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* close (X) */
+#contactSuccessModal .close {
+  color: #ffffff;
+  opacity: 0.7;
+}
+#contactSuccessModal .close:hover {
+  opacity: 1;
+}
+
+/* ===== BODY ===== */
+#contactSuccessModal .modal-body {
+  background: #f2f2f2;      /* jasne szare – czytelne */
+  color: #222222;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 22px;
+  position: relative;
+}
+
+/* JEDYNY CHECKMARK */
+#contactSuccessModal .modal-body::before {
+  content: "✔";
+  display: inline-block;
+  margin-right: 6px;
+  color: #d73930;
+  font-weight: 700;
+}
+
+/* ===== FOOTER ===== */
+#contactSuccessModal .modal-footer {
+  background: #0e0e0e;
+  border-top: none;
+  padding: 14px 20px;
+}
+
+/* ===== BUTTON ===== */
+#contactSuccessModal .contact-ok {
+  background: #d73930;
+  color: #ffffff;
+  border: none;
+  border-radius: 0;
+  padding: 8px 26px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#contactSuccessModal .contact-ok:hover,
+#contactSuccessModal .contact-ok:focus {
+  background: #b52b24;
+  color: #ffffff;
+}
+
+/* ===============================
+   VACATION MODAL
+   BLACK / RED / WHITE – FINAL
+   =============================== */
+
+#vacationModal .modal-content {
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+}
+
+/* ===== HEADER ===== */
+#vacationModal .modal-header {
+  background: #000000;
+  border-bottom: 3px solid #d73930;
+}
+
+#vacationModal .modal-title {
+  color: #ffffff;
+  font-family: "Open Sans", Arial, sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+/* close (X) */
+#vacationModal .close {
+  color: #ffffff;
+  opacity: 0.7;
+}
+#vacationModal .close:hover {
+  opacity: 1;
+}
+
+/* ===== BODY ===== */
+#vacationModal .modal-body {
+  background: #f2f2f2;
+  color: #222222;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 22px;
+  position: relative;
+}
+
+/* czerwony akcent – UWAGA */
+#vacationModal .modal-body::before {
+  content: "!";
+  display: inline-block;
+  margin-right: 8px;
+  color: #d73930;
+  font-weight: 700;
+}
+
+/* ===== FOOTER ===== */
+#vacationModal .modal-footer {
+  background: #0e0e0e;
+  border-top: none;
+  padding: 14px 20px;
+}
+
+/* ===== BUTTON ===== */
+#vacationModal .vacation-ok {
+  background: #d73930;
+  color: #ffffff;
+  border: none;
+  border-radius: 0;
+  padding: 8px 26px;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+#vacationModal .vacation-ok:hover,
+#vacationModal .vacation-ok:focus {
+  background: #b52b24;
+  color: #ffffff;
+}

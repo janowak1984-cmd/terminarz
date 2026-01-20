@@ -8,7 +8,8 @@ from utils.cancel_policy import can_cancel_appointment
 from utils.sms_service import SMSService
 from utils.blacklist import is_phone_blacklisted
 from utils.google_calendar import GoogleCalendarService
-
+from utils.email_service import EmailService
+from utils.ip import get_client_ip
 
 
 patient_bp = Blueprint(
@@ -325,8 +326,11 @@ def reserve():
         patient_last_name=request.form["last_name"],
         patient_phone=phone,
         cancel_token=uuid.uuid4().hex,
-        created_by="patient"   # 👤 KLUCZOWE
+        created_by="patient",
+        client_ip=get_client_ip()   # 👈 KLUCZOWE
     )
+
+
 
 
     db.session.add(appointment)
@@ -348,6 +352,17 @@ def reserve():
         current_app.logger.warning(
             f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
         )
+
+    # ===============================
+    # 📧 EMAIL (NOWE)
+    # ===============================
+    try:
+        EmailService().send_confirmation(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
+        )
+
 
     flash("Wizyta została zarezerwowana", "patient-success")
     return redirect(url_for("patient.index"))

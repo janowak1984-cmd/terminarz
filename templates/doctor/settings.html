@@ -110,6 +110,57 @@
   <hr>
 
   <!-- ================================================= -->
+  <!-- 📧 EMAIL -->
+  <!-- ================================================= -->
+  <h4>📧 Email</h4>
+
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+    {% for s in settings %}
+      {% if s.key in ["email_enabled", "email_reminders_enabled"] %}
+      <tr>
+        <form method="post"
+              action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
+          <td><code>{{ s.key }}</code></td>
+          <td>{{ s.description }}</td>
+          <td>
+            <input type="hidden" name="value" value="0">
+            <label>
+              <input type="checkbox"
+                     name="value"
+                     value="1"
+                     {% if s.value == "1" %}checked{% endif %}>
+              {% if s.key == "email_enabled" %}
+                Wysyłka email aktywna
+              {% elif s.key == "email_reminders_enabled" %}
+                Automatyczne przypomnienia email (48h)
+              {% endif %}
+            </label>
+          </td>
+          <td>
+            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
+          </td>
+        </form>
+      </tr>
+      {% endif %}
+    {% endfor %}
+
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ================================================= -->
   <!-- 📅 GOOGLE CALENDAR -->
   <!-- ================================================= -->
   <h4>📅 Google Calendar</h4>

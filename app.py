@@ -1,8 +1,10 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
 from flask import Flask, redirect, url_for, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
+
 from config import Config
 from extensions import db, login_manager
 from models import Doctor
@@ -16,10 +18,13 @@ from jobs.send_reminders import run as send_reminders_run
 
 
 def create_app():
-    
+
     app = Flask(__name__, static_folder="static")
     app.config.from_object(Config)
 
+    # =============================
+    # PROXY (RAILWAY / PROD)
+    # =============================
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
         x_proto=1,
@@ -53,7 +58,7 @@ def create_app():
         return names[month]
 
     # =============================
-    # STRONA GŁÓWNA – STATIC
+    # STRONA GŁÓWNA – STATIC HTML
     # =============================
     @app.route("/")
     def site():
@@ -77,6 +82,9 @@ def create_app():
     from blueprints.doctor_templates import bp as doctor_templates_bp
     from blueprints.doctor_visit_types import bp as doctor_visit_types_bp
 
+    # 🔵 NOWE: API STRONY (formularz kontaktowy itp.)
+    from blueprints.site_api import site_api_bp
+
     app.register_blueprint(patient_bp, url_prefix="/rejestracja")
     app.register_blueprint(doctor_bp, url_prefix="/doctor")
     app.register_blueprint(auth_bp)
@@ -88,6 +96,9 @@ def create_app():
     )
 
     app.register_blueprint(doctor_templates_bp)
+
+    # 🔵 API dla strony statycznej
+    app.register_blueprint(site_api_bp)
 
     # =============================
     # DB INIT + DEFAULT SETTINGS

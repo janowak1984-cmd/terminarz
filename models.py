@@ -94,15 +94,21 @@ class Appointment(db.Model):
     sms_confirmation_sent_at = db.Column(db.DateTime)
     sms_reminder_sent_at = db.Column(db.DateTime)
 
-    created_at = db.Column(db.DateTime, default=db.func.now())
+    # ===== EMAIL =====
+    email_confirmation_sent_at = db.Column(db.DateTime)
+    email_reminder_sent_at = db.Column(db.DateTime)
 
-    # relacja
+    created_at = db.Column(db.DateTime, default=db.func.now())
+    client_ip = db.Column(db.String(45), nullable=True)
+
+    # ===== RELACJE =====
     sms_messages = db.relationship(
         "SMSMessage",
         backref="appointment",
         lazy="dynamic",
         cascade="all, delete-orphan"
     )
+
 
 
 
