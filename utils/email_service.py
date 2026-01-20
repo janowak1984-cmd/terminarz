@@ -1,23 +1,19 @@
-import smtplib
-from email.message import EmailMessage
+import requests
 from datetime import datetime
-
 from flask import current_app
+
 from extensions import db
 from models import Appointment
 from utils.settings import get_setting
 
 
 class EmailService:
-
     def __init__(self):
         # 🔌 GLOBALNY WŁĄCZNIK EMAIL
         self.enabled = get_setting("email_enabled", "0") == "1"
 
-        self.host = current_app.config.get("MAIL_HOST")
-        self.port = int(current_app.config.get("MAIL_PORT", 587))
-        self.username = current_app.config.get("MAIL_USER")
-        self.password = current_app.config.get("MAIL_PASSWORD")
+        # 🔐 SENDGRID
+        self.sendgrid_api_key = current_app.config.get("SENDGRID_API_KEY")
         self.sender = current_app.config.get("MAIL_FROM")
 
         self.base_url = (
@@ -27,10 +23,8 @@ class EmailService:
 
         current_app.logger.warning(
             f"[EMAIL CONFIG] enabled={self.enabled} "
-            f"host={self.host} "
-            f"port={self.port} "
-            f"user={self.username} "
-            f"password={'SET' if self.password else 'MISSING'} "
+            f"provider=sendgrid_api "
+            f"api_key={'SET' if self.sendgrid_api_key else 'MISSING'} "
             f"sender={self.sender}"
         )
 
@@ -40,44 +34,58 @@ class EmailService:
     def _can_send(self) -> bool:
         return (
             self.enabled
-            and bool(self.host)
-            and bool(self.username)
-            and bool(self.password)
             and bool(self.sender)
+            and bool(self.sendgrid_api_key)
         )
 
     # ───────────────────────────────────────
-    # CORE SEND
+    # CORE SEND (SENDGRID API)
     # ───────────────────────────────────────
     def _send_email(
         self,
+        *,
         to_email: str,
         subject: str,
         body: str,
-        *,
         html: bool = True,
         reply_to: str | None = None
     ):
-        msg = EmailMessage()
-        msg["From"] = self.sender
-        msg["To"] = to_email
-        msg["Subject"] = subject
+        if not self._can_send():
+            raise RuntimeError("Email sending disabled or SendGrid not configured")
 
-        if reply_to:
-            msg["Reply-To"] = reply_to
+        sender_email = self.sender.split("<")[-1].strip(">").strip()
+        sender_name = self.sender.split("<")[0].strip()
 
-        if html:
-            msg.set_content("Twoja poczta nie obsługuje HTML.")
-            msg.add_alternative(body, subtype="html")
-        else:
-            msg.set_content(body)
+        payload = {
+            "personalizations": [{
+                "to": [{"email": to_email}],
+                **({"reply_to": {"email": reply_to}} if reply_to else {})
+            }],
+            "from": {
+                "email": sender_email,
+                "name": sender_name
+            },
+            "subject": subject,
+            "content": [{
+                "type": "text/html" if html else "text/plain",
+                "value": body
+            }]
+        }
 
-        with smtplib.SMTP(self.host, self.port, timeout=10) as server:
-            server.ehlo()
-            server.starttls()
-            server.ehlo()
-            server.login(self.username, self.password)
-            server.send_message(msg)
+        response = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={
+                "Authorization": f"Bearer {self.sendgrid_api_key}",
+                "Content-Type": "application/json"
+            },
+            json=payload,
+            timeout=10
+        )
+
+        if response.status_code >= 300:
+            raise Exception(
+                f"SendGrid API error {response.status_code}: {response.text}"
+            )
 
     # ───────────────────────────────────────
     # 🆕 RAW EMAIL (CONTACT FORM, SYSTEM)
@@ -90,10 +98,6 @@ class EmailService:
         body: str,
         reply_to: str | None = None
     ):
-        """
-        Proste wysyłanie maila (formularz kontaktowy, alerty)
-        """
-
         if not to:
             raise ValueError("Missing recipient email")
 
@@ -103,7 +107,7 @@ class EmailService:
 
         if not self._can_send():
             current_app.logger.warning(
-                "[EMAIL] raw SKIPPED – email disabled or SMTP not configured"
+                "[EMAIL] raw SKIPPED – email disabled or SendGrid API not configured"
             )
             return False
 
@@ -137,7 +141,7 @@ class EmailService:
 
         if not self._can_send():
             current_app.logger.warning(
-                "[EMAIL] confirmation SKIPPED – email disabled or SMTP not configured"
+                "[EMAIL] confirmation SKIPPED – email disabled or SendGrid API not configured"
             )
             return None
 
@@ -151,9 +155,9 @@ class EmailService:
 
         try:
             self._send_email(
-                appointment.patient_email,
-                subject,
-                body,
+                to_email=appointment.patient_email,
+                subject=subject,
+                body=body,
                 html=True
             )
 
@@ -184,9 +188,9 @@ class EmailService:
 
         try:
             self._send_email(
-                appointment.patient_email,
-                subject,
-                body,
+                to_email=appointment.patient_email,
+                subject=subject,
+                body=body,
                 html=True
             )
 
@@ -227,7 +231,7 @@ class EmailService:
             <a href="{cancel_url}"
                style="display:inline-block;
                       padding:10px 16px;
-                      background:#d9534f;
+                      background:#d73930;
                       color:#fff;
                       text-decoration:none;
                       border-radius:6px;">
