@@ -34,8 +34,13 @@ class Config:
     MAIL_USER = os.getenv("MAIL_USER")
     MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
 
-    # np. "Rejestracja <bobinska@kingabobinska.pl>"
+    # np. "Rejestracja wizyt <bobinska@kingabobinska.pl>"
     MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USER)
+
+    # ─────────────────────────
+    # SENDGRID (EMAIL API)
+    # ─────────────────────────
+    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
     # 📬 ADRES DO FORMULARZA KONTAKTOWEGO
     CONTACT_FORM_TO = os.getenv(
