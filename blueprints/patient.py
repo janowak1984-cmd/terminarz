@@ -84,7 +84,10 @@ def is_active_vacation_day(day):
 @patient_bp.route("/api/days")
 def api_days():
     visit_code = request.args.get("visit_type")
-    if not visit_code:
+    year = request.args.get("year", type=int)
+    month = request.args.get("month", type=int)
+
+    if not visit_code or not year or not month:
         return jsonify([])
 
     vt = VisitType.query.filter_by(code=visit_code, active=True).first()
@@ -93,13 +96,20 @@ def api_days():
 
     visit_minutes = vt.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
-    now = datetime.now()
+
+    # ───── zakres miesiąca
+    month_start = datetime(year, month, 1)
+    if month == 12:
+        month_end = datetime(year + 1, 1, 1)
+    else:
+        month_end = datetime(year, month + 1, 1)
 
     slots = (
         Availability.query
         .filter(
-            Availability.start >= now,
-            Availability.active == True
+            Availability.start >= month_start,
+            Availability.start < month_end,
+            Availability.active.is_(True)
         )
         .order_by(Availability.start)
         .all()
@@ -136,6 +146,7 @@ def api_days():
                 days.add(day_date.isoformat())
 
     return jsonify(sorted(days))
+
 
 @patient_bp.route("/api/hours")
 def api_hours():

@@ -72,7 +72,12 @@
 </style>
 
 <div class="container-fluid">
-
+<button type="button"
+        class="btn btn-link"
+        onclick="window.history.back();"
+        style="margin-bottom:10px;">
+  ← Wróć na stronę główną
+</button>
   <h2>Rezerwacja wizyty</h2>
 
   <label>Rodzaj wizyty</label>
@@ -148,10 +153,33 @@
         <input type="email" name="email" id="f_email" class="form-control input-lg">
         <div class="field-error" id="err-email">Nieprawidłowy email</div>
       </div>
+      <div class="form-group">
+      <label>
+  <input type="checkbox" id="accept_terms">
+  Akceptuję
+  <a href="/static/site/files/regulamin_płatności.pdf"
+     target="_blank"
+     rel="noopener noreferrer">
+    regulamin
+  </a>
+  rejestracji wizyt
+</label>
 
-      <button class="btn btn-primary btn-lg btn-block">
-        Zarezerwuj wizytę
-      </button>
+    </div>
+
+     <button id="btn_reserve"
+        class="btn btn-primary btn-lg btn-block"
+        disabled>
+  Zarezerwuj wizytę
+</button>
+
+<button type="button"
+        class="btn btn-default btn-lg btn-block"
+        disabled
+        style="opacity:0.5; cursor:not-allowed;">
+  Zapłać online
+</button>
+
     </form>
   </div>
 
@@ -283,7 +311,12 @@ $("#visit_type").change(function () {
 
   if (!code) return;
 
-  $.getJSON(API + "/api/days", { visit_type: code }, function (days) {
+  $.getJSON(API + "/api/days", {
+  visit_type: code,
+  year: currentMonth.getFullYear(),
+  month: currentMonth.getMonth() + 1
+    }, function (days) {
+
     availableDays = days;
     currentMonth = new Date();
     renderCalendar();
@@ -297,7 +330,7 @@ $("#visit_type").change(function () {
 $("#next_month").click(() => {
   currentMonth.setMonth(currentMonth.getMonth() + 1);
   resetDaySelection();
-  renderCalendar();
+  loadDaysForCurrentMonth();
 });
 
 $("#prev_month").click(() => {
@@ -306,8 +339,9 @@ $("#prev_month").click(() => {
   if (test < new Date(today.getFullYear(), today.getMonth(), 1)) return;
   currentMonth = test;
   resetDaySelection();
-  renderCalendar();
+  loadDaysForCurrentMonth();
 });
+
 
 /* ===== WYBÓR DNIA ===== */
 $(document).on("click", ".calendar-day.available", function () {
@@ -344,6 +378,26 @@ $(document).on("click", ".hour-btn", function () {
   document.getElementById("form_wrapper")
     .scrollIntoView({ behavior: "smooth" });
 });
+
+$("#accept_terms").on("change", function () {
+  $("#btn_reserve").prop("disabled", !this.checked);
+});
+
+
+function loadDaysForCurrentMonth() {
+  const code = $("#visit_type").val();
+  if (!code) return;
+
+  $.getJSON(API + "/api/days", {
+    visit_type: code,
+    year: currentMonth.getFullYear(),
+    month: currentMonth.getMonth() + 1
+  }, function (days) {
+    availableDays = days;
+    renderCalendar();
+  });
+}
+
 </script>
 
 </div>
