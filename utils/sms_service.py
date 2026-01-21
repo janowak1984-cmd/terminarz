@@ -149,20 +149,17 @@ class SMSService:
     # ───────────────────────────────────────
     # CONTENT BUILDERS
     # ───────────────────────────────────────
-def _build_confirmation_content(self, appointment: Appointment) -> str:
-    date_str = appointment.start.strftime("%d.%m.%Y")
-    time_str = appointment.start.strftime("%H:%M")
+    def _build_confirmation_content(self, appointment: Appointment) -> str:
+        date_str = appointment.start.strftime("%d.%m.%Y")
+        time_str = appointment.start.strftime("%H:%M")
 
-    cancel_url = f"{self.base_url}/c/{appointment.cancel_token}"
+        cancel_url = f"{self.base_url}/c/{appointment.cancel_token}"
 
-    return (
-        f"{date_str} godz. {time_str}\n"
-        f"Anulowanie wizyty: {cancel_url}\n"
-        f"Auto-wiad. - prosimy nie odpowiadac"
-    )
-
-
-
+        return (
+            f"{date_str} godz. {time_str}\n"
+            f"Anulowanie wizyty: {cancel_url}\n"
+            f"Auto-wiad. - prosimy nie odpowiadac"
+        )
 
     def _build_reminder_content(self, appointment: Appointment) -> str:
         date_str = appointment.start.strftime("%d.%m.%Y")
