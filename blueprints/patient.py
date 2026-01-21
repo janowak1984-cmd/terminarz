@@ -283,6 +283,7 @@ def api_hours():
 @patient_bp.route("/reserve", methods=["POST"])
 def reserve():
     phone = request.form.get("phone", "").strip()
+    email = request.form.get("email", "").strip()
     visit_code = request.form["visit_type"]
 
     visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
@@ -336,6 +337,7 @@ def reserve():
         patient_first_name=request.form["first_name"],
         patient_last_name=request.form["last_name"],
         patient_phone=phone,
+        patient_email=email if email else None,
         cancel_token=uuid.uuid4().hex,
         created_by="patient",
         client_ip=get_client_ip()   # 👈 KLUCZOWE
