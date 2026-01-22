@@ -11,14 +11,23 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
 
-  <!-- NOWY THEME LEKARZA -->
+  <!-- THEME LEKARZA -->
   <link rel="stylesheet" href="{{ url_for('static', filename='doctor/css/style.css') }}">
 
   <style>
+    /* ===== BODY ===== */
     body.doctor-page {
-      max-width: 1200px;
-      margin: 10px auto;
-      padding: 0 10px;
+      margin: 10px 0;
+      padding: 0;
+    }
+
+    /* ===== WRAPPER FULL HD ===== */
+    .doctor-container {
+      width: 100%;
+      max-width: 1920px;
+      margin: 0 auto;
+      padding-left: 24px;
+      padding-right: 24px;
     }
 
     /* ===== MENU DOKTORA ===== */
@@ -68,62 +77,64 @@
 
 <body class="doctor-page">
 
-<!-- ===== NAWIGACJA ===== -->
-<div class="doctor-nav">
-  <a href="{{ url_for('doctor.appointments') }}"
-     class="{% if active_page == 'appointments' %}active{% endif %}">
-     Terminarz
-  </a>
+<!-- ===== MENU (CENTROWANE, FULL HD) ===== -->
+<div class="doctor-container">
+  <div class="doctor-nav">
+    <a href="{{ url_for('doctor.appointments') }}"
+       class="{% if active_page == 'appointments' %}active{% endif %}">
+       Terminarz
+    </a>
 
-  <a href="{{ url_for('doctor.calendar') }}"
-     class="{% if active_page == 'calendar' %}active{% endif %}">
-     Grafik
-  </a>
+    <a href="{{ url_for('doctor.calendar') }}"
+       class="{% if active_page == 'calendar' %}active{% endif %}">
+       Grafik
+    </a>
 
-  <a href="{{ url_for('doctor.generate_view') }}"
-     class="{% if active_page == 'generate' %}active{% endif %}">
-     Generowanie
-  </a>
+    <a href="{{ url_for('doctor.generate_view') }}"
+       class="{% if active_page == 'generate' %}active{% endif %}">
+       Generowanie
+    </a>
 
-  <a href="{{ url_for('doctor.statistics') }}"
-     class="{% if active_page == 'statistics' %}active{% endif %}">
-     Statystyki
-  </a>
+    <a href="{{ url_for('doctor.statistics') }}"
+       class="{% if active_page == 'statistics' %}active{% endif %}">
+       Statystyki
+    </a>
 
-  <a href="{{ url_for('doctor_visit_types.list_view') }}"
-     class="{% if active_page == 'visit_types' %}active{% endif %}">
-     Typy wizyt
-  </a>
+    <a href="{{ url_for('doctor_visit_types.list_view') }}"
+       class="{% if active_page == 'visit_types' %}active{% endif %}">
+       Typy wizyt
+    </a>
 
-  <a href="{{ url_for('doctor.vacations_view') }}"
-     class="{% if active_page == 'vacations' %}active{% endif %}">
-     Urlopy
-  </a>
+    <a href="{{ url_for('doctor.vacations_view') }}"
+       class="{% if active_page == 'vacations' %}active{% endif %}">
+       Urlopy
+    </a>
 
-  <a href="{{ url_for('doctor.blacklist') }}"
-     class="{% if active_page == 'blacklist' %}active{% endif %}">
-     Czarna lista
-  </a>
+    <a href="{{ url_for('doctor.blacklist') }}"
+       class="{% if active_page == 'blacklist' %}active{% endif %}">
+       Czarna lista
+    </a>
 
-  <a href="{{ url_for('doctor.sms_list') }}"
-    class="{% if active_page == 'sms' %}active{% endif %}">
-    SMS
-  </a>
+    <a href="{{ url_for('doctor.sms_list') }}"
+       class="{% if active_page == 'sms' %}active{% endif %}">
+       SMS
+    </a>
 
+    <a href="{{ url_for('doctor.settings_view') }}"
+       class="{% if active_page == 'settings' %}active{% endif %}">
+       Konfiguracja
+    </a>
 
-  <a href="{{ url_for('doctor.settings_view') }}"
-     class="{% if active_page == 'settings' %}active{% endif %}">
-     Konfiguracja
-  </a>
+    <a href="{{ url_for('auth.logout') }}" class="logout">Wyloguj</a>
+  </div>
 
-  <a href="{{ url_for('auth.logout') }}" class="logout">Wyloguj</a>
+  <hr>
 </div>
 
-<hr>
+<!-- ===== TREŚĆ (TEN SAM WRAPPER) ===== -->
+<main class="doctor-container">
 
-<main class="container doctor-container">
-
-  <!-- ===== FLASH MESSAGES ===== -->
+  <!-- FLASH -->
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <div id="flash-container">
@@ -147,7 +158,7 @@
   {% block content %}{% endblock %}
 </main>
 
-<!-- ===== AUTO-ZAMYKANIE FLASH PO 5s ===== -->
+<!-- AUTO-ZAMYKANIE FLASH -->
 <script>
   $(function () {
     setTimeout(function () {
