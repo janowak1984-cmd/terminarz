@@ -323,3 +323,19 @@ body.doctor-page {
     max-width: 1920px;
   }
 }
+
+/* ===== FULLCALENDAR – FULL HD ===== */
+#availabilityCalendar {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* żeby nie było dziwnych ograniczeń */
+.fc {
+  max-width: 100%;
+}
+
+/* czytelność przy dużej szerokości */
+.fc-timegrid-slot-label {
+  white-space: nowrap;
+}
