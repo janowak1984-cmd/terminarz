@@ -192,11 +192,8 @@ class VisitType(db.Model):
     duration_minutes = db.Column(db.Integer, nullable=False)
 
     # 🔢 kolejność wyświetlania (lista pacjenta + lekarza)
-    display_order = db.Column(
-        db.Integer,
-        nullable=False,
-        default=100
-    )
+    display_order = db.Column(db.Integer, nullable=False, default=100)
+    display_order_doctor = db.Column(db.Integer, nullable=False, default=100)
 
     # 🎨 kolor wyświetlania w kalendarzu (FullCalendar)
     color = db.Column(

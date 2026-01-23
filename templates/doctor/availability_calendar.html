@@ -492,28 +492,38 @@ document.getElementById('btn-action-blacklist').onclick = function () {
 
 /* ===== SLOTY – NIETKNIĘTE ===== */
 
-document.getElementById('btn-slot-add-visit').onclick=function(){
+document.getElementById('btn-slot-add-visit').onclick = function () {
   $('#slotActionModal').modal('hide');
-  const dt=fmt(currentSlotEvent.start);
+  const dt = fmt(currentSlotEvent.start);
 
   fetch('/doctor/visit-types/api')
-    .then(r=>r.json())
-    .then(types=>{
-      const s=document.getElementById('a-visit-type');
-      s.innerHTML='';
-      types.forEach(t=>{
-        const o=document.createElement('option');
-        o.value=t.code; o.textContent=t.name;
-        s.appendChild(o);
-      });
-      document.getElementById('a-start').innerText=dt.full;
-      document.getElementById('a-first-name').value='';
-      document.getElementById('a-last-name').value='';
-      document.getElementById('a-phone').value='';
-      document.getElementById('a-email').value='';
+    .then(r => r.json())
+    .then(types => {
+      const s = document.getElementById('a-visit-type');
+      s.innerHTML = '';
+
+      types
+        .sort((a, b) =>
+          (a.display_order_doctor ?? 100) -
+          (b.display_order_doctor ?? 100)
+        )
+        .forEach(t => {
+          const o = document.createElement('option');
+          o.value = t.code;
+          o.textContent = t.name;
+          s.appendChild(o);
+        });
+
+      document.getElementById('a-start').innerText = dt.full;
+      document.getElementById('a-first-name').value = '';
+      document.getElementById('a-last-name').value = '';
+      document.getElementById('a-phone').value = '';
+      document.getElementById('a-email').value = '';
+
       $('#addAppointmentModal').modal('show');
     });
 };
+
 
 document.getElementById('btn-create-visit').onclick = function () {
   const dt = fmt(currentSlotEvent.start);

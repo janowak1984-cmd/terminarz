@@ -878,17 +878,29 @@ def create_appointment_doctor():
 @doctor_bp.route("/visit-types/api")
 @login_required
 def visit_types_api():
-    types = VisitType.query.filter_by(active=True).order_by(VisitType.display_order.asc(), VisitType.id.asc()).all()
+    types = (
+        VisitType.query
+        .filter_by(active=True)
+        .order_by(
+            VisitType.display_order_doctor.asc(),
+            VisitType.id.asc()
+        )
+        .all()
+    )
+
     return jsonify([
         {
             "code": t.code,
-            "name": t.name
-        } for t in types
+            "name": t.name,
+            "display_order_doctor": t.display_order_doctor
+        }
+        for t in types
     ])
 
 
+
 # =================================================
-# TABELA TYPÓW WIZYT
+# TABELA TYPÓW WIZYT aktualnie ten kod nie jest juz używany
 # =================================================
 @doctor_bp.route("/visit-types/table-api")
 @login_required
@@ -910,7 +922,8 @@ def visit_types_table_api():
             "price": float(t.price) if t.price is not None else None,
             "color": t.color,
             "active": t.active,
-            "display_order": t.display_order  # ✅ KLUCZOWE
+            "display_order": t.display_order,  # ✅ KLUCZOWE
+            "display_order_doctor": t.display_order_doctor
         }
         for t in types
     ])

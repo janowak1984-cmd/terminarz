@@ -63,10 +63,12 @@ def get_one(vt_id):
         "description": vt.description,
         "price": float(vt.price) if vt.price is not None else None,
         "duration_minutes": vt.duration_minutes,
-        "color": vt.color,                 # ⬅️ tu trzymamy HEX (Google 1:1)
+        "color": vt.color,
         "active": vt.active,
-        "display_order": vt.display_order
+        "display_order": vt.display_order,
+        "display_order_doctor": vt.display_order_doctor
     })
+
 
 # ===============================
 # CREATE
@@ -79,7 +81,7 @@ def create():
         return jsonify({"error": "Brak danych"}), 400
 
     # 🔒 WALIDACJA WYMAGANYCH PÓL
-    for field in ("name", "code", "duration_minutes", "display_order"):
+    for field in ("name", "code", "duration_minutes", "display_order", "display_order_doctor"):
         if data.get(field) in (None, ""):
             return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
 
@@ -95,6 +97,7 @@ def create():
 
     # 🔢 KOLEJNOŚĆ WYŚWIETLANIA
     new_order = int(data.get("display_order", 100))
+    new_order_doctor = int(data.get("display_order_doctor", 100))
 
     VisitType.query.filter(
         VisitType.display_order >= new_order
@@ -119,8 +122,10 @@ def create():
         duration_minutes=int(data["duration_minutes"]),
         color=data.get("color", GOOGLE_COLORS["1"]),
         active=bool(data.get("active", True)),
-        display_order=new_order
+        display_order=new_order,
+        display_order_doctor=new_order_doctor
     )
+
 
     db.session.add(vt)
     db.session.commit()
@@ -140,9 +145,10 @@ def update(vt_id):
         return jsonify({"error": "Brak danych"}), 400
 
     # 🔒 WALIDACJA WYMAGANYCH PÓL
-    for field in ("name", "code", "duration_minutes", "display_order", "price"):
-        if not data.get(field):
+    for field in ("name", "code", "duration_minutes", "display_order", "display_order_doctor"):
+        if data.get(field) in (None, ""):
             return jsonify({"error": f"Pole '{field}' jest wymagane"}), 400
+
 
     # 🔒 WALIDACJA UNIKALNOŚCI KODU (Z WYKLUCZENIEM BIEŻĄCEGO)
     existing = VisitType.query.filter(
@@ -187,6 +193,9 @@ def update(vt_id):
     vt.duration_minutes = int(data["duration_minutes"])
     vt.color = data.get("color", vt.color)
     vt.active = data.get("active", True)
+    vt.display_order_doctor = int(data.get("display_order_doctor", vt.display_order_doctor)
+)
+
 
     db.session.commit()
     return jsonify({"status": "ok"})

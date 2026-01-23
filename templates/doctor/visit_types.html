@@ -74,13 +74,23 @@
       <p>Kod:<br><input id="vt-code"></p>
 
       <p>
-        Kolejność (1 = najwyżej):<br>
+        Kolejność dla pacjenta:<br>
         <select id="vt-order">
           {% for i in range(1, 21) %}
             <option value="{{ i }}">{{ i }}</option>
           {% endfor %}
         </select>
       </p>
+
+      <p>
+        Kolejność dla lekarza:<br>
+        <select id="vt-order-doctor">
+          {% for i in range(1, 21) %}
+            <option value="{{ i }}">{{ i }}</option>
+          {% endfor %}
+        </select>
+      </p>
+
 
       <p>Opis:<br><textarea id="vt-description"></textarea></p>
       <p>Cena (zł):<br><input type="number" step="0.01" id="vt-price"></p>
@@ -181,6 +191,8 @@ function saveVisitType() {
   const code = document.getElementById('vt-code').value.trim();
   const duration = document.getElementById('vt-duration').value;
   const order = document.getElementById('vt-order').value;
+  const orderDoctor = document.getElementById('vt-order-doctor').value;
+
   const priceRaw = document.getElementById('vt-price').value;
 
   if (!name) return showError('Pole nazwa jest wymagane.');
@@ -198,7 +210,8 @@ function saveVisitType() {
     duration_minutes: Number(duration),
     color: document.getElementById('vt-color').value || null,
     active: document.getElementById('vt-active').checked,
-    display_order: Number(order)
+    display_order: Number(order),
+    display_order_doctor: Number(orderDoctor)
   };
 
   const url = id ? `/doctor/visit-types/${id}` : `/doctor/visit-types`;
@@ -235,7 +248,8 @@ function openEditModal(id) {
       document.getElementById('vt-color').value = vt.color;
       document.getElementById('vt-active').checked = vt.active;
       document.getElementById('vt-order').value = String(vt.display_order);
-      
+      document.getElementById('vt-order-doctor').value = String(vt.display_order_doctor);
+
 
       document.querySelectorAll('#color-picker .c')
         .forEach(c => c.classList.toggle('active', c.dataset.color === vt.color));
@@ -255,6 +269,8 @@ function openCreateModal() {
   document.getElementById('vt-duration').value = '30';
   document.getElementById('vt-active').checked = true;
   document.getElementById('vt-order').value = 100;
+  document.getElementById('vt-order-doctor').value = 100;
+
 
   document.getElementById('vt-color').value = DEFAULT_COLOR;
   document.querySelectorAll('#color-picker .c').forEach(c => c.classList.remove('active'));
