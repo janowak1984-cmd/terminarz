@@ -203,6 +203,8 @@ class VisitType(db.Model):
     )
 
     active = db.Column(db.Boolean, nullable=False, default=True)
+    # 💳 płatność online
+    only_online_payment = db.Column(db.Boolean, nullable=False, default=False)
 
     created_at = db.Column(
         db.DateTime,

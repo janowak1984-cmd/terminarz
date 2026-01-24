@@ -16,9 +16,13 @@
       <div class="vt-main">
         <div class="vt-name">{{ vt.name }}</div>
         <div class="vt-meta">
-          {{ vt.code }} • {{ vt.duration_minutes }} min •
-          {{ "%.2f"|format(vt.price or 0) }} zł • #{{ vt.display_order }}
-        </div>
+            {{ vt.code }} • {{ vt.duration_minutes }} min •
+            {{ "%.2f"|format(vt.price or 0) }} zł • #{{ vt.display_order }}
+            {% if vt.only_online_payment %}
+              • <strong>💳 tylko online</strong>
+            {% endif %}
+      </div>
+
       </div>
 
       <div class="vt-status">
@@ -94,6 +98,7 @@
 
       <p>Opis:<br><textarea id="vt-description"></textarea></p>
       <p>Cena (zł):<br><input type="number" step="0.01" id="vt-price"></p>
+      <p><label><input type="checkbox" id="vt-only-online">Tylko płatność online</label></p>
 
       <p>
         Czas trwania:<br>
@@ -211,8 +216,10 @@ function saveVisitType() {
     color: document.getElementById('vt-color').value || null,
     active: document.getElementById('vt-active').checked,
     display_order: Number(order),
-    display_order_doctor: Number(orderDoctor)
+    display_order_doctor: Number(orderDoctor),
+    only_online_payment: document.getElementById('vt-only-online').checked
   };
+
 
   const url = id ? `/doctor/visit-types/${id}` : `/doctor/visit-types`;
   const method = id ? 'PUT' : 'POST';
@@ -244,6 +251,7 @@ function openEditModal(id) {
       document.getElementById('vt-code').value = vt.code;
       document.getElementById('vt-description').value = vt.description || '';
       document.getElementById('vt-price').value = vt.price ?? '';
+      document.getElementById('vt-only-online').checked = !!vt.only_online_payment;
       document.getElementById('vt-duration').value = vt.duration_minutes;
       document.getElementById('vt-color').value = vt.color;
       document.getElementById('vt-active').checked = vt.active;
@@ -266,6 +274,7 @@ function openCreateModal() {
   document.getElementById('vt-code').value = '';
   document.getElementById('vt-description').value = '';
   document.getElementById('vt-price').value = '';
+  document.getElementById('vt-only-online').checked = false;
   document.getElementById('vt-duration').value = '30';
   document.getElementById('vt-active').checked = true;
   document.getElementById('vt-order').value = 100;

@@ -66,8 +66,10 @@ def get_one(vt_id):
         "color": vt.color,
         "active": vt.active,
         "display_order": vt.display_order,
-        "display_order_doctor": vt.display_order_doctor
+        "display_order_doctor": vt.display_order_doctor,
+        "only_online_payment": bool(vt.only_online_payment)
     })
+
 
 
 # ===============================
@@ -123,8 +125,11 @@ def create():
         color=data.get("color", GOOGLE_COLORS["1"]),
         active=bool(data.get("active", True)),
         display_order=new_order,
-        display_order_doctor=new_order_doctor
+        display_order_doctor=new_order_doctor,
+        only_online_payment=bool(data.get("only_online_payment", False))
     )
+
+
 
 
     db.session.add(vt)
@@ -193,9 +198,8 @@ def update(vt_id):
     vt.duration_minutes = int(data["duration_minutes"])
     vt.color = data.get("color", vt.color)
     vt.active = data.get("active", True)
-    vt.display_order_doctor = int(data.get("display_order_doctor", vt.display_order_doctor)
-)
-
+    vt.display_order_doctor = int(data.get("display_order_doctor", vt.display_order_doctor))
+    vt.only_online_payment = bool(data.get("only_online_payment", vt.only_online_payment))
 
     db.session.commit()
     return jsonify({"status": "ok"})

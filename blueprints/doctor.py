@@ -892,7 +892,8 @@ def visit_types_api():
         {
             "code": t.code,
             "name": t.name,
-            "display_order_doctor": t.display_order_doctor
+            "display_order_doctor": t.display_order_doctor,
+            "only_online_payment": bool(t.only_online_payment)
         }
         for t in types
     ])
@@ -923,7 +924,8 @@ def visit_types_table_api():
             "color": t.color,
             "active": t.active,
             "display_order": t.display_order,  # ✅ KLUCZOWE
-            "display_order_doctor": t.display_order_doctor
+            "display_order_doctor": t.display_order_doctor,
+            "only_online_payment": bool(t.only_online_payment)
         }
         for t in types
     ])

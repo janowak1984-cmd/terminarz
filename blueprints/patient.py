@@ -53,10 +53,12 @@ def api_visit_types():
             "code": vt.code,
             "duration_minutes": vt.duration_minutes,
             "price": float(vt.price) if vt.price is not None else None,
-            "color": vt.color
+            "color": vt.color,
+            "only_online_payment": bool(vt.only_online_payment)
         }
         for vt in visit_types
     ])
+
 
 
 # ───────────────────────────────────────
