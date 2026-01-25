@@ -65,6 +65,24 @@ def create_app():
         return send_from_directory("static/site", "index.html")
 
     # =============================
+    # SITEMAP.XML (SEO / GOOGLE)
+    # =============================
+    @app.route("/sitemap.xml")
+    def sitemap():
+        xml = """<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.kingabobinska.pl/</loc>
+  </url>
+  <url>
+    <loc>https://www.kingabobinska.pl/rejestracja</loc>
+  </url>
+</urlset>
+"""
+        return app.response_class(xml, mimetype="application/xml")
+
+
+    # =============================
     # GLOBALNY KRÓTKI LINK CANCEL
     # =============================
     @app.route("/c/<token>")
