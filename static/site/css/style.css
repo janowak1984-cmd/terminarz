@@ -1772,3 +1772,44 @@ html, body {
   background: #b52b24;
   color: #ffffff;
 }
+
+/* DESKTOP – bez zmian */
+.footer-meta {
+  text-align: center;
+}
+
+/* SEO note – delikatna */
+.seo-note {
+  font-size: 11px;
+  color: #9a9a9a;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* MOBILE FIX */
+@media (max-width: 767px) {
+
+  .footer-meta {
+    margin-bottom: 10px;
+  }
+
+  /* SEO info na sam dół */
+  .footer-seo {
+    order: 3;
+    margin-top: 12px;
+  }
+
+  /* mniej tekstu wizualnie */
+  .seo-note {
+    font-size: 10px;
+    line-height: 1.3;
+  }
+
+  /* zdjęcia + copyright w jednej osi */
+  .footer-left,
+  .footer-right {
+    order: 1;
+  }
+}
+
+
