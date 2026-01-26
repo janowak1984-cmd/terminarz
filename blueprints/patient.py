@@ -80,7 +80,7 @@ def is_active_vacation_day(day):
 
 
 # ───────────────────────────────────────
-# API: DOSTĘPNE DNI
+# API: DOSTĘPNE DNI (POPRAWIONE)
 # ───────────────────────────────────────
 
 @patient_bp.route("/api/days")
@@ -106,6 +106,10 @@ def api_days():
     else:
         month_end = datetime(year, month + 1, 1)
 
+    # ───────────────────────────────────
+    # ⬇️ WSZYSTKIE ZAPYTANIA SQL TYLKO TUTAJ
+    # ───────────────────────────────────
+
     slots = (
         Availability.query
         .filter(
@@ -117,25 +121,55 @@ def api_days():
         .all()
     )
 
-    days = set()
-
-    def has_conflict(start, end):
-        return (
-            Appointment.query
-            .filter(
-                Appointment.status.in_(["scheduled", "completed"]),
-                Appointment.start < end,
-                Appointment.end > start
-            )
-            .first()
-            is not None
+    appointments = (
+        Appointment.query
+        .filter(
+            Appointment.status.in_(["scheduled", "completed"]),
+            Appointment.start < month_end,
+            Appointment.end > month_start
         )
+        .all()
+    )
+
+    vacations = (
+        Vacation.query
+        .filter(
+            Vacation.doctor_id == 1,
+            Vacation.active == 1,
+            Vacation.date_from < month_end,
+            Vacation.date_to >= month_start
+        )
+        .all()
+    )
+
+    # ───────────────────────────────────
+    # ⬇️ LOKALNE HELPERY (BEZ SQL)
+    # ───────────────────────────────────
+
+    def has_conflict_local(start, end):
+        for appt in appointments:
+            if appt.start < end and appt.end > start:
+                return True
+        return False
+
+    def is_vacation_local(day):
+        for v in vacations:
+            if v.date_from <= day <= v.date_to:
+                return True
+        return False
+
+    # ───────────────────────────────────
+    # ⬇️ GŁÓWNA LOGIKA
+    # ───────────────────────────────────
+
+    days = set()
 
     for i in range(len(slots)):
         window = slots[i:i + required_slots]
         if len(window) < required_slots:
             continue
 
+        # ciągłość slotów
         for j in range(1, len(window)):
             if window[j].start != window[j - 1].end:
                 break
@@ -144,10 +178,11 @@ def api_days():
             end = start + timedelta(minutes=visit_minutes)
             day_date = start.date()
 
-            if not is_active_vacation_day(day_date) and not has_conflict(start, end):
+            if not is_vacation_local(day_date) and not has_conflict_local(start, end):
                 days.add(day_date.isoformat())
 
     return jsonify(sorted(days))
+
 
 
 @patient_bp.route("/api/hours")
