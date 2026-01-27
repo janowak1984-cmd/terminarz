@@ -1,6 +1,20 @@
 import os
 
 
+def _fix_database_url(url: str | None) -> str | None:
+    """
+    Railway często ustawia DATABASE_URL jako mysql://...
+    SQLAlchemy + PyMySQL WYMAGA mysql+pymysql://
+    """
+    if not url:
+        return None
+
+    if url.startswith("mysql://"):
+        return url.replace("mysql://", "mysql+pymysql://", 1)
+
+    return url
+
+
 class Config:
     # ─────────────────────────
     # CORE
@@ -8,9 +22,11 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
 
     # ─────────────────────────
-    # DATABASE
+    # DATABASE (RAILWAY SAFE)
     # ─────────────────────────
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    SQLALCHEMY_DATABASE_URI = _fix_database_url(
+        os.getenv("DATABASE_URL")
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ─────────────────────────
@@ -36,8 +52,6 @@ class Config:
 
     # np. "Rejestracja wizyt <bobinska@kingabobinska.pl>"
     MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USER)
-
-    BASE_URL = os.getenv("BASE_URL")
 
     # ─────────────────────────
     # SENDGRID (EMAIL API)
