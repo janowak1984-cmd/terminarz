@@ -121,8 +121,11 @@ def create_app():
     # =============================
     # DB INIT + DEFAULT SETTINGS
     # =============================
-    with app.app_context():
+    try:
         init_default_settings()
+    except Exception as e:
+        print("DB not ready yet, skipping defaults:", e)
+
 
     # =============================
     # BACKGROUND SCHEDULER (SMS)
