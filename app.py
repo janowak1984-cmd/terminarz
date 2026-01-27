@@ -22,6 +22,14 @@ def create_app():
     app = Flask(__name__, static_folder="static")
     app.config.from_object(Config)
 
+    # ✅ STABILNE USTAWIENIA SQLALCHEMY (RAILWAY SAFE)
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 180,
+        "pool_size": 5,
+        "max_overflow": 2,
+    }
+
     # =============================
     # PROXY (RAILWAY / PROD)
     # =============================
@@ -81,7 +89,6 @@ def create_app():
 """
         return app.response_class(xml, mimetype="application/xml")
 
-
     # =============================
     # GLOBALNY KRÓTKI LINK CANCEL
     # =============================
@@ -99,24 +106,26 @@ def create_app():
     from blueprints.auth import auth_bp
     from blueprints.doctor_templates import bp as doctor_templates_bp
     from blueprints.doctor_visit_types import bp as doctor_visit_types_bp
-
-    # 🔵 NOWE: API STRONY (formularz kontaktowy itp.)
     from blueprints.site_api import site_api_bp
 
     app.register_blueprint(patient_bp, url_prefix="/rejestracja")
     app.register_blueprint(doctor_bp, url_prefix="/doctor")
     app.register_blueprint(auth_bp)
 
-    # 🔴 KLUCZOWA NAPRAWA – JEDYNA SŁUSZNA
     app.register_blueprint(
         doctor_visit_types_bp,
         url_prefix="/doctor/visit-types"
     )
 
     app.register_blueprint(doctor_templates_bp)
-
-    # 🔵 API dla strony statycznej
     app.register_blueprint(site_api_bp)
+
+    # =============================
+    # GLOBALNE ZAMYKANIE SESJI (KRYTYCZNE)
+    # =============================
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        db.session.remove()
 
     # =============================
     # DB INIT + DEFAULT SETTINGS
@@ -125,7 +134,6 @@ def create_app():
         init_default_settings()
     except Exception as e:
         print("DB not ready yet, skipping defaults:", e)
-
 
     # =============================
     # BACKGROUND SCHEDULER (SMS)
@@ -136,7 +144,10 @@ def create_app():
 
         def reminder_job_wrapper():
             with app.app_context():
-                send_reminders_run()
+                try:
+                    send_reminders_run()
+                finally:
+                    db.session.remove()
 
         scheduler.add_job(
             reminder_job_wrapper,
