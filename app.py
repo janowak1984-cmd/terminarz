@@ -5,6 +5,8 @@ load_dotenv()
 from flask import Flask, redirect, url_for, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from sqlalchemy.pool import NullPool
+
 from config import Config
 from extensions import db, login_manager
 from models import Doctor
@@ -22,12 +24,9 @@ def create_app():
     app = Flask(__name__, static_folder="static")
     app.config.from_object(Config)
 
-    # ✅ STABILNE USTAWIENIA SQLALCHEMY (RAILWAY SAFE)
+    # ✅ JEDYNA STABILNA OPCJA NA RAILWAY MYSQL (BEZ POOLA)
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
-        "pool_pre_ping": True,
-        "pool_recycle": 180,
-        "pool_size": 5,
-        "max_overflow": 2,
+        "poolclass": NullPool,
     }
 
     # =============================
@@ -121,7 +120,7 @@ def create_app():
     app.register_blueprint(site_api_bp)
 
     # =============================
-    # GLOBALNE ZAMYKANIE SESJI (KRYTYCZNE)
+    # GLOBALNE ZAMYKANIE SESJI (MUSI BYĆ)
     # =============================
     @app.teardown_appcontext
     def shutdown_session(exception=None):
