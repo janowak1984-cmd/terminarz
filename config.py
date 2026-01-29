@@ -1,20 +1,6 @@
 import os
 
 
-def _fix_database_url(url: str | None) -> str | None:
-    """
-    Railway często ustawia DATABASE_URL jako mysql://...
-    SQLAlchemy + PyMySQL WYMAGA mysql+pymysql://
-    """
-    if not url:
-        return None
-
-    if url.startswith("mysql://"):
-        return url.replace("mysql://", "mysql+pymysql://", 1)
-
-    return url
-
-
 class Config:
     # ─────────────────────────
     # CORE
@@ -22,11 +8,9 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
 
     # ─────────────────────────
-    # DATABASE (RAILWAY SAFE)
+    # DATABASE
     # ─────────────────────────
-    SQLALCHEMY_DATABASE_URI = _fix_database_url(
-        os.getenv("DATABASE_URL")
-    )
+    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ─────────────────────────
@@ -53,6 +37,8 @@ class Config:
     # np. "Rejestracja wizyt <bobinska@kingabobinska.pl>"
     MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USER)
 
+    #BASE_URL = os.getenv("BASE_URL")
+
     # ─────────────────────────
     # SENDGRID (EMAIL API)
     # ─────────────────────────
@@ -65,9 +51,35 @@ class Config:
     )
 
     # ─────────────────────────
-    # APP
+    # PRZELEWY24
     # ─────────────────────────
+    P24_MERCHANT_ID = os.getenv("P24_MERCHANT_ID")
+    P24_POS_ID = os.getenv("P24_POS_ID")
+    P24_CRC_KEY = os.getenv("P24_CRC_KEY")
+
+    P24_REGISTER_URL = os.getenv(
+        "P24_REGISTER_URL",
+        "https://sandbox.przelewy24.pl/api/v1/transaction/register"
+    )
+
+    P24_REDIRECT_URL = os.getenv(
+        "P24_REDIRECT_URL",
+        "https://sandbox.przelewy24.pl/trnRequest"
+    )
     BASE_URL = os.getenv(
         "BASE_URL",
         "http://127.0.0.1:5000"
     ).rstrip("/")
+
+    P24_RETURN_URL = os.getenv(
+        "P24_RETURN_URL",
+        f"{BASE_URL}/rejestracja/platnosc/return"
+    )
+
+    P24_STATUS_URL = os.getenv(
+        "P24_STATUS_URL",
+        f"{BASE_URL}/payments/status"
+    )
+
+    P24_REPORT_KEY = os.getenv("P24_REPORT_KEY")
+
