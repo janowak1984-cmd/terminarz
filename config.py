@@ -50,36 +50,3 @@ class Config:
         "bobinskagabinet@gmail.com"
     )
 
-    # ─────────────────────────
-    # PRZELEWY24
-    # ─────────────────────────
-    P24_MERCHANT_ID = os.getenv("P24_MERCHANT_ID")
-    P24_POS_ID = os.getenv("P24_POS_ID")
-    P24_CRC_KEY = os.getenv("P24_CRC_KEY")
-
-    P24_REGISTER_URL = os.getenv(
-        "P24_REGISTER_URL",
-        "https://sandbox.przelewy24.pl/api/v1/transaction/register"
-    )
-
-    P24_REDIRECT_URL = os.getenv(
-        "P24_REDIRECT_URL",
-        "https://sandbox.przelewy24.pl/trnRequest"
-    )
-    BASE_URL = os.getenv(
-        "BASE_URL",
-        "http://127.0.0.1:5000"
-    ).rstrip("/")
-
-    P24_RETURN_URL = os.getenv(
-        "P24_RETURN_URL",
-        f"{BASE_URL}/rejestracja/platnosc/return"
-    )
-
-    P24_STATUS_URL = os.getenv(
-        "P24_STATUS_URL",
-        f"{BASE_URL}/payments/status"
-    )
-
-    P24_REPORT_KEY = os.getenv("P24_REPORT_KEY")
-

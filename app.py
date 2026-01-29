@@ -9,7 +9,6 @@ from config import Config
 from extensions import db, login_manager
 from models import Doctor
 from settings_defaults import init_default_settings
-from blueprints.payments import payments_bp
 
 # ───────────────────────────────────────
 # SCHEDULER
@@ -146,8 +145,6 @@ def create_app():
 
         scheduler.start()
         print("✅ Background SMS reminder scheduler started")
-
-    app.register_blueprint(payments_bp)
 
     return app
 
