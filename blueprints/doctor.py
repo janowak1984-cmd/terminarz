@@ -1470,12 +1470,17 @@ def google_connect():
         prompt="consent"
     )
 
-    session["google_oauth_state"] = state
     return redirect(authorization_url)
 
 
 @doctor_bp.route("/google/callback")
 def google_callback():
+    # 🔒 STATE TYLKO Z URL (NIE Z SESJI)
+    state = request.args.get("state")
+    if not state:
+        flash("Nieprawidłowa odpowiedź z Google (brak state)", "error")
+        return redirect(url_for("doctor.settings_view"))
+
     flow = Flow.from_client_config(
         {
             "web": {
@@ -1487,16 +1492,18 @@ def google_callback():
         },
         scopes=["https://www.googleapis.com/auth/calendar"],
         redirect_uri=current_app.config["GOOGLE_REDIRECT_URI"],
-        state=session.get("google_oauth_state")
+        state=state
     )
 
+    # 🔑 WYMIANA CODE → TOKEN
     flow.fetch_token(authorization_response=request.url)
     creds = flow.credentials
 
-    # 🔹 pobierz primary calendar
+    # 🔹 POBIERZ PRIMARY CALENDAR
     service = build("calendar", "v3", credentials=creds)
     calendar = service.calendarList().get(calendarId="primary").execute()
 
+    # 💾 ZAPIS TOKENÓW
     set_setting("google_access_token", creds.token)
     set_setting("google_refresh_token", creds.refresh_token)
     set_setting("google_calendar_id", calendar["id"])
@@ -1506,6 +1513,7 @@ def google_callback():
 
     flash("Połączono z Google Calendar", "success")
     return redirect(url_for("doctor.settings_view"))
+
 
 def set_setting(key, value):
     s = Setting.query.filter_by(key=key).first()
