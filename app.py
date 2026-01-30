@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, redirect, url_for, send_from_directory
+from flask import Flask, redirect, url_for, send_from_directory, request
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
@@ -26,11 +26,14 @@ def create_app():
     # =============================
     app.config.from_object(Config)
 
-    # 🔐 ABSOLUTNIE WYMAGANE DLA OAUTH
+    # 🔐 SESJA – KRYTYCZNE DLA GOOGLE OAUTH
     app.config.update(
         SECRET_KEY=os.environ.get("SECRET_KEY"),
-        SESSION_COOKIE_SAMESITE="None",  # Google OAuth (cross-site)
-        SESSION_COOKIE_SECURE=True,      # wymagane przez Chrome
+
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",          # ❗ NIE "None"
+        SESSION_COOKIE_DOMAIN="kingabobinska.pl"
     )
 
     # =============================
@@ -38,8 +41,10 @@ def create_app():
     # =============================
     app.wsgi_app = ProxyFix(
         app.wsgi_app,
+        x_for=1,
         x_proto=1,
-        x_host=1
+        x_host=1,
+        x_port=1
     )
 
     # =============================
@@ -100,6 +105,20 @@ def create_app():
         return redirect(
             url_for("patient.cancel_by_token", token=token)
         )
+
+    # =============================
+    # 🔍 DEBUG OAUTH – GLOBALNY LOG
+    # =============================
+    @app.before_request
+    def log_oauth_debug():
+        if request.path.startswith("/doctor/google"):
+            app.logger.warning(
+                f"[OAUTH DEBUG] path={request.path} "
+                f"scheme={request.scheme} "
+                f"host={request.host} "
+                f"args_state={request.args.get('state')} "
+                f"session_state={request.session.get('google_oauth_state') if hasattr(request, 'session') else None}"
+            )
 
     # =============================
     # BLUEPRINTS
