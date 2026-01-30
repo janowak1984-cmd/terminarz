@@ -1457,11 +1457,15 @@ def google_connect():
                 "client_id": current_app.config["GOOGLE_CLIENT_ID"],
                 "client_secret": current_app.config["GOOGLE_CLIENT_SECRET"],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
+                "token_uri": "https://oauth2.googleapis.com/token",
             }
         },
         scopes=["https://www.googleapis.com/auth/calendar"],
-        redirect_uri=current_app.config["GOOGLE_REDIRECT_URI"]
+        redirect_uri=url_for(
+            "doctor.google_callback",
+            _external=True,
+            _scheme="https"
+        )
     )
 
     authorization_url, state = flow.authorization_url(
@@ -1471,6 +1475,7 @@ def google_connect():
     )
 
     return redirect(authorization_url)
+
 
 
 @doctor_bp.route("/google/callback")
