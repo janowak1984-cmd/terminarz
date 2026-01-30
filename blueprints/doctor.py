@@ -1497,7 +1497,6 @@ def google_callback():
     service = build("calendar", "v3", credentials=creds)
     calendar = service.calendarList().get(calendarId="primary").execute()
 
-    doctor = current_user
     set_setting("google_access_token", creds.token)
     set_setting("google_refresh_token", creds.refresh_token)
     set_setting("google_calendar_id", calendar["id"])
