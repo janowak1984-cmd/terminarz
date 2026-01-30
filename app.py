@@ -32,8 +32,7 @@ def create_app():
 
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax",          # ❗ NIE "None"
-        SESSION_COOKIE_DOMAIN="kingabobinska.pl"
+        SESSION_COOKIE_SAMESITE="Lax"
     )
 
     # =============================
