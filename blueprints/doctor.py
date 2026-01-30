@@ -45,12 +45,10 @@ from utils.settings import get_setting
 from utils.google_calendar import GoogleCalendarService
 from utils.sms_service import SMSService
 
-
-# ⚠️ TYLKO DO DEV / HTTP (nie produkcja!)
-if os.environ.get("FLASK_ENV") == "development":
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-
+GOOGLE_SCOPES = [
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.readonly",
+]
 
 
 GOOGLE_COLORS = {
@@ -1474,16 +1472,27 @@ def google_connect():
         prompt="consent"
     )
 
+    # 🔑 KLUCZOWE
+    session["oauth_state"] = state
+
     return redirect(authorization_url)
+
 
 
 
 @doctor_bp.route("/google/callback")
 def google_callback():
-    # 🔒 STATE TYLKO Z URL (NIE Z SESJI)
-    state = request.args.get("state")
-    if not state:
-        flash("Nieprawidłowa odpowiedź z Google (brak state)", "error")
+    # 🔐 CSRF protection
+    state_arg = request.args.get("state")
+    state_sess = session.get("oauth_state")
+
+    if not state_arg or not state_sess or state_arg != state_sess:
+        current_app.logger.error(
+            "[OAUTH] state mismatch arg=%s session=%s",
+            state_arg,
+            state_sess
+        )
+        flash("Błąd autoryzacji Google (CSRF)", "error")
         return redirect(url_for("doctor.settings_view"))
 
     flow = Flow.from_client_config(
@@ -1492,23 +1501,30 @@ def google_callback():
                 "client_id": current_app.config["GOOGLE_CLIENT_ID"],
                 "client_secret": current_app.config["GOOGLE_CLIENT_SECRET"],
                 "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                "token_uri": "https://oauth2.googleapis.com/token"
+                "token_uri": "https://oauth2.googleapis.com/token",
             }
         },
-        scopes=["https://www.googleapis.com/auth/calendar"],
-        redirect_uri=current_app.config["GOOGLE_REDIRECT_URI"],
-        state=state
+        scopes=GOOGLE_SCOPES,
+        redirect_uri=url_for(
+            "doctor.google_callback",
+            _external=True,
+            _scheme="https"
+        ),
+        state=state_arg
     )
 
-    # 🔑 WYMIANA CODE → TOKEN
+    # 🔑 code → token
     flow.fetch_token(authorization_response=request.url)
     creds = flow.credentials
 
-    # 🔹 POBIERZ PRIMARY CALENDAR
+    # 🧹 cleanup (jednorazowy state)
+    session.pop("oauth_state", None)
+
+    # 📅 Primary calendar
     service = build("calendar", "v3", credentials=creds)
     calendar = service.calendarList().get(calendarId="primary").execute()
 
-    # 💾 ZAPIS TOKENÓW
+    # 💾 Zapis tokenów
     set_setting("google_access_token", creds.token)
     set_setting("google_refresh_token", creds.refresh_token)
     set_setting("google_calendar_id", calendar["id"])
@@ -1518,6 +1534,7 @@ def google_callback():
 
     flash("Połączono z Google Calendar", "success")
     return redirect(url_for("doctor.settings_view"))
+
 
 
 def set_setting(key, value):
