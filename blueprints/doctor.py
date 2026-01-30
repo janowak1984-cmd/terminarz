@@ -1475,7 +1475,6 @@ def google_connect():
 
 
 @doctor_bp.route("/google/callback")
-@login_required
 def google_callback():
     flow = Flow.from_client_config(
         {
