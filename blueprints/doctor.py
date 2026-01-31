@@ -39,6 +39,7 @@ from models import (
     BlacklistPatient,
     Setting,
     SMSMessage,
+    ScheduleTemplate,
 )
 
 from utils.settings import get_setting
@@ -1278,17 +1279,22 @@ def is_phone_blacklisted(doctor_id, phone):
 @doctor_bp.route("/statistics")
 @login_required
 def statistics():
-    year = request.args.get("year", type=int, default=datetime.now().year)  
+    year = request.args.get("year", type=int, default=datetime.now().year)
     tab = request.args.get("tab", "visits")
     current_year = datetime.now().year
+    doctor_id = current_user.id
 
     # ───────────────────────────────────────
     # WIZYTY – inicjalizacja 12 miesięcy
     # ───────────────────────────────────────
     stats = {m: {} for m in range(1, 13)}
 
-    visit_types = VisitType.query.filter_by(active=True).order_by(VisitType.display_order.asc(), VisitType.id.asc()).all()
-
+    visit_types = (
+        VisitType.query
+        .filter_by(active=True)
+        .order_by(VisitType.display_order.asc(), VisitType.id.asc())
+        .all()
+    )
 
     visit_rows = (
         db.session.query(
@@ -1298,7 +1304,8 @@ def statistics():
         )
         .filter(
             extract("year", Appointment.start) == year,
-            Appointment.status == "completed"
+            Appointment.status == "completed",
+            Appointment.doctor_id == doctor_id
         )
         .group_by("month", Appointment.visit_type)
         .all()
@@ -1310,10 +1317,7 @@ def statistics():
     # ───────────────────────────────────────
     # SMS – inicjalizacja 12 miesięcy
     # ───────────────────────────────────────
-    sms_stats = {
-        m: {"sent": 0, "failed": 0}
-        for m in range(1, 13)
-    }
+    sms_stats = {m: {"sent": 0, "failed": 0} for m in range(1, 13)}
 
     sms_rows = (
         db.session.query(
@@ -1321,7 +1325,11 @@ def statistics():
             SMSMessage.status,
             func.count(SMSMessage.id)
         )
-        .filter(extract("year", SMSMessage.created_at) == year)
+        .join(Appointment)
+        .filter(
+            extract("year", SMSMessage.created_at) == year,
+            Appointment.doctor_id == doctor_id
+        )
         .group_by("month", SMSMessage.status)
         .all()
     )
@@ -1329,6 +1337,30 @@ def statistics():
     for month, status, count in sms_rows:
         if status in ("sent", "failed"):
             sms_stats[int(month)][status] = count
+
+    # ───────────────────────────────────────
+    # 🧠 JAREK – STATYSTYKI TECHNICZNE
+    # ───────────────────────────────────────
+    jarek_stats = None
+    if tab == "jarek":
+        jarek_stats = {
+            "availabilities": db.session.query(func.count(Availability.id))
+                .filter(Availability.doctor_id == doctor_id)
+                .scalar(),
+
+            "appointments": db.session.query(func.count(Appointment.id))
+                .filter(Appointment.doctor_id == doctor_id)
+                .scalar(),
+
+            "sms_messages": db.session.query(func.count(SMSMessage.id))
+                .join(Appointment)
+                .filter(Appointment.doctor_id == doctor_id)
+                .scalar(),
+
+            "schedule_templates": db.session.query(func.count(ScheduleTemplate.id))
+                .filter(ScheduleTemplate.doctor_id == doctor_id)
+                .scalar(),
+        }
 
     return render_template(
         "doctor/statistics.html",
@@ -1338,8 +1370,10 @@ def statistics():
         visit_types=visit_types,
         stats=stats,
         sms_stats=sms_stats,
+        jarek_stats=jarek_stats,
         active_page="statistics"
     )
+
 # =================================================
 # Konfiguracja
 # =================================================

@@ -37,9 +37,57 @@
       SMS
     </a>
   </li>
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'jarek' %}active{% endif %}"
+       href="{{ url_for('doctor.statistics', tab='jarek', year=year) }}">
+      Jarek
+    </a>
+  </li>
 </ul>
 
-<!-- GRID 12 MIESIĘCY -->
+{# ===================================================== #}
+{# =================== TAB: JAREK ======================= #}
+{# ===================================================== #}
+{% if tab == "jarek" %}
+<div class="row">
+  <div class="col-md-6 col-lg-4 mb-3">
+    <div class="panel panel-default h-100">
+      <div class="panel-heading text-center">
+        <strong>🧠 Statystyki techniczne</strong>
+      </div>
+
+      <div class="panel-body">
+
+        <div class="d-flex justify-content-between">
+          <span>Availabilities</span>
+          <strong>{{ jarek_stats.availabilities }}</strong>
+        </div>
+
+        <div class="d-flex justify-content-between">
+          <span>Appointments</span>
+          <strong>{{ jarek_stats.appointments }}</strong>
+        </div>
+
+        <div class="d-flex justify-content-between">
+          <span>SMS Messages</span>
+          <strong>{{ jarek_stats.sms_messages }}</strong>
+        </div>
+
+        <div class="d-flex justify-content-between">
+          <span>Schedule Templates</span>
+          <strong>{{ jarek_stats.schedule_templates }}</strong>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{# ===================================================== #}
+{# ============ TABY: WIZYTY / SMS ===================== #}
+{# ===================================================== #}
+{% if tab != "jarek" %}
 <div class="row">
 {% for month in range(1, 13) %}
   <div class="col-md-4 col-sm-6 mb-3">
@@ -79,5 +127,6 @@
   </div>
 {% endfor %}
 </div>
+{% endif %}
 
 {% endblock %}
