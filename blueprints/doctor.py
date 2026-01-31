@@ -1343,10 +1343,26 @@ def statistics():
     # ───────────────────────────────────────
     jarek_stats = None
     if tab == "jarek":
+        now = datetime.now()
+
+        total_availabilities = (
+            db.session.query(func.count(Availability.id))
+            .filter(Availability.doctor_id == doctor_id)
+            .scalar()
+        )
+
+        past_availabilities = (
+            db.session.query(func.count(Availability.id))
+            .filter(
+                Availability.doctor_id == doctor_id,
+                Availability.start < now
+            )
+            .scalar()
+        )
+
         jarek_stats = {
-            "availabilities": db.session.query(func.count(Availability.id))
-                .filter(Availability.doctor_id == doctor_id)
-                .scalar(),
+            "availabilities_total": total_availabilities,
+            "availabilities_past": past_availabilities,
 
             "appointments": db.session.query(func.count(Appointment.id))
                 .filter(Appointment.doctor_id == doctor_id)

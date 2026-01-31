@@ -60,7 +60,13 @@
 
         <div class="d-flex justify-content-between">
           <span>Availabilities</span>
-          <strong>{{ jarek_stats.availabilities }}</strong>
+          <strong>
+          {{ jarek_stats.availabilities_total }}
+          <span class="text-muted">
+            ({{ jarek_stats.availabilities_past }})
+          </span>
+        </strong>
+
         </div>
 
         <div class="d-flex justify-content-between">
