@@ -71,7 +71,22 @@
 
         <div class="d-flex justify-content-between">
           <span>Appointments</span>
-          <strong>{{ jarek_stats.appointments }}</strong>
+          <div class="d-flex justify-content-between">
+            <span>Appointments</span>
+            <strong>
+              {{ jarek_stats.appointments_total }}
+              <span class="text-muted">
+                (
+                Z: {{ jarek_stats.appointments_completed }},
+                A: {{ jarek_stats.appointments_cancelled }},
+                S: {{ jarek_stats.appointments_scheduled_future }},
+                <span class="text-danger">
+                  S❗: {{ jarek_stats.appointments_scheduled_past }}
+                </span>
+                )
+              </span>
+            </strong>
+          </div>
         </div>
 
         <div class="d-flex justify-content-between">

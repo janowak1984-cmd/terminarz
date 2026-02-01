@@ -99,6 +99,10 @@ def api_days():
     visit_minutes = vt.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
 
+    # ⛔ BLOKADA: tylko od jutra
+    today = datetime.now().date()
+    min_day = today + timedelta(days=1)
+
     # ───── zakres miesiąca
     month_start = datetime(year, month, 1)
     if month == 12:
@@ -178,10 +182,15 @@ def api_days():
             end = start + timedelta(minutes=visit_minutes)
             day_date = start.date()
 
+            # ⛔ BLOKADA: dziś niedostępne
+            if day_date < min_day:
+                continue
+
             if not is_vacation_local(day_date) and not has_conflict_local(start, end):
                 days.add(day_date.isoformat())
 
     return jsonify(sorted(days))
+
 
 
 

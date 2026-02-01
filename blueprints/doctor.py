@@ -1345,13 +1345,14 @@ def statistics():
     if tab == "jarek":
         now = datetime.now()
 
-        total_availabilities = (
+        # ===== AVAILABILITIES =====
+        availabilities_total = (
             db.session.query(func.count(Availability.id))
             .filter(Availability.doctor_id == doctor_id)
             .scalar()
         )
 
-        past_availabilities = (
+        availabilities_past = (
             db.session.query(func.count(Availability.id))
             .filter(
                 Availability.doctor_id == doctor_id,
@@ -1360,22 +1361,78 @@ def statistics():
             .scalar()
         )
 
+        # ===== APPOINTMENTS =====
+        appointments_total = (
+            db.session.query(func.count(Appointment.id))
+            .filter(Appointment.doctor_id == doctor_id)
+            .scalar()
+        )
+
+        appointments_completed = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status == "completed"
+            )
+            .scalar()
+        )
+
+        appointments_cancelled = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status == "cancelled"
+            )
+            .scalar()
+        )
+
+        appointments_scheduled_future = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status == "scheduled",
+                Appointment.start >= now
+            )
+            .scalar()
+        )
+
+        # ❗ scheduled, ale już w przeszłości
+        appointments_scheduled_past = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status == "scheduled",
+                Appointment.end < now
+            )
+            .scalar()
+        )
+
+        # ===== SMS / SZABLONY =====
+        sms_messages_total = (
+            db.session.query(func.count(SMSMessage.id))
+            .join(Appointment)
+            .filter(Appointment.doctor_id == doctor_id)
+            .scalar()
+        )
+
+        schedule_templates_total = (
+            db.session.query(func.count(ScheduleTemplate.id))
+            .filter(ScheduleTemplate.doctor_id == doctor_id)
+            .scalar()
+        )
+
         jarek_stats = {
-            "availabilities_total": total_availabilities,
-            "availabilities_past": past_availabilities,
+            "availabilities_total": availabilities_total,
+            "availabilities_past": availabilities_past,
 
-            "appointments": db.session.query(func.count(Appointment.id))
-                .filter(Appointment.doctor_id == doctor_id)
-                .scalar(),
+            "appointments_total": appointments_total,
+            "appointments_completed": appointments_completed,
+            "appointments_cancelled": appointments_cancelled,
+            "appointments_scheduled_future": appointments_scheduled_future,
+            "appointments_scheduled_past": appointments_scheduled_past,
 
-            "sms_messages": db.session.query(func.count(SMSMessage.id))
-                .join(Appointment)
-                .filter(Appointment.doctor_id == doctor_id)
-                .scalar(),
-
-            "schedule_templates": db.session.query(func.count(ScheduleTemplate.id))
-                .filter(ScheduleTemplate.doctor_id == doctor_id)
-                .scalar(),
+            "sms_messages": sms_messages_total,
+            "schedule_templates": schedule_templates_total,
         }
 
     return render_template(
@@ -1389,6 +1446,7 @@ def statistics():
         jarek_stats=jarek_stats,
         active_page="statistics"
     )
+
 
 # =================================================
 # Konfiguracja
