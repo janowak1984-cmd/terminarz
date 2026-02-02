@@ -37,7 +37,14 @@ class Config:
     # np. "Rejestracja wizyt <bobinska@kingabobinska.pl>"
     MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USER)
 
-    #BASE_URL = os.getenv("BASE_URL")
+    # ─────────────────────────
+    # URL APLIKACJI (PUBLICZNY)
+    # ─────────────────────────
+    BASE_URL = os.getenv(
+        "BASE_URL",
+        "https://www.kingabobinska.pl"
+    )
+
 
     # ─────────────────────────
     # SENDGRID (EMAIL API)
