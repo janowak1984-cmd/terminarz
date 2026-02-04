@@ -282,10 +282,6 @@ def cancel_appointment(appointment_id):
         **request.form.to_dict(flat=True)
     ))
 
-
-
-
-
 @doctor_bp.route("/appointments/<int:appointment_id>/complete", methods=["POST"])
 @login_required
 def complete_appointment(appointment_id):
@@ -309,9 +305,6 @@ def complete_appointment(appointment_id):
         "doctor.appointments",
         **request.form.to_dict(flat=True)
     ))
-
-
-
 
 # =================================================
 # API – GRAFIK (FULLCALENDAR)
