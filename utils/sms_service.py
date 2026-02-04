@@ -157,8 +157,8 @@ class SMSService:
 
         return (
             f"{date_str} godz. {time_str}\n"
-            f"Anulowanie wizyty: {cancel_url}\n"
-            f"Auto-wiad. - prosimy nie odpowiadac"
+            f"Aby anulowac wizyte wejdz na: {cancel_url}\n"
+            f"Auto-wiadomosc - prosimy nie odpowiadac"
         )
 
     def _build_reminder_content(self, appointment: Appointment) -> str:
