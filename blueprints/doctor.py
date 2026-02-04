@@ -267,23 +267,21 @@ def cancel_appointment(appointment_id):
         appt.google_event_id = None
         appt.google_sync_status = "deleted"
         appt.google_last_sync_at = datetime.utcnow()
-        db.session.commit()
-
     except Exception as e:
         current_app.logger.error(f"Google delete error: {e}")
 
-    # 2️⃣ POTEM ZMIANA STATUSU
+    # 2️⃣ ZMIEŃ STATUS
     appt.status = "cancelled"
-
     db.session.commit()
 
     flash("✔ Wizyta anulowana", "doctor-success")
+
+    # 🔑 POWRÓT Z PEŁNYMI FILTRAMI
     return redirect(url_for(
         "doctor.appointments",
-        show_past=request.form.get("show_past"),
-        q=request.form.get("q"),
-        page=request.form.get("page")
+        **request.form.to_dict(flat=True)
     ))
+
 
 
 
@@ -305,12 +303,13 @@ def complete_appointment(appointment_id):
     db.session.commit()
 
     flash("✔ Wizyta oznaczona jako zrealizowana", "doctor-success")
+
+    # 🔑 POWRÓT Z PEŁNYMI FILTRAMI
     return redirect(url_for(
-    "doctor.appointments",
-    show_past=request.form.get("show_past"),
-    q=request.form.get("q"),
-    page=request.form.get("page")
-))
+        "doctor.appointments",
+        **request.form.to_dict(flat=True)
+    ))
+
 
 
 
