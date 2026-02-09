@@ -5,55 +5,70 @@ class Config:
     # ─────────────────────────
     # CORE
     # ─────────────────────────
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret")
+    SECRET_KEY = os.environ.get("SECRET_KEY")
 
     # ─────────────────────────
     # DATABASE
     # ─────────────────────────
-    SQLALCHEMY_DATABASE_URI = os.getenv("DATABASE_URL")
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ─────────────────────────
     # GOOGLE CALENDAR
     # ─────────────────────────
-    GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-    GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
-    GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
+    GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
+    GOOGLE_REDIRECT_URI = os.environ.get(
+        "GOOGLE_REDIRECT_URI",
+        "https://www.kingabobinska.pl/doctor/google/callback"
+    )
 
     # ─────────────────────────
     # SMS
     # ─────────────────────────
-    SMSAPI_TOKEN = os.getenv("SMSAPI_TOKEN")
-    SMSAPI_SENDER = os.getenv("SMSAPI_SENDER")
+    SMSAPI_TOKEN = os.environ.get("SMSAPI_TOKEN")
+    SMSAPI_SENDER = os.environ.get("SMSAPI_SENDER")
 
     # ─────────────────────────
     # EMAIL (SMTP)
     # ─────────────────────────
-    MAIL_HOST = os.getenv("MAIL_HOST")
-    MAIL_PORT = int(os.getenv("MAIL_PORT") or 587)
-    MAIL_USER = os.getenv("MAIL_USER")
-    MAIL_PASSWORD = os.getenv("MAIL_PASSWORD")
+    MAIL_HOST = os.environ.get("MAIL_HOST")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT") or 587)
+    MAIL_USER = os.environ.get("MAIL_USER")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
 
-    # np. "Rejestracja wizyt <bobinska@kingabobinska.pl>"
-    MAIL_FROM = os.getenv("MAIL_FROM", MAIL_USER)
+    MAIL_FROM = os.environ.get("MAIL_FROM", MAIL_USER)
 
     # ─────────────────────────
     # URL APLIKACJI (PUBLICZNY)
     # ─────────────────────────
-    BASE_URL = os.getenv(
+    BASE_URL = os.environ.get(
         "BASE_URL",
         "https://www.kingabobinska.pl"
     )
 
-
     # ─────────────────────────
     # SENDGRID (EMAIL API)
     # ─────────────────────────
-    SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 
     # 📬 ADRES DO FORMULARZA KONTAKTOWEGO
-    CONTACT_FORM_TO = os.getenv(
+    CONTACT_FORM_TO = os.environ.get(
         "CONTACT_FORM_TO",
         "bobinskagabinet@gmail.com"
     )
 
+    # ─────────────────────────
+    # PRZELEWY24 – PRODUKCJA
+    # ─────────────────────────
+    P24_MERCHANT_ID = int(os.getenv("P24_MERCHANT_ID"))
+    P24_POS_ID = int(os.getenv("P24_POS_ID"))  # zazwyczaj = merchantId
+    P24_CRC = os.getenv("P24_CRC")
+
+    P24_API_URL = "https://secure.przelewy24.pl/api/v1"
+    P24_REGISTER_URL = f"{P24_API_URL}/transaction/register"
+    P24_VERIFY_URL = f"{P24_API_URL}/transaction/verify"
+
+    P24_CURRENCY = "PLN"
+    P24_COUNTRY = "PL"
+    P24_LANGUAGE = "pl"

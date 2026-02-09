@@ -2,7 +2,7 @@ import os
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, redirect, url_for, send_from_directory, request
+from flask import Flask, redirect, url_for, send_from_directory, request, session
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from config import Config
@@ -28,11 +28,10 @@ def create_app():
 
     # 🔐 SESJA – KRYTYCZNE DLA GOOGLE OAUTH
     app.config.update(
-        SECRET_KEY=os.environ.get("SECRET_KEY"),
-
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax"
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_DOMAIN=".kingabobinska.pl",
     )
 
     # =============================
@@ -112,11 +111,12 @@ def create_app():
     def log_oauth_debug():
         if request.path.startswith("/doctor/google"):
             app.logger.warning(
-                f"[OAUTH DEBUG] path={request.path} "
-                f"scheme={request.scheme} "
-                f"host={request.host} "
-                f"args_state={request.args.get('state')} "
-                f"session_state={request.session.get('google_oauth_state') if hasattr(request, 'session') else None}"
+                "[OAUTH DEBUG] path=%s scheme=%s host=%s args_state=%s session_state=%s",
+                request.path,
+                request.scheme,
+                request.host,
+                request.args.get("state"),
+                session.get("oauth_state"),
             )
 
     # =============================
