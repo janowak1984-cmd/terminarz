@@ -1558,7 +1558,7 @@ def google_connect():
                 "token_uri": "https://oauth2.googleapis.com/token",
             }
         },
-        scopes=["https://www.googleapis.com/auth/calendar"],
+        scopes=GOOGLE_SCOPES,  # ✅ TU MUSI BYĆ TO SAMO
         redirect_uri=url_for(
             "doctor.google_callback",
             _external=True,
@@ -1568,13 +1568,10 @@ def google_connect():
 
     authorization_url, state = flow.authorization_url(
         access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent"
+        prompt="consent",                 # ⬅️ include_granted_scopes USUŃ
     )
 
-    # 🔑 KLUCZOWE
     session["oauth_state"] = state
-
     return redirect(authorization_url)
 
 
@@ -1653,9 +1650,10 @@ def get_google_service():
         token_uri="https://oauth2.googleapis.com/token",
         client_id=current_app.config["GOOGLE_CLIENT_ID"],
         client_secret=current_app.config["GOOGLE_CLIENT_SECRET"],
-        scopes=["https://www.googleapis.com/auth/calendar"]
+        scopes=GOOGLE_SCOPES,  # ✅ IDENTYCZNE
     )
     return build("calendar", "v3", credentials=creds)
+
 
 @doctor_bp.route("/google/rebuild", methods=["POST"])
 @login_required
