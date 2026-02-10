@@ -243,14 +243,28 @@ def _build_p24_payload(payment: Payment, appointment: Appointment):
 
 def _p24_sign(session_id, amount, currency):
     cfg = current_app.config
+
     raw = (
         f"{session_id}|"
-        f"{cfg['P24_MERCHANT_ID']}|"   # 🔴 merchantId, NIE posId
+        f"{cfg['P24_MERCHANT_ID']}|"
         f"{amount}|"
         f"{currency}|"
         f"{cfg['P24_CRC']}"
     )
+
+    # 🔍 KLUCZOWE LOGI
+    current_app.logger.warning("[P24 DEBUG] ===== SIGN DEBUG START =====")
+    current_app.logger.warning(f"[P24 DEBUG] session_id: '{session_id}'")
+    current_app.logger.warning(f"[P24 DEBUG] merchant_id: '{cfg['P24_MERCHANT_ID']}'")
+    current_app.logger.warning(f"[P24 DEBUG] amount: '{amount}' type={type(amount)}")
+    current_app.logger.warning(f"[P24 DEBUG] currency: '{currency}'")
+    current_app.logger.warning(f"[P24 DEBUG] CRC raw: '{cfg['P24_CRC']}'")
+    current_app.logger.warning(f"[P24 DEBUG] CRC stripped: '{cfg['P24_CRC'].strip()}'")
+    current_app.logger.warning(f"[P24 DEBUG] RAW STRING: '{raw}'")
+    current_app.logger.warning("[P24 DEBUG] ===== SIGN DEBUG END =====")
+
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
+
 
 
 def _p24_status_sign(session_id, order_id, amount, currency):
