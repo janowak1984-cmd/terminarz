@@ -262,21 +262,23 @@ def _p24_status_sign(session_id, order_id, amount, currency):
 
 def _p24_verify_transaction(payment: Payment):
     cfg = current_app.config
+    amount_int = int(payment.amount)   # 🔥
 
     payload = {
         "merchantId": cfg["P24_MERCHANT_ID"],
         "posId": cfg["P24_POS_ID"],
         "sessionId": payment.provider_session_id,
         "orderId": payment.provider_order_id,
-        "amount": payment.amount,
+        "amount": amount_int,
         "currency": "PLN",
         "sign": _p24_verify_sign(
             payment.provider_session_id,
             payment.provider_order_id,
-            str(payment.amount),
+            str(amount_int),
             "PLN"
         )
     }
+
 
     auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
     auth_b64 = base64.b64encode(auth_raw.encode()).decode()
