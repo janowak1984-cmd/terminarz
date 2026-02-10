@@ -297,6 +297,8 @@ def _p24_verify_transaction(payment: Payment):
     auth_b64 = base64.b64encode(auth_raw.encode()).decode()
 
     try:
+        current_app.logger.warning(f"[P24 DEBUG] REGISTER URL = {cfg.get('P24_REGISTER_URL')}")
+
         r = requests.post(
             cfg["P24_VERIFY_URL"],
             json=payload,
