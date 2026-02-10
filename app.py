@@ -9,6 +9,8 @@ from config import Config
 from extensions import db, login_manager
 from models import Doctor
 from settings_defaults import init_default_settings
+from blueprints.patient_test import patient_test_bp
+
 
 # ───────────────────────────────────────
 # SCHEDULER
@@ -27,12 +29,17 @@ def create_app():
     app.config.from_object(Config)
 
     # 🔐 SESJA – KRYTYCZNE DLA GOOGLE OAUTH
+    cookie_domain = None
+    if os.environ.get("RAILWAY_ENVIRONMENT_NAME") == "production":
+        cookie_domain = ".kingabobinska.pl"
+
     app.config.update(
         SESSION_COOKIE_SECURE=True,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
-        SESSION_COOKIE_DOMAIN=".kingabobinska.pl",
+        SESSION_COOKIE_DOMAIN=cookie_domain,
     )
+
 
     # =============================
     # PROXY (RAILWAY / HTTPS)
@@ -128,10 +135,15 @@ def create_app():
     from blueprints.doctor_templates import bp as doctor_templates_bp
     from blueprints.doctor_visit_types import bp as doctor_visit_types_bp
     from blueprints.site_api import site_api_bp
+    from blueprints.payments import payments_bp
+
 
     app.register_blueprint(patient_bp, url_prefix="/rejestracja")
     app.register_blueprint(doctor_bp, url_prefix="/doctor")
     app.register_blueprint(auth_bp)
+    app.register_blueprint(patient_test_bp)
+    app.register_blueprint(payments_bp)
+
 
     app.register_blueprint(
         doctor_visit_types_bp,

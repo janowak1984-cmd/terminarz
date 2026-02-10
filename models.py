@@ -109,6 +109,14 @@ class Appointment(db.Model):
         cascade="all, delete-orphan"
     )
 
+    payments = db.relationship(
+        "Payment",
+        backref="appointment",
+        lazy=True,
+        cascade="all, delete-orphan"
+    )
+
+
 
 
 
@@ -292,6 +300,59 @@ class BlacklistPatient(db.Model):
             f"phone={self.phone} "
             f"active={self.active}>"
         )
+    
+
+# ==================================================
+# Przelewy24
+# ==================================================
+
+class Payment(db.Model):
+    __tablename__ = "payments"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "provider",
+            "provider_session_id",
+            name="uq_provider_session"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    appointment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("appointments.id", ondelete="CASCADE"),
+        nullable=False
+    )
+
+    provider = db.Column(db.String(32), nullable=False, default="przelewy24")
+    provider_session_id = db.Column(db.String(128), nullable=False)
+    provider_order_id = db.Column(db.String(128))
+
+    amount = db.Column(db.Integer, nullable=False)  # grosze
+    currency = db.Column(db.String(3), nullable=False, default="PLN")
+
+    status = db.Column(
+        db.Enum(
+            "init",        # utworzona
+            "pending",     # wysłana do P24
+            "paid",        # opłacona
+            "failed",      # błąd
+            "cancelled",   # anulowana
+            name="payment_status"
+        ),
+        nullable=False,
+        default="init"
+    )
+
+    created_at = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp(),
+        nullable=False
+    )
+
+    paid_at = db.Column(db.DateTime)
+
+
 # ==================================================
 # Konfiguracja
 # ==================================================

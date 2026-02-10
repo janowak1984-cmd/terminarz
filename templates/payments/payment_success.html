@@ -1,0 +1,33 @@
+{% extends "patient/layout.html" %}
+
+{% block title %}Płatność zakończona{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:600px; margin-top:40px; text-align:center">
+
+  <h2 style="color:#2e7d32;">✅ Płatność zakończona</h2>
+
+  <p>
+    Twoja wizyta została poprawnie opłacona.
+  </p>
+
+  <hr>
+
+  <p>
+    <strong>Data wizyty:</strong><br>
+    {{ appointment.start.strftime("%d.%m.%Y %H:%M") }}
+  </p>
+
+  <p>
+    <strong>Kwota:</strong><br>
+    {{ "%.2f"|format(payment.amount / 100) }} zł
+  </p>
+
+  <p style="margin-top:30px;">
+    <a href="/" class="btn btn-primary btn-lg">
+      Powrót na stronę główną
+    </a>
+  </p>
+
+</div>
+{% endblock %}

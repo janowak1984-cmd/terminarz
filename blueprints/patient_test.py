@@ -12,11 +12,12 @@ from utils.email_service import EmailService
 from utils.ip import get_client_ip
 
 
-patient_bp = Blueprint(
-    "patient",
+patient_test_bp = Blueprint(
+    "patient_test",
     __name__,
-    url_prefix="/rejestracja"
+    url_prefix="/rejestracja_test"
 )
+
 
 # ───────────────────────────────────────
 # KONFIGURACJA
@@ -29,27 +30,23 @@ SLOT_MINUTES = 15
 # STRONA GŁÓWNA PACJENTA
 # ───────────────────────────────────────
 
-@patient_bp.route("/")
+@patient_test_bp.route("/")
 def index():
-    return render_template("patient/index.html")
+    return render_template("patient/index_test.html")
 
 
 # ───────────────────────────────────────
 # API: LISTA TYPÓW WIZYT
 # ───────────────────────────────────────
 
-@patient_bp.route("/api/visit-types")
+@patient_test_bp.route("/api/visit-types")
 def api_visit_types():
     visit_types = (
         VisitType.query
-        .filter_by(
-            active=True,
-            only_online_payment=False
-        )
+        .filter_by(active=True)
         .order_by(VisitType.display_order.asc(), VisitType.id.asc())
         .all()
     )
-
 
     return jsonify([
         {
@@ -87,7 +84,7 @@ def is_active_vacation_day(day):
 # API: DOSTĘPNE DNI (POPRAWIONE)
 # ───────────────────────────────────────
 
-@patient_bp.route("/api/days")
+@patient_test_bp.route("/api/days")
 def api_days():
     visit_code = request.args.get("visit_type")
     year = request.args.get("year", type=int)
@@ -97,11 +94,8 @@ def api_days():
         return jsonify([])
 
     vt = VisitType.query.filter_by(code=visit_code, active=True).first()
-
     if not vt:
         return jsonify([])
-    
-    is_online = bool(vt.only_online_payment)
 
     visit_minutes = vt.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -187,11 +181,6 @@ def api_days():
         else:
             start = window[0].start
             end = start + timedelta(minutes=visit_minutes)
-            
-            # ⛔ SLOTY TESTOWE: po 18:00 tylko dla wizyt online
-            if not is_online and start.hour >= 18:
-                continue
-
             day_date = start.date()
 
             # ⛔ BLOKADA: dziś niedostępne
@@ -206,7 +195,7 @@ def api_days():
 
 
 
-@patient_bp.route("/api/hours")
+@patient_test_bp.route("/api/hours")
 def api_hours():
     visit_code = request.args.get("visit_type")
     day_str = request.args.get("day")
@@ -220,11 +209,8 @@ def api_hours():
         return jsonify([])
 
     visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
-
     if not visit_type:
         return jsonify([])
-    
-    is_online = bool(visit_type.only_online_payment)
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -278,10 +264,6 @@ def api_hours():
 
         start = window[0].start
         end = start + timedelta(minutes=visit_minutes)
-
-        # ⛔ SLOTY TESTOWE: po 18:00 tylko dla wizyt online
-        if not is_online and start.hour >= 18:
-            continue
 
         # ⛔ twarda blokada złych minut (ZAWSZE)
         if not is_nice_start(start):
@@ -345,16 +327,20 @@ def api_hours():
 # REZERWACJA WIZYTY
 # ───────────────────────────────────────
 
-@patient_bp.route("/reserve", methods=["POST"])
+@patient_test_bp.route("/reserve", methods=["POST"])
 def reserve():
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
-    visit_code = request.form["visit_type"]
+    visit_code = request.form.get("visit_type")
 
     visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
     if not visit_type:
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowy typ wizyty"}), 400
         flash("Nieprawidłowy typ wizyty", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_test.index"))
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -365,33 +351,45 @@ def reserve():
     )
 
     if is_active_vacation_day(start.date()):
+        if is_ajax:
+            return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_test.index"))
 
     slots = (
         Availability.query
         .filter(
             Availability.start >= start,
             Availability.start < start + timedelta(minutes=visit_minutes),
-            Availability.active == True
+            Availability.active.is_(True)
         )
         .order_by(Availability.start)
         .all()
     )
 
     if len(slots) != required_slots:
+        if is_ajax:
+            return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_test.index"))
 
     if not _window_is_free_and_continuous(slots):
+        if is_ajax:
+            return jsonify({"error": "Termin zajęty"}), 400
         flash("Termin zajęty", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_test.index"))
 
     doctor_id = slots[0].doctor_id
 
     if is_phone_blacklisted(doctor_id, phone):
-        flash("Rezerwacja wizyty za pośrednictwem strony internetowej jest niedostępna. Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077.", "patient-danger")
-        return redirect(url_for("patient.index"))
+        msg = (
+            "Rezerwacja wizyty przez stronę jest niedostępna. "
+            "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
+        )
+        if is_ajax:
+            return jsonify({"error": msg}), 403
+        flash(msg, "patient-danger")
+        return redirect(url_for("patient_test.index"))
 
     appointment = Appointment(
         doctor_id=doctor_id,
@@ -399,30 +397,25 @@ def reserve():
         end=start + timedelta(minutes=visit_minutes),
         duration=visit_minutes,
         visit_type=visit_code,
-        patient_first_name=request.form["first_name"],
-        patient_last_name=request.form["last_name"],
+        patient_first_name=request.form.get("first_name"),
+        patient_last_name=request.form.get("last_name"),
         patient_phone=phone,
         patient_email=email if email else None,
         cancel_token=uuid.uuid4().hex,
         created_by="patient",
-        client_ip=get_client_ip()   # 👈 KLUCZOWE
+        client_ip=get_client_ip()
     )
-
-
-
 
     db.session.add(appointment)
     db.session.commit()
 
+    # ───── Integracje (best-effort)
     try:
-        gcal = GoogleCalendarService()
-        gcal.sync_appointment(appointment)
+        GoogleCalendarService().sync_appointment(appointment)
     except Exception as e:
         current_app.logger.warning(
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
-
-    current_app.logger.warning("SMS CONFIRMATION: START")
 
     try:
         SMSService().send_confirmation(appointment)
@@ -431,9 +424,6 @@ def reserve():
             f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
         )
 
-    # ===============================
-    # 📧 EMAIL (NOWE)
-    # ===============================
     try:
         EmailService().send_confirmation(appointment)
     except Exception as e:
@@ -441,9 +431,15 @@ def reserve():
             f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
         )
 
+    # ✅ KLUCZOWA RÓŻNICA
+    if is_ajax:
+        return jsonify({
+            "appointment_id": appointment.id
+        })
 
     flash("Wizyta została zarezerwowana", "patient-success")
-    return redirect(url_for("patient.index"))
+    return redirect(url_for("patient_test.index"))
+
 
 
 # ───────────────────────────────────────
@@ -475,7 +471,7 @@ def _window_is_free_and_continuous(slots):
 # ANULOWANIE WIZYTY – LINK Z TOKENEM
 # ───────────────────────────────────────
 
-@patient_bp.route("/cancel/<token>")
+@patient_test_bp.route("/cancel/<token>")
 def cancel_by_token(token):
     appointment = (
         Appointment.query
@@ -517,11 +513,12 @@ def cancel_by_token(token):
     )
 
 
-@patient_bp.route("/c/<token>")
+@patient_test_bp.route("/c/<token>")
 def cancel_short(token):
     return redirect(
-        url_for("patient.cancel_by_token", token=token)
+        url_for("patient_test.cancel_by_token", token=token)
     )
+
 
 # ───────────────────────────────────────
 # API: STATUS URLOPU (PUBLICZNE)
@@ -530,7 +527,7 @@ def cancel_short(token):
 from flask import jsonify, request
 from datetime import datetime
 
-@patient_bp.route("/api/vacation-status", methods=["GET"])
+@patient_test_bp.route("/api/vacation-status", methods=["GET"])
 def vacation_status():
     date_str = request.args.get("date")
 
