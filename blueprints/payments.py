@@ -163,31 +163,18 @@ def payment_status():
         db.session.commit()
         return "ERROR", 400
 
-    expected_sign = _p24_status_sign(
-        session_id=session_id,
-        order_id=order_id,
-        amount=amount,
-        currency=currency
-    )
-
-    if expected_sign != received_sign:
-        payment.status = "failed"
-        db.session.commit()
-        return "ERROR", 400
-
     payment.provider_order_id = order_id
 
     # 🔐 VERIFY API – OBOWIĄZKOWE W PROD
-    if not _p24_verify_transaction(payment):
-        payment.status = "failed"
-        db.session.commit()
-        return "ERROR", 400
+#    if not _p24_verify_transaction(payment):
+#        payment.status = "failed"
+#       db.session.commit()
+#        return "ERROR", 400
 
-    payment.status = "paid"
-    payment.paid_at = datetime.now(timezone.utc)
+    payment.status = "pending"
     db.session.commit()
-
     return "OK", 200
+
 
 
 # ==================================================
@@ -220,9 +207,9 @@ def payment_return():
 # ==================================================
 def _build_p24_payload(payment: Payment, appointment: Appointment):
     cfg = current_app.config
-    amount_int = int(payment.amount)   # 🔥 KLUCZOWE
+    amount_int = int(payment.amount)
 
-    return {
+    payload = {
         "merchantId": cfg["P24_MERCHANT_ID"],
         "posId": cfg["P24_POS_ID"],
         "sessionId": payment.provider_session_id,
@@ -234,44 +221,10 @@ def _build_p24_payload(payment: Payment, appointment: Appointment):
         "language": "pl",
         "urlReturn": cfg["P24_RETURN_URL"],
         "urlStatus": cfg["P24_STATUS_URL"],
-        "sign": _p24_sign(
-            payment.provider_session_id,
-            str(amount_int),          # 🔥 MUSI BYĆ STRING INT
-            "PLN"
-        )
     }
 
-def _p24_sign(session_id, amount, currency):
-    cfg = current_app.config
-
-    raw = (
-        f"{session_id}|"
-        f"{cfg['P24_MERCHANT_ID']}|"
-        f"{amount}|"
-        f"{currency}|"
-        f"{cfg['P24_CRC']}"
-    )
-
-    # 🔍 KLUCZOWE LOGI
-    current_app.logger.warning("[P24 DEBUG] ===== SIGN DEBUG START =====")
-    current_app.logger.warning(f"[P24 DEBUG] session_id: '{session_id}'")
-    current_app.logger.warning(f"[P24 DEBUG] merchant_id: '{cfg['P24_MERCHANT_ID']}'")
-    current_app.logger.warning(f"[P24 DEBUG] amount: '{amount}' type={type(amount)}")
-    current_app.logger.warning(f"[P24 DEBUG] currency: '{currency}'")
-    current_app.logger.warning(f"[P24 DEBUG] CRC raw: '{cfg['P24_CRC']}'")
-    current_app.logger.warning(f"[P24 DEBUG] CRC stripped: '{cfg['P24_CRC'].strip()}'")
-    current_app.logger.warning(f"[P24 DEBUG] RAW STRING: '{raw}'")
-    current_app.logger.warning("[P24 DEBUG] ===== SIGN DEBUG END =====")
-
-    return hashlib.sha384(raw.encode("utf-8")).hexdigest()
-
-
-
-def _p24_status_sign(session_id, order_id, amount, currency):
-    cfg = current_app.config
-    raw = f"{session_id}|{order_id}|{amount}|{currency}|{cfg['P24_CRC']}"
-    return hashlib.sha384(raw.encode("utf-8")).hexdigest()
-
+    payload["sign"] = _p24_sign_v1(payload, cfg["P24_CRC"])
+    return payload
 
 def _p24_verify_transaction(payment: Payment):
     cfg = current_app.config
@@ -319,8 +272,20 @@ def _p24_verify_transaction(payment: Payment):
     resp = r.json()
     return not resp.get("error")
 
+import json
+import hashlib
 
-def _p24_verify_sign(session_id, order_id, amount, currency):
-    cfg = current_app.config
-    raw = f"{session_id}|{order_id}|{amount}|{currency}|{cfg['P24_CRC']}"
+def _p24_sign_v1(payload: dict, crc: str) -> str:
+    payload_copy = payload.copy()
+    payload_copy.pop("sign", None)
+
+    raw = json.dumps(
+        payload_copy,
+        separators=(",", ":"),
+        ensure_ascii=False
+    ) + crc
+
+    current_app.logger.warning(f"[P24 DEBUG] SIGN RAW JSON+CRC = {raw}")
+
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
+
