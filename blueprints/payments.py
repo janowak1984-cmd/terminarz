@@ -1,5 +1,4 @@
 import uuid
-import json
 import hashlib
 import requests
 import base64
@@ -41,7 +40,6 @@ def init_payment():
     if not visit_type or not visit_type.price or visit_type.price <= 0:
         return jsonify({"error": "Visit type not payable"}), 400
 
-    # blokada duplikatów
     if Payment.query.filter(
         Payment.appointment_id == appointment.id,
         Payment.status.in_(("init", "pending"))
@@ -160,9 +158,7 @@ def payment_status():
 
     payment.provider_order_id = order_id
 
-    # ⚠️ VERIFY WYŁĄCZONE CELOWO (WIP)
-    # TODO: włączyć _p24_verify_transaction po pełnym potwierdzeniu CRC
-
+    # VERIFY CELOWO WYŁĄCZONE (włączysz po testach)
     payment.status = "pending"
     db.session.commit()
 
@@ -215,20 +211,26 @@ def _build_p24_payload(payment: Payment):
         "urlStatus": cfg["P24_STATUS_URL"],
     }
 
-    payload["sign"] = _p24_sign_v1(payload, cfg["P24_CRC"])
+    payload["sign"] = _p24_sign_register(
+        session_id=payment.provider_session_id,
+        merchant_id=int(cfg["P24_MERCHANT_ID"]),
+        amount=amount_int,
+        currency="PLN",
+        crc=cfg["P24_CRC"],
+    )
+
     return payload
 
 
-def _p24_sign_v1(payload: dict, crc: str) -> str:
-    payload_copy = payload.copy()
-    payload_copy.pop("sign", None)
+def _p24_sign_register(
+    session_id: str,
+    merchant_id: int,
+    amount: int,
+    currency: str,
+    crc: str
+) -> str:
+    raw = f"{session_id}|{merchant_id}|{amount}|{currency}|{crc}"
 
-    raw = json.dumps(
-        payload_copy,
-        separators=(",", ":"),
-        ensure_ascii=False
-    ) + crc
-
-    current_app.logger.warning(f"[P24 DEBUG] SIGN RAW JSON+CRC = {raw}")
+    current_app.logger.warning(f"[P24 DEBUG] SIGN RAW = {raw}")
 
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
