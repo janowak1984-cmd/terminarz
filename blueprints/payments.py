@@ -1,4 +1,5 @@
 import uuid
+import json
 import hashlib
 import requests
 import base64
@@ -86,13 +87,12 @@ def register_payment():
         return jsonify({"error": "payment_id required"}), 400
 
     payment = Payment.query.get_or_404(payment_id)
-    appointment = payment.appointment
 
     if payment.status != "init":
         return jsonify({"error": "Invalid payment status"}), 400
 
     cfg = current_app.config
-    payload = _build_p24_payload(payment, appointment)
+    payload = _build_p24_payload(payment)
 
     auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
     auth_b64 = base64.b64encode(auth_raw.encode()).decode()
@@ -132,7 +132,7 @@ def register_payment():
 
 
 # ==================================================
-# STATUS CALLBACK (urlStatus) + VERIFY API
+# STATUS CALLBACK (urlStatus)
 # ==================================================
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
@@ -141,10 +141,8 @@ def payment_status():
     session_id = data.get("sessionId")
     order_id = data.get("orderId")
     amount = data.get("amount")
-    currency = data.get("currency")
-    received_sign = data.get("sign")
 
-    if not all([session_id, order_id, amount, currency, received_sign]):
+    if not all([session_id, order_id, amount]):
         return "ERROR", 400
 
     payment = Payment.query.filter_by(
@@ -155,9 +153,6 @@ def payment_status():
     if not payment:
         return "ERROR", 404
 
-    if payment.status == "paid":
-        return "OK", 200
-
     if str(payment.amount) != str(amount):
         payment.status = "failed"
         db.session.commit()
@@ -165,16 +160,13 @@ def payment_status():
 
     payment.provider_order_id = order_id
 
-    # 🔐 VERIFY API – OBOWIĄZKOWE W PROD
-#    if not _p24_verify_transaction(payment):
-#        payment.status = "failed"
-#       db.session.commit()
-#        return "ERROR", 400
+    # ⚠️ VERIFY WYŁĄCZONE CELOWO (WIP)
+    # TODO: włączyć _p24_verify_transaction po pełnym potwierdzeniu CRC
 
     payment.status = "pending"
     db.session.commit()
-    return "OK", 200
 
+    return "OK", 200
 
 
 # ==================================================
@@ -205,18 +197,18 @@ def payment_return():
 # ==================================================
 # HELPERS
 # ==================================================
-def _build_p24_payload(payment: Payment, appointment: Appointment):
+def _build_p24_payload(payment: Payment):
     cfg = current_app.config
     amount_int = int(payment.amount)
 
     payload = {
-        "merchantId": cfg["P24_MERCHANT_ID"],
-        "posId": cfg["P24_POS_ID"],
+        "merchantId": int(cfg["P24_MERCHANT_ID"]),
+        "posId": int(cfg["P24_POS_ID"]),
         "sessionId": payment.provider_session_id,
         "amount": amount_int,
         "currency": "PLN",
-        "description": f"Wizyta {appointment.start:%d.%m.%Y %H:%M}",
-        "email": appointment.patient_email or "kontakt@kingabobinska.pl",
+        "description": "Rezerwacja wizyty",
+        "email": payment.appointment.patient_email or "kontakt@kingabobinska.pl",
         "country": "PL",
         "language": "pl",
         "urlReturn": cfg["P24_RETURN_URL"],
@@ -226,54 +218,6 @@ def _build_p24_payload(payment: Payment, appointment: Appointment):
     payload["sign"] = _p24_sign_v1(payload, cfg["P24_CRC"])
     return payload
 
-def _p24_verify_transaction(payment: Payment):
-    cfg = current_app.config
-    amount_int = int(payment.amount)   # 🔥
-
-    payload = {
-        "merchantId": cfg["P24_MERCHANT_ID"],
-        "posId": cfg["P24_POS_ID"],
-        "sessionId": payment.provider_session_id,
-        "orderId": payment.provider_order_id,
-        "amount": amount_int,
-        "currency": "PLN",
-        "sign": _p24_verify_sign(
-            payment.provider_session_id,
-            payment.provider_order_id,
-            str(amount_int),
-            "PLN"
-        )
-    }
-
-
-    auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
-    auth_b64 = base64.b64encode(auth_raw.encode()).decode()
-
-    try:
-        current_app.logger.warning(f"[P24 DEBUG] REGISTER URL = {cfg.get('P24_REGISTER_URL')}")
-
-        r = requests.post(
-            cfg["P24_VERIFY_URL"],
-            json=payload,
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Basic {auth_b64}",
-            },
-            timeout=10
-        )
-    except Exception as e:
-        current_app.logger.error(f"[P24 VERIFY] exception: {e}")
-        return False
-
-    if r.status_code != 200:
-        current_app.logger.error(f"[P24 VERIFY] HTTP {r.status_code} {r.text}")
-        return False
-
-    resp = r.json()
-    return not resp.get("error")
-
-import json
-import hashlib
 
 def _p24_sign_v1(payload: dict, crc: str) -> str:
     payload_copy = payload.copy()
@@ -288,4 +232,3 @@ def _p24_sign_v1(payload: dict, crc: str) -> str:
     current_app.logger.warning(f"[P24 DEBUG] SIGN RAW JSON+CRC = {raw}")
 
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
-
