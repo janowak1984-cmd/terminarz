@@ -58,17 +58,31 @@ class Config:
         "bobinskagabinet@gmail.com"
     )
 
-    # ─────────────────────────
+   # ─────────────────────────
     # PRZELEWY24 – PRODUKCJA
     # ─────────────────────────
     P24_MERCHANT_ID = int(os.getenv("P24_MERCHANT_ID"))
-    P24_POS_ID = int(os.getenv("P24_POS_ID"))  # zazwyczaj = merchantId
+    P24_POS_ID = int(os.getenv("P24_POS_ID"))      # zwykle = merchantId
     P24_CRC = os.getenv("P24_CRC")
+    P24_API_KEY = os.getenv("P24_API_KEY")
 
     P24_API_URL = "https://secure.przelewy24.pl/api/v1"
     P24_REGISTER_URL = f"{P24_API_URL}/transaction/register"
     P24_VERIFY_URL = f"{P24_API_URL}/transaction/verify"
 
+    P24_REDIRECT_URL = "https://secure.przelewy24.pl/trnRequest"
+
+    P24_RETURN_URL = os.getenv(
+        "P24_RETURN_URL",
+        f"{BASE_URL}/payments/return"
+    )
+
+    P24_STATUS_URL = os.getenv(
+        "P24_STATUS_URL",
+        f"{BASE_URL}/payments/status"
+    )
+
     P24_CURRENCY = "PLN"
     P24_COUNTRY = "PL"
     P24_LANGUAGE = "pl"
+
