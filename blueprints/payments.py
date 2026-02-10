@@ -220,12 +220,13 @@ def payment_return():
 # ==================================================
 def _build_p24_payload(payment: Payment, appointment: Appointment):
     cfg = current_app.config
+    amount_int = int(payment.amount)   # 🔥 KLUCZOWE
 
     return {
         "merchantId": cfg["P24_MERCHANT_ID"],
         "posId": cfg["P24_POS_ID"],
         "sessionId": payment.provider_session_id,
-        "amount": payment.amount,
+        "amount": amount_int,
         "currency": "PLN",
         "description": f"Wizyta {appointment.start:%d.%m.%Y %H:%M}",
         "email": appointment.patient_email or "kontakt@kingabobinska.pl",
@@ -235,7 +236,7 @@ def _build_p24_payload(payment: Payment, appointment: Appointment):
         "urlStatus": cfg["P24_STATUS_URL"],
         "sign": _p24_sign(
             payment.provider_session_id,
-            str(payment.amount),
+            str(amount_int),          # 🔥 MUSI BYĆ STRING INT
             "PLN"
         )
     }
