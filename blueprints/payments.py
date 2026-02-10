@@ -241,18 +241,16 @@ def _build_p24_payload(payment: Payment, appointment: Appointment):
         )
     }
 
-
 def _p24_sign(session_id, amount, currency):
     cfg = current_app.config
     raw = (
         f"{session_id}|"
-        f"{cfg['P24_POS_ID']}|"   # 🔥 POS_ID, nie MERCHANT_ID
+        f"{cfg['P24_MERCHANT_ID']}|"   # 🔴 merchantId, NIE posId
         f"{amount}|"
         f"{currency}|"
         f"{cfg['P24_CRC']}"
     )
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
-
 
 
 def _p24_status_sign(session_id, order_id, amount, currency):
