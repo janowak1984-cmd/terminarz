@@ -77,6 +77,11 @@ class Config:
         f"{BASE_URL}/payments/return"
     )
 
+    P24_STATUS_URL = os.getenv(
+        "P24_STATUS_URL",
+        f"{BASE_URL}/payments/status"
+    )
+
     P24_CURRENCY = "PLN"
     P24_COUNTRY = "PL"
     P24_LANGUAGE = "pl"
