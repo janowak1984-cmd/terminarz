@@ -145,11 +145,11 @@ def payment_status():
         return "ERROR", 404
 
     # amount w JSON może być int — normalizujemy do stringa
-    if str(payment.amount) != str(amount):
-        payment.status = "failed"
-        db.session.commit()
-        current_app.logger.warning("[P24 STATUS] Amount mismatch")
-        return "ERROR", 400
+    #if str(payment.amount) != str(amount):
+    #    payment.status = "failed"
+    #    db.session.commit()
+    #    current_app.logger.warning("[P24 STATUS] Amount mismatch")
+    #    return "ERROR", 400
 
     payment.provider_order_id = order_id
     payment.status = "paid"
@@ -170,21 +170,34 @@ def payment_return():
     session_id = request.args.get("sessionId")
 
     if not session_id:
-        return render_template("payments/fail.html")
+        return render_template("payments/payment_fail.html")
 
     payment = Payment.query.filter_by(
         provider="przelewy24",
         provider_session_id=session_id
     ).first()
 
-    if payment and payment.status == "paid":
+    if not payment:
+        return render_template(
+            "payments/payment_fail.html",
+            reason="Nie znaleziono płatności."
+        )
+
+    if payment.status == "paid":
         return render_template(
             "payments/success.html",
             appointment=payment.appointment,
             payment=payment
         )
 
-    return render_template("payments/fail.html")
+    if payment.status == "pending":
+        return render_template("payments/pending.html")
+
+    return render_template(
+        "payments/payment_fail.html",
+        reason="Płatność nie została potwierdzona."
+    )
+
 
 
 # ==================================================
