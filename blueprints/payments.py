@@ -119,15 +119,20 @@ def register_payment():
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
-    current_app.logger.warning(f"[P24 STATUS] DATA = {request.form}")
+    # 🔎 Debug – zobaczymy co realnie przychodzi
+    current_app.logger.warning(f"[P24 STATUS] FORM = {request.form}")
+    current_app.logger.warning(f"[P24 STATUS] JSON = {request.get_json(silent=True)}")
+    current_app.logger.warning(f"[P24 STATUS] RAW = {request.data}")
 
-    data = request.form
+    # Obsługa zarówno form-urlencoded jak i JSON
+    data = request.form.to_dict() if request.form else request.get_json(silent=True) or {}
 
     session_id = data.get("sessionId")
     order_id = data.get("orderId")
     amount = data.get("amount")
 
     if not all([session_id, order_id, amount]):
+        current_app.logger.warning("[P24 STATUS] Missing required fields")
         return "ERROR", 400
 
     payment = Payment.query.filter_by(
@@ -136,11 +141,14 @@ def payment_status():
     ).first()
 
     if not payment:
+        current_app.logger.warning("[P24 STATUS] Payment not found")
         return "ERROR", 404
 
+    # amount w JSON może być int — normalizujemy do stringa
     if str(payment.amount) != str(amount):
         payment.status = "failed"
         db.session.commit()
+        current_app.logger.warning("[P24 STATUS] Amount mismatch")
         return "ERROR", 400
 
     payment.provider_order_id = order_id
@@ -148,7 +156,10 @@ def payment_status():
     payment.paid_at = datetime.utcnow()
     db.session.commit()
 
+    current_app.logger.warning("[P24 STATUS] Payment marked as PAID")
+
     return "OK", 200
+
 
 
 # ==================================================
