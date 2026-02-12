@@ -321,6 +321,8 @@ def _p24_verify_transaction(payment: Payment):
     checksum = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
 
     payload = {
+        "merchantId": int(cfg["P24_MERCHANT_ID"]),
+        "posId": int(cfg["P24_POS_ID"]),
         "sessionId": payment.provider_session_id,
         "orderId": int(payment.provider_order_id),
         "amount": int(payment.amount),
@@ -328,10 +330,11 @@ def _p24_verify_transaction(payment: Payment):
         "sign": checksum
     }
 
+
     auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
     auth_b64 = base64.b64encode(auth_raw.encode()).decode()
 
-    r = requests.post(
+    r = requests.put(
         cfg["P24_VERIFY_URL"],
         json=payload,
         headers={
