@@ -112,21 +112,33 @@ def register_payment():
         "redirect_url": f"{cfg['P24_REDIRECT_URL']}/{token}"
     })
 
-# # STATUS CALLBACK # ==================================================
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
     data = request.form.to_dict() if request.form else request.get_json(silent=True) or {}
 
-    session_id = data.get("sessionId")
-    order_id = data.get("orderId")
-    amount = data.get("amount")
-    currency = data.get("currency")
-    sign = data.get("sign")
+    required_fields = [
+        "merchantId",
+        "posId",
+        "sessionId",
+        "amount",
+        "originAmount",
+        "currency",
+        "orderId",
+        "methodId",
+        "statement",
+        "sign",
+    ]
 
-    if not all([session_id, order_id, amount, currency, sign]):
+    if not all(field in data for field in required_fields):
         current_app.logger.warning("[P24 STATUS] Missing required fields")
         return "ERROR", 400
+
+    session_id = data["sessionId"]
+    order_id = data["orderId"]
+    amount = data["amount"]
+    currency = data["currency"]
+    received_sign = data["sign"]
 
     payment = Payment.query.filter_by(
         provider="przelewy24",
@@ -153,14 +165,19 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Invalid amount format")
         return "ERROR", 400
 
-    # 🔐 Validate SIGN from callback
+    # 🔐 POPRAWNE LICZENIE SIGN DLA CALLBACK
     cfg = current_app.config
 
     sign_payload = {
-        "sessionId": session_id,
-        "orderId": int(order_id),
-        "amount": int(amount),
-        "currency": currency,
+        "merchantId": int(data["merchantId"]),
+        "posId": int(data["posId"]),
+        "sessionId": data["sessionId"],
+        "amount": int(data["amount"]),
+        "originAmount": int(data["originAmount"]),
+        "currency": data["currency"],
+        "orderId": int(data["orderId"]),
+        "methodId": int(data["methodId"]),
+        "statement": data["statement"],
         "crc": cfg["P24_CRC"],
     }
 
@@ -170,21 +187,22 @@ def payment_status():
         ensure_ascii=False
     )
 
-    calculated_sign = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
+    calculated_sign = hashlib.sha384(
+        json_string.encode("utf-8")
+    ).hexdigest()
 
-    current_app.logger.warning(f"[P24 STATUS] RAW DATA = {data}")
+    current_app.logger.warning(f"[P24 STATUS] SIGN JSON = {json_string}")
     current_app.logger.warning(f"[P24 STATUS] CALCULATED SIGN = {calculated_sign}")
-    current_app.logger.warning(f"[P24 STATUS] RECEIVED SIGN = {sign}")
+    current_app.logger.warning(f"[P24 STATUS] RECEIVED SIGN = {received_sign}")
 
-
-    if calculated_sign != sign:
+    if calculated_sign != received_sign:
         current_app.logger.warning("[P24 STATUS] Invalid sign")
         return "ERROR", 400
 
     # zapisujemy orderId
     payment.provider_order_id = order_id
 
-    # 🔐 VERIFY CALL
+    # 🔐 VERIFY CALL (transaction/verify)
     if not _p24_verify_transaction(payment):
         payment.status = "failed"
         db.session.commit()
@@ -199,6 +217,7 @@ def payment_status():
     current_app.logger.warning("[P24 STATUS] Payment verified and marked as PAID")
 
     return "OK", 200
+
 
 # ==================================================
 # RETURN
