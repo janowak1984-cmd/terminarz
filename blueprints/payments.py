@@ -185,7 +185,7 @@ def payment_return():
 
     if payment.status == "paid":
         return render_template(
-            "payments/success.html",
+            "payments/payment_success.html",
             appointment=payment.appointment,
             payment=payment
         )
