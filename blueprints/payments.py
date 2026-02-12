@@ -210,7 +210,7 @@ def payment_status():
 
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
-    payment.appointment.status = "confirmed"
+    #payment.appointment.status = "confirmed"
 
     db.session.commit()
 
