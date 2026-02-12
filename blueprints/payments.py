@@ -4,18 +4,21 @@ import hashlib
 import requests
 import base64
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, request, jsonify, current_app, render_template
 from extensions import db
 from models import Appointment, Payment, VisitType
 
 
-payments_bp = Blueprint("payments", __name__, url_prefix="/payments")
-
+payments_bp = Blueprint(
+    "payments",
+    __name__,
+    url_prefix="/payments"
+)
 
 # ==================================================
-# INIT
+# INIT PAYMENT
 # ==================================================
 @payments_bp.route("/init", methods=["POST"])
 def init_payment():
@@ -37,18 +40,6 @@ def init_payment():
 
     if not visit_type or not visit_type.price or visit_type.price <= 0:
         return jsonify({"error": "Visit type not payable"}), 400
-
-    if Payment.query.filter(
-        Payment.appointment_id == appointment.id,
-        Payment.status.in_(("init", "pending"))
-    ).first():
-        return jsonify({"error": "Payment already started"}), 409
-
-    if Payment.query.filter_by(
-        appointment_id=appointment.id,
-        status="paid"
-    ).first():
-        return jsonify({"error": "Appointment already paid"}), 409
 
     amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
     session_id = uuid.uuid4().hex
@@ -72,7 +63,7 @@ def init_payment():
 
 
 # ==================================================
-# REGISTER
+# REGISTER – REST API v1
 # ==================================================
 @payments_bp.route("/register", methods=["POST"])
 def register_payment():
@@ -88,7 +79,7 @@ def register_payment():
         return jsonify({"error": "Invalid payment status"}), 400
 
     cfg = current_app.config
-    payload = _build_register_payload(payment)
+    payload = _build_p24_payload(payment)
 
     auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
     auth_b64 = base64.b64encode(auth_raw.encode()).decode()
@@ -100,14 +91,15 @@ def register_payment():
             "Content-Type": "application/json",
             "Authorization": f"Basic {auth_b64}",
         },
-        timeout=10
+        timeout=15
     )
 
     if r.status_code != 200:
         current_app.logger.error(f"[P24] register HTTP {r.status_code} {r.text}")
         return jsonify({"error": "Payment provider error"}), 502
 
-    token = r.json().get("data", {}).get("token")
+    resp = r.json()
+    token = resp.get("data", {}).get("token")
 
     if not token:
         return jsonify({"error": "No token from provider"}), 500
@@ -122,18 +114,20 @@ def register_payment():
 
 
 # ==================================================
-# STATUS (REAL CONFIRMATION)
+# STATUS CALLBACK
 # ==================================================
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
+
+    current_app.logger.warning(f"[P24 STATUS] DATA = {request.form}")
+
     data = request.form
 
     session_id = data.get("sessionId")
     order_id = data.get("orderId")
     amount = data.get("amount")
-    currency = data.get("currency")
 
-    if not all([session_id, order_id, amount, currency]):
+    if not all([session_id, order_id, amount]):
         return "ERROR", 400
 
     payment = Payment.query.filter_by(
@@ -150,33 +144,15 @@ def payment_status():
         return "ERROR", 400
 
     payment.provider_order_id = order_id
-
-    if not _verify_transaction(payment):
-        payment.status = "failed"
-        db.session.commit()
-        return "ERROR", 400
-
     payment.status = "paid"
-    payment.paid_at = datetime.now(timezone.utc)
+    payment.paid_at = datetime.utcnow()
     db.session.commit()
 
     return "OK", 200
 
-@payments_bp.route("/status", methods=["POST"])
-def payment_status():
-    current_app.logger.warning(f"[P24 STATUS] DATA = {request.form}")
-
-    data = request.form
-
-    session_id = data.get("sessionId")
-    order_id = data.get("orderId")
-    amount = data.get("amount")
-
-
-
 
 # ==================================================
-# RETURN (BROWSER ONLY)
+# RETURN
 # ==================================================
 @payments_bp.route("/return", methods=["GET"])
 def payment_return():
@@ -190,25 +166,37 @@ def payment_return():
         provider_session_id=session_id
     ).first()
 
-    if not payment:
-        return render_template("payments/fail.html")
-
-    if payment.status == "paid":
+    if payment and payment.status == "paid":
         return render_template(
             "payments/success.html",
             appointment=payment.appointment,
             payment=payment
         )
 
-    # jeśli status jeszcze pending → pokaż "czekamy"
-    return render_template("payments/pending.html")
+    return render_template("payments/fail.html")
 
 
 # ==================================================
-# HELPERS
+# BUILD PAYLOAD – ZGODNIE Z DOKUMENTACJĄ
 # ==================================================
-def _build_register_payload(payment: Payment):
+def _build_p24_payload(payment: Payment):
     cfg = current_app.config
+
+    sign_payload = {
+        "sessionId": payment.provider_session_id,
+        "merchantId": int(cfg["P24_MERCHANT_ID"]),
+        "amount": int(payment.amount),
+        "currency": "PLN",
+        "crc": cfg["P24_CRC"],
+    }
+
+    json_string = json.dumps(
+        sign_payload,
+        separators=(",", ":"),
+        ensure_ascii=False
+    )
+
+    checksum = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
 
     payload = {
         "merchantId": int(cfg["P24_MERCHANT_ID"]),
@@ -217,64 +205,14 @@ def _build_register_payload(payment: Payment):
         "amount": int(payment.amount),
         "currency": "PLN",
         "description": "Rezerwacja wizyty",
-        "email": payment.appointment.patient_email,
+        "email": payment.appointment.patient_email or "kontakt@kingabobinska.pl",
         "country": "PL",
         "language": "pl",
         "urlReturn": cfg["P24_RETURN_URL"],
         "urlStatus": cfg["P24_STATUS_URL"],
+        "sign": checksum
     }
 
-    payload["sign"] = _sign_register(payload, cfg["P24_CRC"])
+    current_app.logger.warning(f"[P24 DEBUG] SIGN JSON = {json_string}")
+
     return payload
-
-
-def _verify_transaction(payment: Payment):
-    cfg = current_app.config
-
-    payload = {
-        "merchantId": int(cfg["P24_MERCHANT_ID"]),
-        "posId": int(cfg["P24_POS_ID"]),
-        "sessionId": payment.provider_session_id,
-        "orderId": int(payment.provider_order_id),
-        "amount": int(payment.amount),
-        "currency": "PLN",
-    }
-
-    payload["sign"] = _sign_verify(payload, cfg["P24_CRC"])
-
-    auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
-    auth_b64 = base64.b64encode(auth_raw.encode()).decode()
-
-    r = requests.post(
-        cfg["P24_VERIFY_URL"],
-        json=payload,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Basic {auth_b64}",
-        },
-        timeout=10
-    )
-
-    return r.status_code == 200 and not r.json().get("error")
-
-
-def _sign_register(payload: dict, crc: str) -> str:
-    data = {
-        "sessionId": payload["sessionId"],
-        "merchantId": payload["merchantId"],
-        "amount": payload["amount"],
-        "currency": payload["currency"],
-        "crc": crc,
-    }
-    return hashlib.sha384(json.dumps(data, separators=(",", ":")).encode()).hexdigest()
-
-
-def _sign_verify(payload: dict, crc: str) -> str:
-    data = {
-        "sessionId": payload["sessionId"],
-        "orderId": payload["orderId"],
-        "amount": payload["amount"],
-        "currency": payload["currency"],
-        "crc": crc,
-    }
-    return hashlib.sha384(json.dumps(data, separators=(",", ":")).encode()).hexdigest()
