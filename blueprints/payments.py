@@ -4,7 +4,7 @@ import hashlib
 import requests
 import base64
 from decimal import Decimal
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, request, jsonify, current_app, render_template
 from extensions import db
@@ -75,7 +75,7 @@ def init_payment():
 
 
 # ==================================================
-# REGISTER – transaction/register (API v1)
+# REGISTER – REST API (JSON + crc w payload)
 # ==================================================
 @payments_bp.route("/register", methods=["POST"])
 def register_payment():
@@ -104,7 +104,7 @@ def register_payment():
                 "Content-Type": "application/json",
                 "Authorization": f"Basic {auth_b64}",
             },
-            timeout=10
+            timeout=15
         )
     except Exception as e:
         current_app.logger.error(f"[P24] register exception: {e}")
@@ -131,7 +131,7 @@ def register_payment():
 
 
 # ==================================================
-# STATUS CALLBACK (urlStatus)
+# STATUS CALLBACK (tymczasowo bez VERIFY)
 # ==================================================
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
@@ -159,8 +159,9 @@ def payment_status():
 
     payment.provider_order_id = order_id
 
-    # VERIFY CELOWO WYŁĄCZONE (WIP)
-    payment.status = "pending"
+    # VERIFY wyłączone na razie
+    payment.status = "paid"
+    payment.paid_at = datetime.utcnow()
     db.session.commit()
 
     return "OK", 200
@@ -192,17 +193,16 @@ def payment_return():
 
 
 # ==================================================
-# HELPERS
+# HELPER – budowa payload wg REST API
 # ==================================================
 def _build_p24_payload(payment: Payment):
     cfg = current_app.config
-    amount_int = int(payment.amount)
 
     payload = {
+        "sessionId": payment.provider_session_id,
         "merchantId": int(cfg["P24_MERCHANT_ID"]),
         "posId": int(cfg["P24_POS_ID"]),
-        "sessionId": payment.provider_session_id,
-        "amount": amount_int,
+        "amount": int(payment.amount),
         "currency": "PLN",
         "description": "Rezerwacja wizyty",
         "email": payment.appointment.patient_email or "kontakt@kingabobinska.pl",
@@ -210,22 +210,28 @@ def _build_p24_payload(payment: Payment):
         "language": "pl",
         "urlReturn": cfg["P24_RETURN_URL"],
         "urlStatus": cfg["P24_STATUS_URL"],
+        "crc": cfg["P24_CRC"]  # ⬅ KLUCZOWE
     }
 
-    payload["sign"] = _p24_sign_v1(payload, cfg["P24_CRC"])
+    payload["sign"] = _p24_sign(payload)
     return payload
 
 
-def _p24_sign_v1(payload: dict, crc: str) -> str:
-    payload_copy = payload.copy()
-    payload_copy.pop("sign", None)
+# ==================================================
+# SIGN – dokładnie jak w dokumentacji (JSON + crc)
+# ==================================================
+def _p24_sign(payload: dict) -> str:
+    payload_for_sign = payload.copy()
+    sign_crc = payload_for_sign.pop("crc")
 
-    raw = json.dumps(
-        payload_copy,
+    json_string = json.dumps(
+        payload_for_sign,
         separators=(",", ":"),
         ensure_ascii=False
-    ) + crc
+    )
 
-    current_app.logger.warning(f"[P24 DEBUG] SIGN RAW JSON+CRC = {raw}")
+    raw = json_string + sign_crc
+
+    current_app.logger.warning(f"[P24 DEBUG] SIGN RAW = {raw}")
 
     return hashlib.sha384(raw.encode("utf-8")).hexdigest()
