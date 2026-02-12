@@ -193,7 +193,7 @@ def payment_return():
 
 
 # ==================================================
-# HELPER – budowa payload wg REST API
+# HELPER – budowa payload wg REST API #
 # ==================================================
 def _build_p24_payload(payment: Payment):
     cfg = current_app.config
