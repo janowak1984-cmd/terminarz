@@ -172,6 +172,11 @@ def payment_status():
 
     calculated_sign = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
 
+    current_app.logger.warning(f"[P24 STATUS] RAW DATA = {data}")
+    current_app.logger.warning(f"[P24 STATUS] CALCULATED SIGN = {calculated_sign}")
+    current_app.logger.warning(f"[P24 STATUS] RECEIVED SIGN = {sign}")
+
+
     if calculated_sign != sign:
         current_app.logger.warning("[P24 STATUS] Invalid sign")
         return "ERROR", 400
