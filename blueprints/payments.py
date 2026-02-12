@@ -112,10 +112,7 @@ def register_payment():
         "redirect_url": f"{cfg['P24_REDIRECT_URL']}/{token}"
     })
 
-
-# ==================================================
-# STATUS CALLBACK
-# ==================================================
+# # STATUS CALLBACK # ==================================================
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
@@ -124,8 +121,10 @@ def payment_status():
     session_id = data.get("sessionId")
     order_id = data.get("orderId")
     amount = data.get("amount")
+    currency = data.get("currency")
+    sign = data.get("sign")
 
-    if not all([session_id, order_id, amount]):
+    if not all([session_id, order_id, amount, currency, sign]):
         current_app.logger.warning("[P24 STATUS] Missing required fields")
         return "ERROR", 400
 
@@ -138,15 +137,49 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Payment not found")
         return "ERROR", 404
 
-    if int(payment.amount) != int(amount):
-        payment.status = "failed"
-        db.session.commit()
-        current_app.logger.warning("[P24 STATUS] Amount mismatch")
+    # ✅ Idempotency
+    if payment.status == "paid":
+        current_app.logger.warning("[P24 STATUS] Already paid - idempotent OK")
+        return "OK", 200
+
+    # ✅ Amount validation
+    try:
+        if int(payment.amount) != int(amount):
+            current_app.logger.warning("[P24 STATUS] Amount mismatch")
+            payment.status = "failed"
+            db.session.commit()
+            return "ERROR", 400
+    except Exception:
+        current_app.logger.warning("[P24 STATUS] Invalid amount format")
         return "ERROR", 400
 
+    # 🔐 Validate SIGN from callback
+    cfg = current_app.config
+
+    sign_payload = {
+        "sessionId": session_id,
+        "orderId": int(order_id),
+        "amount": int(amount),
+        "currency": currency,
+        "crc": cfg["P24_CRC"],
+    }
+
+    json_string = json.dumps(
+        sign_payload,
+        separators=(",", ":"),
+        ensure_ascii=False
+    )
+
+    calculated_sign = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
+
+    if calculated_sign != sign:
+        current_app.logger.warning("[P24 STATUS] Invalid sign")
+        return "ERROR", 400
+
+    # zapisujemy orderId
     payment.provider_order_id = order_id
 
-    # 🔐 VERIFY CALL (KLUCZOWE)
+    # 🔐 VERIFY CALL
     if not _p24_verify_transaction(payment):
         payment.status = "failed"
         db.session.commit()
@@ -154,8 +187,6 @@ def payment_status():
 
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
-
-    # opcjonalnie potwierdź wizytę
     payment.appointment.status = "confirmed"
 
     db.session.commit()
@@ -163,9 +194,6 @@ def payment_status():
     current_app.logger.warning("[P24 STATUS] Payment verified and marked as PAID")
 
     return "OK", 200
-
-
-
 
 # ==================================================
 # RETURN
@@ -252,7 +280,7 @@ def _build_p24_payload(payment: Payment):
 def _p24_verify_transaction(payment: Payment):
     cfg = current_app.config
 
-    verify_payload = {
+    sign_payload = {
         "sessionId": payment.provider_session_id,
         "orderId": int(payment.provider_order_id),
         "amount": int(payment.amount),
@@ -261,7 +289,7 @@ def _p24_verify_transaction(payment: Payment):
     }
 
     json_string = json.dumps(
-        verify_payload,
+        sign_payload,
         separators=(",", ":"),
         ensure_ascii=False
     )
@@ -269,8 +297,6 @@ def _p24_verify_transaction(payment: Payment):
     checksum = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
 
     payload = {
-        "merchantId": int(cfg["P24_MERCHANT_ID"]),
-        "posId": int(cfg["P24_POS_ID"]),
         "sessionId": payment.provider_session_id,
         "orderId": int(payment.provider_order_id),
         "amount": int(payment.amount),
@@ -297,8 +323,8 @@ def _p24_verify_transaction(payment: Payment):
 
     resp = r.json()
 
-    if resp.get("error"):
-        current_app.logger.error(f"[P24 VERIFY] error response {resp}")
+    if resp.get("data", {}).get("status") != "success":
+        current_app.logger.error(f"[P24 VERIFY] invalid response {resp}")
         return False
 
     current_app.logger.warning("[P24 VERIFY] OK")
