@@ -119,12 +119,6 @@ def register_payment():
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
-    # 🔎 Debug – zobaczymy co realnie przychodzi
-    current_app.logger.warning(f"[P24 STATUS] FORM = {request.form}")
-    current_app.logger.warning(f"[P24 STATUS] JSON = {request.get_json(silent=True)}")
-    current_app.logger.warning(f"[P24 STATUS] RAW = {request.data}")
-
-    # Obsługa zarówno form-urlencoded jak i JSON
     data = request.form.to_dict() if request.form else request.get_json(silent=True) or {}
 
     session_id = data.get("sessionId")
@@ -144,21 +138,32 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Payment not found")
         return "ERROR", 404
 
-    # amount w JSON może być int — normalizujemy do stringa
-    #if str(payment.amount) != str(amount):
-    #    payment.status = "failed"
-    #    db.session.commit()
-    #    current_app.logger.warning("[P24 STATUS] Amount mismatch")
-    #    return "ERROR", 400
+    if int(payment.amount) != int(amount):
+        payment.status = "failed"
+        db.session.commit()
+        current_app.logger.warning("[P24 STATUS] Amount mismatch")
+        return "ERROR", 400
 
     payment.provider_order_id = order_id
+
+    # 🔐 VERIFY CALL (KLUCZOWE)
+    if not _p24_verify_transaction(payment):
+        payment.status = "failed"
+        db.session.commit()
+        return "ERROR", 400
+
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
+
+    # opcjonalnie potwierdź wizytę
+    payment.appointment.status = "confirmed"
+
     db.session.commit()
 
-    current_app.logger.warning("[P24 STATUS] Payment marked as PAID")
+    current_app.logger.warning("[P24 STATUS] Payment verified and marked as PAID")
 
     return "OK", 200
+
 
 
 
@@ -240,3 +245,63 @@ def _build_p24_payload(payment: Payment):
     current_app.logger.warning(f"[P24 DEBUG] SIGN JSON = {json_string}")
 
     return payload
+
+# ==================================================
+# VERIFY TRANSACTION – REST API v1
+# ==================================================
+def _p24_verify_transaction(payment: Payment):
+    cfg = current_app.config
+
+    verify_payload = {
+        "sessionId": payment.provider_session_id,
+        "orderId": int(payment.provider_order_id),
+        "amount": int(payment.amount),
+        "currency": "PLN",
+        "crc": cfg["P24_CRC"],
+    }
+
+    json_string = json.dumps(
+        verify_payload,
+        separators=(",", ":"),
+        ensure_ascii=False
+    )
+
+    checksum = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
+
+    payload = {
+        "merchantId": int(cfg["P24_MERCHANT_ID"]),
+        "posId": int(cfg["P24_POS_ID"]),
+        "sessionId": payment.provider_session_id,
+        "orderId": int(payment.provider_order_id),
+        "amount": int(payment.amount),
+        "currency": "PLN",
+        "sign": checksum
+    }
+
+    auth_raw = f"{cfg['P24_POS_ID']}:{cfg['P24_API_KEY']}"
+    auth_b64 = base64.b64encode(auth_raw.encode()).decode()
+
+    r = requests.post(
+        cfg["P24_VERIFY_URL"],
+        json=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Basic {auth_b64}",
+        },
+        timeout=15
+    )
+
+    if r.status_code != 200:
+        current_app.logger.error(f"[P24 VERIFY] HTTP {r.status_code} {r.text}")
+        return False
+
+    resp = r.json()
+
+    if resp.get("error"):
+        current_app.logger.error(f"[P24 VERIFY] error response {resp}")
+        return False
+
+    current_app.logger.warning("[P24 VERIFY] OK")
+
+    return True
+
