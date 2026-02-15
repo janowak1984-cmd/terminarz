@@ -273,23 +273,29 @@ calendar = new FullCalendar.Calendar(calEl, {
   },
 
 
-  eventContent: function(arg) {
-    // tylko wizyty
-    if (!arg.event.id.startsWith('appt-')) {
-      return;
-    }
+ eventContent: function(arg) {
+  if (!arg.event.id.startsWith('appt-')) {
+    return;
+  }
 
-    const createdBy = arg.event.extendedProps.created_by;
-    const icon = createdBy === 'patient' ? '👤' : '✍️';
+  const createdBy = arg.event.extendedProps.created_by;
+  const status = arg.event.extendedProps.status;
 
-    return {
-      html: `
-        <div class="fc-event-title">
-          ${arg.event.title} ${icon}
-        </div>
-      `
-    };
-  },
+  const sourceIcon = createdBy === 'patient' ? '👤' : '✍️';
+
+  const completedBadge = status === 'completed'
+    ? `<span class="fc-completed-badge">✔</span>`
+    : '';
+
+  return {
+    html: `
+      <div class="fc-event-title">
+        ${arg.event.title} ${sourceIcon} ${completedBadge}
+      </div>
+    `
+  };
+},
+
 
 
 
