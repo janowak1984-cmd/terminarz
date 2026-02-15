@@ -5,7 +5,8 @@ import requests
 import base64
 from decimal import Decimal
 from datetime import datetime
-
+from utils.sms_service import SMSService
+from utils.email_service import EmailService
 from flask import Blueprint, request, jsonify, current_app, render_template
 from extensions import db
 from models import Appointment, Payment, VisitType
@@ -115,6 +116,9 @@ def register_payment():
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
+    # ==================================================
+    # ODBIÓR DANYCH (FORM LUB JSON)
+    # ==================================================
     data = request.form.to_dict() if request.form else request.get_json(silent=True) or {}
 
     required_fields = [
@@ -137,9 +141,11 @@ def payment_status():
     session_id = data["sessionId"]
     order_id = data["orderId"]
     amount = data["amount"]
-    currency = data["currency"]
     received_sign = data["sign"]
 
+    # ==================================================
+    # ZNAJDŹ PŁATNOŚĆ
+    # ==================================================
     payment = Payment.query.filter_by(
         provider="przelewy24",
         provider_session_id=session_id
@@ -149,12 +155,16 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Payment not found")
         return "ERROR", 404
 
-    # ✅ Idempotency
+    # ==================================================
+    # IDEMPOTENCY — JEŚLI JUŻ OPŁACONA → OK
+    # ==================================================
     if payment.status == "paid":
         current_app.logger.warning("[P24 STATUS] Already paid - idempotent OK")
         return "OK", 200
 
-    # ✅ Amount validation
+    # ==================================================
+    # WALIDACJA KWOTY
+    # ==================================================
     try:
         if int(payment.amount) != int(amount):
             current_app.logger.warning("[P24 STATUS] Amount mismatch")
@@ -165,7 +175,9 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Invalid amount format")
         return "ERROR", 400
 
-    # 🔐 POPRAWNE LICZENIE SIGN DLA CALLBACK
+    # ==================================================
+    # WALIDACJA SIGN
+    # ==================================================
     cfg = current_app.config
 
     sign_payload = {
@@ -191,32 +203,58 @@ def payment_status():
         json_string.encode("utf-8")
     ).hexdigest()
 
-    current_app.logger.warning(f"[P24 STATUS] SIGN JSON = {json_string}")
-    current_app.logger.warning(f"[P24 STATUS] CALCULATED SIGN = {calculated_sign}")
-    current_app.logger.warning(f"[P24 STATUS] RECEIVED SIGN = {received_sign}")
-
     if calculated_sign != received_sign:
         current_app.logger.warning("[P24 STATUS] Invalid sign")
         return "ERROR", 400
 
-    # zapisujemy orderId
+    # ==================================================
+    # USTAW ORDER ID
+    # ==================================================
     payment.provider_order_id = order_id
 
-    # 🔐 VERIFY CALL (transaction/verify)
+    # ==================================================
+    # VERIFY CALL DO P24
+    # ==================================================
     if not _p24_verify_transaction(payment):
         payment.status = "failed"
         db.session.commit()
         return "ERROR", 400
 
+    # ==================================================
+    # SUKCES – ZMIANA STATUSU
+    # ==================================================
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
-    #payment.appointment.status = "confirmed"
-
     db.session.commit()
 
-    current_app.logger.warning("[P24 STATUS] Payment verified and marked as PAID")
+    current_app.logger.warning(
+        f"[P24 STATUS] Payment {payment.id} marked as PAID"
+    )
+
+    # ==================================================
+    # WYŚLIJ POTWIERDZENIE (TYLKO TU!)
+    # ==================================================
+    appointment = payment.appointment
+
+    if appointment:
+        try:
+            SMSService().send_confirmation(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[SMS][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
+            )
+
+        try:
+            EmailService().send_confirmation(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
+            )
 
     return "OK", 200
+
+
+
 
 
 # ==================================================

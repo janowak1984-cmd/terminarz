@@ -334,12 +334,20 @@ def reserve():
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     visit_code = request.form.get("visit_type")
+    payment_flow = request.form.get("payment_flow", "reserve")
+
 
     visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
+
+
     if not visit_type:
         if is_ajax:
             return jsonify({"error": "Nieprawidłowy typ wizyty"}), 400
         flash("Nieprawidłowy typ wizyty", "patient-danger")
+        return redirect(url_for("patient_test.index"))
+    
+    if visit_type.only_online_payment and payment_flow != "online":
+        flash("Ta wizyta wymaga płatności online.", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
     visit_minutes = visit_type.duration_minutes
@@ -417,19 +425,21 @@ def reserve():
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
 
-    try:
-        SMSService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-        )
+    if payment_flow == "reserve":
 
-    try:
-        EmailService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-        )
+        try:
+            SMSService().send_confirmation(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
+            )
+
+        try:
+            EmailService().send_confirmation(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
+            )
 
     # ✅ KLUCZOWA RÓŻNICA
     if is_ajax:

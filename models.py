@@ -333,20 +333,29 @@ class Payment(db.Model):
 
     status = db.Column(
         db.Enum(
-            "init",        # utworzona
-            "pending",     # wysłana do P24
-            "paid",        # opłacona
-            "failed",      # błąd
-            "cancelled",   # anulowana
+            "init",
+            "pending",
+            "paid",
+            "failed",
+            "cancelled",
             name="payment_status"
         ),
         nullable=False,
         default="init"
     )
 
+    # 🔹 DATA UTWORZENIA (tylko raz)
     created_at = db.Column(
         db.DateTime,
         server_default=db.func.current_timestamp(),
+        nullable=False
+    )
+
+    # 🔹 DATA OSTATNIEJ EDYCJI (auto update)
+    updated_at = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
         nullable=False
     )
 
