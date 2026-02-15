@@ -390,7 +390,8 @@ def api_availability_calendar():
             "phone": a.patient_phone,
             "visit_type": a.visit_type,
             "duration": a.duration,
-            "created_by": a.created_by   # 👤 / ✍️ źródło wizyty
+            "created_by": a.created_by,   # 👤 / ✍️ źródło wizyty
+            "status": a.status
         }
     })
 

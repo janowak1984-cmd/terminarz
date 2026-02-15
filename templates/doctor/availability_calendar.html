@@ -45,6 +45,7 @@
       <div class="modal-footer">
         <button id="btn-action-edit" class="btn btn-primary btn-block">✏️ Edytuj wizytę</button>
         <button id="btn-action-move" class="btn btn-warning btn-block">📅 Przenieś wizytę</button>
+        <button id="btn-action-complete" class="btn btn-success btn-block">✔ Oznacz jako zrealizowaną</button>
         <button id="btn-action-cancel" class="btn btn-danger btn-block">🗑 Anuluj wizytę</button>
         <button id="btn-action-blacklist" class="btn btn-warning btn-block">➕ Dodaj do czarnej listy</button>
         <button id="btn-action-google-add" class="btn btn-info btn-block">  ➕ Dodaj do Google Calendar</button>
@@ -295,14 +296,25 @@ calendar = new FullCalendar.Calendar(calEl, {
   eventClick(info) {
 
     if (info.event.id.startsWith('appt-')) {
-      const id = info.event.extendedProps.appointment_id;
 
-      currentAppointmentId = id; // zostaje – inne akcje go używają
-      document.getElementById('appointment-id-holder').value = id;
+    const id = info.event.extendedProps.appointment_id;
+    const status = info.event.extendedProps.status;
 
-      $('#appointmentActionModal').modal('show');
-      return;
+    currentAppointmentId = id;
+    document.getElementById('appointment-id-holder').value = id;
+
+    const btnComplete = document.getElementById('btn-action-complete');
+
+    if (status === 'scheduled') {
+      btnComplete.style.display = 'block';
+    } else {
+      btnComplete.style.display = 'none';
     }
+
+    $('#appointmentActionModal').modal('show');
+    return;
+  }
+
 
 
     if (info.event.id.startsWith('slot-')) {
@@ -398,19 +410,41 @@ document.getElementById('btn-action-move').onclick = function(){
     });
 };
 
+document.getElementById('btn-action-complete').onclick = function () {
+
+  if (!confirm('Oznaczyć wizytę jako zrealizowaną?')) return;
+
+  fetch(`/doctor/appointments/${currentAppointmentId}/complete`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd zmiany statusu');
+  });
+};
+
 
 document.getElementById('btn-action-cancel').onclick = function () {
+
   if (!confirm('Anulować wizytę?')) return;
 
-  fetch(`/doctor/cancel/${currentAppointmentId}`, { method: 'POST' })
-    .then(() => {
-
-      // zamknij dowolny otwarty modal
-      $('.modal').modal('hide');
-
-      calendar.refetchEvents();
-    });
+  fetch(`/doctor/cancel/${currentAppointmentId}`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd anulowania');
+  });
 };
+
 
 /* ===== SAVE / MOVE ===== */
 

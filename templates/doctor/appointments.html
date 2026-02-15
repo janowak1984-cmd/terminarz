@@ -251,26 +251,26 @@
       </select>
     </div>
 
-    <div class="col-md-1">
+    <div class="col-md-2">
       <select name="status" class="form-control filter-select">
         <option value="">Status</option>
         <option value="scheduled"
           {% if request.args.status == "scheduled" %}selected{% endif %}>
-          Zapl.
+          Zaplanowana
         </option>
         <option value="completed"
           {% if request.args.status == "completed" %}selected{% endif %}>
-          Odbyta
+          Zrealizowana
         </option>
         <option value="cancelled"
           {% if request.args.status == "cancelled" %}selected{% endif %}>
-          Anul.
+          Anulowana
         </option>
       </select>
     </div>
 
     <!-- 🆕 ŹRÓDŁO WIZYTY -->
-    <div class="col-md-1">
+    <div class="col-md-2">
       <select name="created_by" class="form-control filter-select">
         <option value="">Źródło</option>
         <option value="patient"
@@ -292,115 +292,107 @@
 <!-- ===== TABELA ===== -->
 <!-- ===== TABELA ===== -->
 <table class="table table-sm table-striped table-hover align-middle mt-3">
-  <thead>
-    <tr>
-      <th>{{ sort_link("Data", "start") }}</th>
-      <th>Godzina</th>
-      <th>{{ sort_link("Nazwisko", "patient_last_name") }}</th>
-      <th>Imię</th>
-      <th>{{ sort_link("Telefon", "patient_phone") }}</th>
-      <th>Email</th>
-      <th>{{ sort_link("IP", "client_ip") }}</th>
-      <th>{{ sort_link("Typ", "visit_type") }}</th>
-      <!-- 🆕 ŹRÓDŁO -->
-      <th class="text-center">
-        {{ sort_link("Źródło", "created_by") }}
-      </th>
-      <th>{{ sort_link("Status", "status") }}</th>
-      <th></th>
-    </tr>
-  </thead>
+ <thead>
+  <tr>
+    <th>{{ sort_link("Data", "start") }}</th>
+    <th>Godzina</th>
+    <th>{{ sort_link("Nazwisko", "patient_last_name") }}</th>
+    <th>{{ sort_link("Status", "status") }}</th>
+    <th>Imię</th>
+    <th class="text-center">
+      {{ sort_link("Źródło", "created_by") }}
+    </th>
+    <th>{{ sort_link("Telefon", "patient_phone") }}</th>
+    <th>Email</th>
+    <th>{{ sort_link("IP", "client_ip") }}</th>
+    <th>{{ sort_link("Typ", "visit_type") }}</th>
+    <th></th>
+  </tr>
+</thead>
+
 
 
 
  <tbody>
 {% for a in appointments %}
   <tr>
-    <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
-    <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
-    <td>{{ a.patient_last_name }}</td>
-    <td>{{ a.patient_first_name }}</td>
-    <td>{{ a.patient_phone }}</td>
-    <td>{{ a.patient_email or "—" }}</td>
-    <td>
-        {% if a.client_ip %}
-          <code>{{ a.client_ip }}</code>
-        {% else %}
-          —
-        {% endif %}
-    </td>
+  <td>{{ a.start.strftime('%Y-%m-%d') }}</td>
+  <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
 
-    <td>{{ a.visit_type }}</td>
+  <td>{{ a.patient_last_name }}</td>
 
-    <!-- 🆕 ŹRÓDŁO WIZYTY -->
-    <td class="text-center">
-      {% if a.created_by == "patient" %}
-        <span title="Rezerwacja online">👤</span>
-      {% elif a.created_by == "doctor" %}
-        <span title="Dodana ręcznie przez lekarza">✍️</span>
-      {% else %}
-        —
-      {% endif %}
-    </td>
+  <!-- STATUS -->
+  <td>
+    {% if a.status == "scheduled" %}
+      <span class="badge badge-status badge-scheduled">
+        zaplanowana
+      </span>
+    {% elif a.status == "completed" %}
+      <span class="badge badge-status badge-completed">
+        zrealizowana
+      </span>
+    {% elif a.status == "cancelled" %}
+      <span class="badge badge-status badge-cancelled">
+        anulowana
+      </span>
+    {% endif %}
+  </td>
 
-    <!-- STATUS -->
-    <td>
-      {% if a.status == "scheduled" %}
-        <span class="badge badge-status badge-scheduled">
-          zaplanowana
-        </span>
-      {% elif a.status == "completed" %}
-        <span class="badge badge-status badge-completed">
-          zrealizowana
-        </span>
-      {% elif a.status == "cancelled" %}
-        <span class="badge badge-status badge-cancelled">
-          anulowana
-        </span>
-      {% endif %}
-    </td>
-    
+  <td>{{ a.patient_first_name }}</td>
 
-    <!-- AKCJE -->
-    <td>
-      {% if a.status == "scheduled" %}
+  <!-- ŹRÓDŁO -->
+  <td class="text-center">
+    {% if a.created_by == "patient" %}
+      <span title="Rezerwacja online">👤</span>
+    {% elif a.created_by == "doctor" %}
+      <span title="Dodana ręcznie przez lekarza">✍️</span>
+    {% else %}
+      —
+    {% endif %}
+  </td>
 
-        <!-- ✔ ZREALIZOWANA -->
-        <form method="post"
-              action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
-              style="display:inline">
+  <td>{{ a.patient_phone }}</td>
+  <td>{{ a.patient_email or "—" }}</td>
 
-          {% for k, v in request.args.items() %}
-            <input type="hidden" name="{{ k }}" value="{{ v }}">
-          {% endfor %}
+  <td>
+    {% if a.client_ip %}
+      <code>{{ a.client_ip }}</code>
+    {% else %}
+      —
+    {% endif %}
+  </td>
 
-          <button class="btn btn-sm btn-success"
-                  title="Oznacz wizytę jako zrealizowaną">
-            ✔
-          </button>
-        </form>
+  <td>{{ a.visit_type }}</td>
 
-        <!-- ❌ ANULUJ -->
-        <form method="post"
-              action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
-              style="display:inline; margin-left:4px;">
+  <!-- AKCJE -->
+  <td>
+    {% if a.status == "scheduled" %}
+      <form method="post"
+            action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+            style="display:inline">
+        {% for k, v in request.args.items() %}
+          <input type="hidden" name="{{ k }}" value="{{ v }}">
+        {% endfor %}
+        <button class="btn btn-sm btn-success" title="Oznacz wizytę jako zrealizowaną">
+          ✔
+        </button>
+      </form>
 
-          {% for k, v in request.args.items() %}
-            <input type="hidden" name="{{ k }}" value="{{ v }}">
-          {% endfor %}
-
-          <button class="btn btn-sm btn-danger"
-                  title="Anuluj wizytę">
-            ✖
-          </button>
-        </form>
-
-      {% else %}
-        —
-      {% endif %}
-    </td>
-
-  </tr>
+      <form method="post"
+            action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
+            style="display:inline; margin-left:4px;">
+        {% for k, v in request.args.items() %}
+          <input type="hidden" name="{{ k }}" value="{{ v }}">
+        {% endfor %}
+        <button class="btn btn-sm btn-danger" title="Anuluj wizytę">
+          ✖
+        </button>
+      </form>
+    {% else %}
+      —
+    {% endif %}
+  </td>
+</tr>
 {% else %}
   <tr>
     <td colspan="10" class="text-center text-muted">
