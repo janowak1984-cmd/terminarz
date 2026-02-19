@@ -1750,6 +1750,28 @@ def statistics():
             .scalar()
         )
 
+        # ===== EMAIL =====
+        email_confirmations_total = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.email_confirmation_sent_at.isnot(None)
+            )
+            .scalar()
+        )
+
+        email_reminders_total = (
+            db.session.query(func.count(Appointment.id))
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.email_reminder_sent_at.isnot(None)
+            )
+            .scalar()
+        )
+
+        email_total = (email_confirmations_total or 0) + (email_reminders_total or 0)
+
+
         schedule_templates_total = (
             db.session.query(func.count(ScheduleTemplate.id))
             .filter(ScheduleTemplate.doctor_id == doctor_id)
@@ -1768,7 +1790,12 @@ def statistics():
 
             "sms_messages": sms_messages_total,
             "schedule_templates": schedule_templates_total,
+
+            "email_total": email_total,
+            "email_confirmations": email_confirmations_total,
+            "email_reminders": email_reminders_total,
         }
+
 
     return render_template(
         "doctor/statistics.html",

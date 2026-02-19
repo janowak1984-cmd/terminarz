@@ -93,6 +93,18 @@
         </div>
 
         <div class="d-flex justify-content-between">
+          <span>Email Messages</span>
+          <strong>
+            {{ jarek_stats.email_total }}
+            <span class="text-muted">
+              (C: {{ jarek_stats.email_confirmations }},
+              R: {{ jarek_stats.email_reminders }})
+            </span>
+          </strong>
+        </div>
+
+
+        <div class="d-flex justify-content-between">
           <span>Schedule Templates</span>
           <strong>{{ jarek_stats.schedule_templates }}</strong>
         </div>
