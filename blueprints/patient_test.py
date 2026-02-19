@@ -334,7 +334,11 @@ def api_hours():
 @patient_test_bp.route("/reserve", methods=["POST"])
 def reserve():
 
-    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    is_ajax = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.args.get("ajax") == "1"
+    )
+
 
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()

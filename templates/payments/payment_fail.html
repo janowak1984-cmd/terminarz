@@ -3,24 +3,31 @@
 {% block title %}Płatność nieudana{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width:600px; margin-top:40px; text-align:center">
+<div class="container mt-5 d-flex justify-content-center">
+  <div class="card bg-dark border-secondary shadow-lg p-5 text-center"
+       style="max-width:600px; width:100%; border-radius:16px;">
 
-  <h2 style="color:#d32f2f;">❌ Płatność nieudana</h2>
+    <h2 class="fw-bold mb-3 text-danger">
+      ❌ Płatność nieudana
+    </h2>
 
-  <p>
-    {{ reason or "Nie udało się zakończyć płatności." }}
-  </p>
+    <p class="lead text-light">
+      {{ reason or "Nie udało się zakończyć płatności." }}
+    </p>
 
-  <p style="margin-top:20px;">
-    Jeśli środki zostały pobrane, a widzisz ten komunikat –
-    skontaktuj się z gabinetem.
-  </p>
+    <p class="text-light mt-3">
+      Jeśli środki zostały pobrane, a widzisz ten komunikat –
+      skontaktuj się z gabinetem.
+    </p>
 
-  <p style="margin-top:30px;">
-    <a href="/" class="btn btn-default btn-lg">
+    <hr class="border-secondary my-4">
+
+    <a href="/"
+       class="btn btn-lg"
+       style="background:#d73930; color:white; border:none; padding:12px 28px; border-radius:8px;">
       Powrót na stronę główną
     </a>
-  </p>
 
+  </div>
 </div>
 {% endblock %}

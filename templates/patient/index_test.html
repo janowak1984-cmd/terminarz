@@ -554,12 +554,11 @@ $("#btn_pay").on("click", function () {
   const formData = $("#reserve_form").serialize();
 
   $.ajax({
-    url: "/rejestracja_test/reserve",
+    url: "/rejestracja_test/reserve?ajax=1",
     method: "POST",
     data: formData,
-    headers: { "X-Requested-With": "XMLHttpRequest" }
-  })
-  .done(function (resp) {
+    dataType: "json"
+  }).done(function (resp) {
 
     if (resp.success) {
 

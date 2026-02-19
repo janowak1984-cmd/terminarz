@@ -3,31 +3,36 @@
 {% block title %}Płatność zakończona{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width:600px; margin-top:40px; text-align:center">
+<div class="container mt-5 d-flex justify-content-center">
+  <div class="card bg-dark border-secondary shadow-lg p-5 text-center"
+       style="max-width:600px; width:100%; border-radius:16px;">
 
-  <h2 style="color:#2e7d32;">✅ Płatność zakończona</h2>
+    <h2 class="fw-bold mb-3 text-white">
+      ✅ Płatność zakończona
+    </h2>
 
-  <p>
-    Twoja wizyta została poprawnie opłacona.
-  </p>
+    <p class="lead text-light">
+      Twoja wizyta została poprawnie opłacona.
+    </p>
 
-  <hr>
+    <hr class="border-secondary my-4">
 
-  <p>
-    <strong>Data wizyty:</strong><br>
-    {{ appointment.start.strftime("%d.%m.%Y %H:%M") }}
-  </p>
+    <p class="text-light mb-3">
+      <strong>Data wizyty:</strong><br>
+      {{ appointment.start.strftime("%d.%m.%Y %H:%M") }}
+    </p>
 
-  <p>
-    <strong>Kwota:</strong><br>
-    {{ "%.2f"|format(payment.amount / 100) }} zł
-  </p>
+    <p class="text-light mb-4">
+      <strong>Kwota:</strong><br>
+      {{ "%.2f"|format(payment.amount / 100) }} zł
+    </p>
 
-  <p style="margin-top:30px;">
-    <a href="/" class="btn btn-primary btn-lg">
+    <a href="/" 
+       class="btn btn-lg"
+       style="background:#d73930; color:white; border:none; padding:12px 28px; border-radius:8px;">
       Powrót na stronę główną
     </a>
-  </p>
 
+  </div>
 </div>
 {% endblock %}
