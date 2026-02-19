@@ -2,23 +2,36 @@
 
 {% block content %}
 <div class="container mt-5 d-flex justify-content-center">
-    <div class="card bg-dark border-secondary shadow-lg p-5 text-center"
-         style="max-width:600px; width:100%; border-radius:16px;">
+    <div class="card shadow-lg p-5 text-center"
+         style="
+           max-width:600px;
+           width:100%;
+           border-radius:16px;
+           background:#111;
+           border:1px solid #333;
+           color:#ffffff;
+         ">
 
-        <h2 class="fw-bold mb-3 text-warning">
+        <h2 class="fw-bold mb-4"
+            style="color:#ffcc00; font-size:28px;">
             ⏳ Płatność w trakcie potwierdzania...
         </h2>
 
-        <p class="lead text-light">
+        <p style="font-size:18px; color:#ffffff;">
             Status płatności jest weryfikowany.<br>
             Prosimy chwilę poczekać.
         </p>
 
         <div class="mt-4">
-            <div class="spinner-border text-danger" role="status"></div>
+            <div class="spinner-border"
+                 role="status"
+                 style="color:#d73930; width:3rem; height:3rem;">
+            </div>
         </div>
 
-        <p class="mt-4 text-light" id="retry-info">
+        <p class="mt-4"
+           id="retry-info"
+           style="color:#f5f5f5;">
             Trwa sprawdzanie statusu...
         </p>
 
@@ -27,7 +40,7 @@
 
 <script>
     let attempts = 0;
-    const maxAttempts = 10;  // ~30 sekund
+    const maxAttempts = 10;
 
     function checkStatus() {
         attempts++;

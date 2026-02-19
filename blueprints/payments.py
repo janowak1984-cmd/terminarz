@@ -3,6 +3,7 @@ import json
 import hashlib
 import requests
 import base64
+import unicodedata
 from decimal import Decimal
 from datetime import datetime
 from utils.sms_service import SMSService
@@ -388,7 +389,9 @@ def _build_p24_payload(payment: Payment):
     phone = ""
 
     if appointment:
-        client_name = f"{appointment.patient_first_name} {appointment.patient_last_name}"
+        raw_name = f"{appointment.patient_first_name} {appointment.patient_last_name}"
+        client_name = strip_polish_chars(raw_name)
+
         phone = appointment.patient_phone or ""
 
     payload = {
@@ -471,4 +474,14 @@ def _p24_verify_transaction(payment: Payment):
     current_app.logger.warning("[P24 VERIFY] OK")
 
     return True
+
+def strip_polish_chars(text):
+    if not text:
+        return ""
+    return (
+        unicodedata.normalize("NFKD", text)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+
 
