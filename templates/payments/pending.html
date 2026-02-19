@@ -2,18 +2,37 @@
 
 {% block content %}
 <div class="container text-center mt-5">
-    <h2>Płatność w trakcie potwierdzania...</h2>
-    <p>Prosimy chwilę poczekać. Status płatności jest weryfikowany.</p>
+
+    <h2>⏳ Płatność w trakcie potwierdzania...</h2>
+    <p>Status płatności jest weryfikowany. Prosimy chwilę poczekać.</p>
 
     <div class="mt-4">
         <div class="spinner-border" role="status"></div>
     </div>
+
+    <p class="mt-4 text-muted" id="retry-info">
+        Trwa sprawdzanie statusu...
+    </p>
+
 </div>
 
 <script>
-    // Auto-refresh co 3 sekundy
-    setTimeout(function() {
+    let attempts = 0;
+    const maxAttempts = 10;  // ~30 sekund (10 x 3 sek)
+
+    function checkStatus() {
+        attempts++;
+
+        if (attempts >= maxAttempts) {
+            document.getElementById("retry-info").innerHTML =
+                "Weryfikacja trwa dłużej niż zwykle. <br>" +
+                "Jeśli płatność została wykonana, odśwież stronę ręcznie.";
+            return;
+        }
+
         window.location.reload();
-    }, 3000);
+    }
+
+    setTimeout(checkStatus, 3000);
 </script>
 {% endblock %}

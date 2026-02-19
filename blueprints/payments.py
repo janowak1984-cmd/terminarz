@@ -302,14 +302,6 @@ def payment_status():
 
     return "OK", 200
 
-
-
-
-
-
-# ==================================================
-# RETURN
-# ==================================================
 @payments_bp.route("/return", methods=["GET"])
 def payment_return():
     session_id = request.args.get("sessionId")
@@ -328,6 +320,7 @@ def payment_return():
             reason="Nie znaleziono płatności."
         )
 
+    # ✅ SUKCES
     if payment.status == "paid":
         return render_template(
             "payments/payment_success.html",
@@ -335,15 +328,23 @@ def payment_return():
             payment=payment
         )
 
-    if payment.status == "pending":
+    # ⏳ W TRAKCIE
+    if payment.status in ("pending", "init"):
         return render_template("payments/pending.html")
 
-    return render_template(
-        "payments/payment_fail.html",
-        reason="Płatność nie została potwierdzona."
+    # ❌ FAKTYCZNA PORAŻKA
+    if payment.status == "failed":
+        return render_template(
+            "payments/payment_fail.html",
+            reason="Płatność nie została potwierdzona."
+        )
+
+    # 🔐 Fallback (nie powinno się zdarzyć)
+    current_app.logger.warning(
+        f"[P24 RETURN] Unexpected payment status: {payment.status}"
     )
 
-
+    return render_template("payments/pending.html")
 
 # ==================================================
 # BUILD PAYLOAD – ZGODNIE Z DOKUMENTACJĄ
