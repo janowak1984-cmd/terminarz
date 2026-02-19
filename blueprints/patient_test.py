@@ -573,19 +573,26 @@ def _window_is_free_and_continuous(slots):
 # ANULOWANIE WIZYTY – LINK Z TOKENEM
 # ───────────────────────────────────────
 
-@patient_test_bp.route("/cancel/<token>")
+@patient_test_bp.route("/cancel/<token>", methods=["GET", "POST"])
 def cancel_by_token(token):
-    appointment = (
-        Appointment.query
-        .filter_by(cancel_token=token)
-        .first()
-    )
+
+    appointment = Appointment.query.filter_by(
+        cancel_token=token
+    ).first()
 
     if not appointment:
         return render_template(
             "patient/cancel_result.html",
             success=False,
             message="Nieprawidłowy lub wygasły link"
+        )
+
+    # 🔒 jeśli już anulowana
+    if appointment.status == "cancelled":
+        return render_template(
+            "patient/cancel_result.html",
+            success=False,
+            message="Ta wizyta została już anulowana."
         )
 
     allowed, reason = can_cancel_appointment(appointment)
@@ -596,6 +603,14 @@ def cancel_by_token(token):
             message=reason
         )
 
+    # 🔹 GET → tylko potwierdzenie
+    if request.method == "GET":
+        return render_template(
+            "patient/cancel_confirm.html",
+            appointment=appointment
+        )
+
+    # 🔹 POST → faktyczne anulowanie
     appointment.status = "cancelled"
     appointment.cancelled_by = "patient"
     appointment.cancelled_at = db.func.now()
@@ -614,6 +629,7 @@ def cancel_by_token(token):
         success=True,
         message="Wizyta została anulowana"
     )
+
 
 
 @patient_test_bp.route("/c/<token>")
