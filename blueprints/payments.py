@@ -3,7 +3,19 @@ import json
 import hashlib
 import requests
 import base64
-import unicodedata
+
+PL_MAP = str.maketrans({
+    "ą": "a", "ć": "c", "ę": "e", "ł": "l",
+    "ń": "n", "ó": "o", "ś": "s", "ż": "z", "ź": "z",
+    "Ą": "A", "Ć": "C", "Ę": "E", "Ł": "L",
+    "Ń": "N", "Ó": "O", "Ś": "S", "Ż": "Z", "Ź": "Z"
+})
+
+def normalize_pl(text):
+    if not text:
+        return ""
+    return text.translate(PL_MAP)
+
 from decimal import Decimal
 from datetime import datetime
 from utils.sms_service import SMSService
@@ -390,7 +402,7 @@ def _build_p24_payload(payment: Payment):
 
     if appointment:
         raw_name = f"{appointment.patient_first_name} {appointment.patient_last_name}"
-        client_name = strip_polish_chars(raw_name)
+        client_name = normalize_pl(raw_name)
 
         phone = appointment.patient_phone or ""
 
@@ -474,18 +486,6 @@ def _p24_verify_transaction(payment: Payment):
     current_app.logger.warning("[P24 VERIFY] OK")
 
     return True
-
-PL_MAP = str.maketrans({
-    "ą": "a", "ć": "c", "ę": "e", "ł": "l",
-    "ń": "n", "ó": "o", "ś": "s", "ż": "z", "ź": "z",
-    "Ą": "A", "Ć": "C", "Ę": "E", "Ł": "L",
-    "Ń": "N", "Ó": "O", "Ś": "S", "Ż": "Z", "Ź": "Z"
-})
-
-def normalize_pl(text):
-    if not text:
-        return ""
-    return text.translate(PL_MAP)
 
 
 

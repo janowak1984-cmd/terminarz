@@ -506,38 +506,85 @@ $("#btn_pay").on("click", function () {
 
   const formData = $("#reserve_form").serialize();
 
-  $.post("/rejestracja_test/reserve", formData)
-    .done(function (resp) {
+  $.ajax({
+    url: "/rejestracja_test/reserve?ajax=1",
+    method: "POST",
+    data: formData,
+    dataType: "json"
+  })
+  .done(function (resp) {
 
-      const appointmentId = resp.appointment_id;
-      if (!appointmentId) {
-        alert("Błąd rezerwacji");
+    console.log("RESERVE RESPONSE:", resp);
+
+    if (!resp.success || !resp.appointment_id) {
+      showError(resp.error || "Błąd rezerwacji.");
+      $("#btn_pay").prop("disabled", false);
+      $("#btn_reserve").prop("disabled", false);
+      return;
+    }
+
+    const appointmentId = resp.appointment_id;
+
+    $.ajax({
+      url: "/payments/init",
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        appointment_id: appointmentId
+      }),
+      dataType: "json"
+    })
+    .done(function (p) {
+
+      if (!p.payment_id) {
+        showError("Błąd inicjalizacji płatności.");
+        $("#btn_pay").prop("disabled", false);
+        $("#btn_reserve").prop("disabled", false);
         return;
       }
 
       $.ajax({
-        url: "/payments/init",
+        url: "/payments/register",
         method: "POST",
         contentType: "application/json",
         data: JSON.stringify({
-          appointment_id: appointmentId
-        })
-      }).done(function (p) {
+          payment_id: p.payment_id
+        }),
+        dataType: "json"
+      })
+      .done(function (r) {
 
-        $.ajax({
-          url: "/payments/register",
-          method: "POST",
-          contentType: "application/json",
-          data: JSON.stringify({
-            payment_id: p.payment_id
-          })
-        }).done(function (r) {
-          window.location.href = r.redirect_url;
-        });
+        if (!r.redirect_url) {
+          showError("Błąd rejestracji płatności.");
+          $("#btn_pay").prop("disabled", false);
+          $("#btn_reserve").prop("disabled", false);
+          return;
+        }
 
+        window.location.href = r.redirect_url;
+      })
+      .fail(function () {
+        showError("Błąd połączenia z operatorem płatności.");
+        $("#btn_pay").prop("disabled", false);
+        $("#btn_reserve").prop("disabled", false);
       });
+
+    })
+    .fail(function () {
+      showError("Błąd inicjalizacji płatności.");
+      $("#btn_pay").prop("disabled", false);
+      $("#btn_reserve").prop("disabled", false);
     });
+
+  })
+  .fail(function () {
+    showError("Wystąpił błąd połączenia.");
+    $("#btn_pay").prop("disabled", false);
+    $("#btn_reserve").prop("disabled", false);
+  });
+
 });
+
 
   $("#btn_traditional").on("click", function () {
 
