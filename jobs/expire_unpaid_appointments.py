@@ -70,7 +70,7 @@ def _run():
         )
 
         appointment.status = "cancelled"
-        payment.status = "expired"
+        payment.status = "failed"
 
         expired_count += 1
 
