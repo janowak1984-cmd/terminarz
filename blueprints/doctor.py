@@ -1917,7 +1917,6 @@ def sms_retry(sms_id):
 @login_required
 def appointment_details(appointment_id):
 
-    # 🔹 Pobranie wizyty z kontrolą właściciela
     appt = (
         Appointment.query
         .options(joinedload(Appointment.payments))
@@ -1928,19 +1927,17 @@ def appointment_details(appointment_id):
         .first_or_404()
     )
 
-    # 🔹 Typ wizyty
     visit_type = VisitType.query.filter_by(
         code=appt.visit_type
     ).first()
 
-    # 🔹 SMS – od najnowszych
     sms_messages = (
-        appt.sms_messages
+        SMSMessage.query
+        .filter_by(appointment_id=appt.id)
         .order_by(SMSMessage.created_at.desc())
         .all()
     )
 
-    # 🔹 Płatności – od najnowszych
     payments = (
         Payment.query
         .filter_by(appointment_id=appt.id)
@@ -1948,7 +1945,6 @@ def appointment_details(appointment_id):
         .all()
     )
 
-    # 🔹 Najnowsza płatność (do sekcji „Informacje o płatności”)
     latest_payment = payments[0] if payments else None
 
     return render_template(
