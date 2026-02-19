@@ -306,6 +306,12 @@ def payment_status():
 def payment_return():
     session_id = request.args.get("sessionId")
 
+    current_app.logger.warning(
+        f"[P24 RETURN] sessionId from query: {session_id}"
+    )
+
+    current_app.logger.warning(f"[RETURN PARAMS] {request.args}")
+
     if not session_id:
         return render_template("payments/payment_fail.html")
 
