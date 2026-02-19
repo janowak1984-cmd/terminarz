@@ -381,6 +381,15 @@ def _build_p24_payload(payment: Payment):
         if appointment and appointment.patient_email
         else "kontakt@kingabobinska.pl"
     )
+    
+    appointment = payment.appointment
+
+    client_name = ""
+    phone = ""
+
+    if appointment:
+        client_name = f"{appointment.patient_first_name} {appointment.patient_last_name}"
+        phone = appointment.patient_phone or ""
 
     payload = {
         "merchantId": int(cfg["P24_MERCHANT_ID"]),
@@ -388,15 +397,16 @@ def _build_p24_payload(payment: Payment):
         "sessionId": payment.provider_session_id,
         "amount": int(payment.amount),
         "currency": "PLN",
-        "description": "Rezerwacja wizyty",
+        "description": f"Rezerwacja wizyty #{appointment.id}" if appointment else "Rezerwacja wizyty",
         "email": email,
+        "client": client_name,        # 👈 imię i nazwisko w panelu P24
+        "phone": phone,               # 👈 opcjonalnie telefon
         "country": "PL",
         "language": "pl",
         "urlReturn": f"{cfg['P24_RETURN_URL']}?sessionId={payment.provider_session_id}",
         "urlStatus": cfg["P24_STATUS_URL"],
         "sign": checksum
     }
-
 
     current_app.logger.warning(f"[P24 DEBUG] SIGN JSON = {json_string}")
 
