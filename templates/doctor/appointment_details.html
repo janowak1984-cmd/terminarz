@@ -208,7 +208,7 @@ body {
 <div class="section">
     <h3>📩 Historia SMS</h3>
 
-    {% if sms_list %}
+    {% if sms_messages %}
     <table class="table table-striped table-bordered">
         <thead>
             <tr>
@@ -223,7 +223,7 @@ body {
             </tr>
         </thead>
         <tbody>
-            {% for sms in sms_list %}
+            {% for sms in sms_messages %}
             <tr>
                 <td>{{ sms.id }}</td>
                 <td>{{ sms.type }}</td>
