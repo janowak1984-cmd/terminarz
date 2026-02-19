@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Potwierdzenie anulowania</title>
+</head>
+<body style="font-family: Arial, sans-serif; text-align:center; padding:40px;">
+
+    <h2>Czy na pewno chcesz anulować wizytę?</h2>
+
+    <p>
+        <strong>
+            {{ appointment.start.strftime("%d.%m.%Y") }}
+            godz. {{ appointment.start.strftime("%H:%M") }}
+        </strong>
+    </p>
+
+    <form method="POST" style="margin-top:30px;">
+        <button type="submit"
+                style="padding:10px 20px;
+                       background:#d73930;
+                       color:white;
+                       border:none;
+                       border-radius:6px;
+                       cursor:pointer;">
+            Tak, anuluj wizytę
+        </button>
+    </form>
+
+    <div style="margin-top:15px;">
+        <a href="/" style="color:#666;">Wróć</a>
+    </div>
+
+</body>
+</html>

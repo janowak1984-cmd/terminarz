@@ -52,7 +52,20 @@ def create_app():
         x_proto=1,
         x_host=1,
         x_port=1
-    )
+    )   
+
+    # =============================
+    # INIT EXTENSIONS
+    # =============================
+
+    # 🔥 FIX: Railway / MySQL "server has gone away"
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 280,
+        "pool_size": 5,
+        "max_overflow": 2,
+    }
+
 
     # =============================
     # INIT EXTENSIONS

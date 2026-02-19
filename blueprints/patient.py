@@ -475,19 +475,16 @@ def _window_is_free_and_continuous(slots):
 # ANULOWANIE WIZYTY – LINK Z TOKENEM
 # ───────────────────────────────────────
 
-@patient_bp.route("/cancel/<token>")
+@patient_bp.route("/cancel/<token>", methods=["GET", "POST"])
 def cancel_by_token(token):
-    appointment = (
-        Appointment.query
-        .filter_by(cancel_token=token)
-        .first()
-    )
+
+    appointment = Appointment.query.filter_by(cancel_token=token).first()
 
     if not appointment:
         return render_template(
             "patient/cancel_result.html",
             success=False,
-            message="Nieprawidłowy lub wygasły link"
+            message="Nieprawidłowy link"
         )
 
     allowed, reason = can_cancel_appointment(appointment)
@@ -498,23 +495,29 @@ def cancel_by_token(token):
             message=reason
         )
 
+    # 🔹 GET = tylko pokaż stronę
+    if request.method == "GET":
+        return render_template(
+            "patient/cancel_confirm.html",
+            appointment=appointment
+        )
+
+    # 🔹 POST = faktyczne anulowanie
     appointment.status = "cancelled"
     appointment.cancelled_at = db.func.now()
-
     db.session.commit()
 
     try:
         GoogleCalendarService().delete_appointment(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[GOOGLE][PATIENT CANCEL] delete failed: {e}"
-        )
+    except Exception:
+        pass
 
     return render_template(
         "patient/cancel_result.html",
         success=True,
         message="Wizyta została anulowana"
     )
+
 
 
 @patient_bp.route("/c/<token>")
