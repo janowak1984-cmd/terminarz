@@ -475,13 +475,17 @@ def _p24_verify_transaction(payment: Payment):
 
     return True
 
-def strip_polish_chars(text):
+PL_MAP = str.maketrans({
+    "ą": "a", "ć": "c", "ę": "e", "ł": "l",
+    "ń": "n", "ó": "o", "ś": "s", "ż": "z", "ź": "z",
+    "Ą": "A", "Ć": "C", "Ę": "E", "Ł": "L",
+    "Ń": "N", "Ó": "O", "Ś": "S", "Ż": "Z", "Ź": "Z"
+})
+
+def normalize_pl(text):
     if not text:
         return ""
-    return (
-        unicodedata.normalize("NFKD", text)
-        .encode("ascii", "ignore")
-        .decode("ascii")
-    )
+    return text.translate(PL_MAP)
+
 
 
