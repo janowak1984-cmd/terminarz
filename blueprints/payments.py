@@ -392,7 +392,7 @@ def _build_p24_payload(payment: Payment):
         "email": email,
         "country": "PL",
         "language": "pl",
-        "urlReturn": cfg["P24_RETURN_URL"],
+        "urlReturn": f"{cfg['P24_RETURN_URL']}?sessionId={payment.provider_session_id}",
         "urlStatus": cfg["P24_STATUS_URL"],
         "sign": checksum
     }
