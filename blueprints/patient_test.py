@@ -464,8 +464,6 @@ def reserve():
 
         amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
 
-        import uuid
-
         payment = Payment(
             appointment_id=appointment.id,
             provider="manual_transfer",
