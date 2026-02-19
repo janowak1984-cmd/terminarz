@@ -107,6 +107,17 @@
   cursor: not-allowed;
 }
 
+/* Przelew tradycyjny */
+#btn_traditional {
+  background-color: #f0ad4e;
+  color: #fff;
+}
+
+#btn_traditional:hover {
+  background-color: #ec971f;
+}
+
+
 </style>
 <div style="background:#d73930;color:#fff;padding:10px;text-align:center;margin-bottom:10px">
   ⚠️ TRYB TESTOWY – REJESTRACJA Z PŁATNOŚCIAMI
@@ -163,6 +174,7 @@
       <input type="hidden" name="day" id="f_day">
       <input type="hidden" name="hour" id="f_hour">
       <input type="hidden" name="payment_flow" id="payment_flow" value="reserve">
+      <input type="hidden" name="payment_method" id="payment_method">
 
       <div class="form-group">
         <label>Imię</label>
@@ -219,6 +231,14 @@
         disabled>
   Zapłać online
 </button>
+
+<button type="button"
+        id="btn_traditional"
+        class="btn btn-book btn-traditional btn-lg btn-block"
+        disabled>
+  Przelew tradycyjny
+</button>
+
 
 
     </form>
@@ -451,7 +471,9 @@ $("#accept_terms").on("change", function () {
   const enabled = this.checked;
   $("#btn_reserve").prop("disabled", !enabled);
   $("#btn_pay").prop("disabled", !enabled);
+  $("#btn_traditional").prop("disabled", !enabled);
 });
+
 
 // ===== USTAWIENIE FLOW =====
 $("#btn_reserve").on("click", function () {
@@ -474,17 +496,16 @@ function loadDaysForCurrentMonth() {
 $("#btn_pay").on("click", function () {
 
   $("#payment_flow").val("online");
+  $("#payment_method").val("p24");
 
-  const ok = validateForm(true); // email wymagany
-
+  const ok = validateForm(true);
   if (!ok) return;
+
   $("#btn_pay").prop("disabled", true);
   $("#btn_reserve").prop("disabled", true);
-  $("#btn_pay").text("Przekierowanie...");
 
   const formData = $("#reserve_form").serialize();
 
-  // 1️⃣ tworzymy wizytę
   $.post("/rejestracja_test/reserve", formData)
     .done(function (resp) {
 
@@ -494,7 +515,6 @@ $("#btn_pay").on("click", function () {
         return;
       }
 
-      // 2️⃣ init payment
       $.ajax({
         url: "/payments/init",
         method: "POST",
@@ -504,7 +524,6 @@ $("#btn_pay").on("click", function () {
         })
       }).done(function (p) {
 
-        // 3️⃣ register payment
         $.ajax({
           url: "/payments/register",
           method: "POST",
@@ -518,10 +537,91 @@ $("#btn_pay").on("click", function () {
 
       });
     });
+});
+
+  $("#btn_traditional").on("click", function () {
+
+  $("#payment_flow").val("online");
+  $("#payment_method").val("traditional");
+
+  const ok = validateForm(true);
+  if (!ok) return;
+
+  $("#btn_traditional").prop("disabled", true);
+  $("#btn_pay").prop("disabled", true);
+  $("#btn_reserve").prop("disabled", true);
+
+  const formData = $("#reserve_form").serialize();
+
+  $.ajax({
+    url: "/rejestracja_test/reserve",
+    method: "POST",
+    data: formData,
+    headers: { "X-Requested-With": "XMLHttpRequest" }
+  })
+  .done(function (resp) {
+
+    if (resp.success) {
+
+      showSuccess(resp.message);
+
+      // reset formularza
+      $("#reserve_form")[0].reset();
+      $("#form_wrapper").hide();
+      $("#hours_wrapper").hide();
+      $("#calendar_wrapper").hide();
+      $("#hours").empty();
+
+    } else {
+      showError(resp.error || "Wystąpił błąd.");
+    }
+
+  })
+  .fail(function () {
+    showError("Wystąpił błąd połączenia.");
+  });
 
 });
 
 
+
+window.addEventListener("pageshow", function () {
+  const nav = performance.getEntriesByType("navigation")[0];
+
+  if (nav && nav.type === "back_forward") {
+    window.location.reload();
+  }
+});
+
+function showSuccess(msg) {
+
+  const html = `
+    <div class="alert alert-success">
+      <button type="button" class="close js-alert-close">
+        <span>&times;</span>
+      </button>
+      ${msg}
+    </div>
+  `;
+
+  $(".page-wrapper").prepend(html);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showError(msg) {
+
+  const html = `
+    <div class="alert alert-danger">
+      <button type="button" class="close js-alert-close">
+        <span>&times;</span>
+      </button>
+      ${msg}
+    </div>
+  `;
+
+  $(".page-wrapper").prepend(html);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
 
 </script>
 

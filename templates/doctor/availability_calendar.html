@@ -43,13 +43,14 @@
         <input type="hidden" id="appointment-id-holder">
       </div>
       <div class="modal-footer">
+        <button id="btn-action-details" class="btn btn-info btn-block">🔍 Wyświetl szczegóły wizyty</button>
         <button id="btn-action-edit" class="btn btn-primary btn-block">✏️ Edytuj wizytę</button>
         <button id="btn-action-move" class="btn btn-warning btn-block">📅 Przenieś wizytę</button>
         <button id="btn-action-complete" class="btn btn-success btn-block">✔ Oznacz jako zrealizowaną</button>
+        <button id="btn-action-mark-paid" class="btn btn-success btn-block">💰 Oznacz jako opłacona</button>
         <button id="btn-action-cancel" class="btn btn-danger btn-block">🗑 Anuluj wizytę</button>
         <button id="btn-action-blacklist" class="btn btn-warning btn-block">➕ Dodaj do czarnej listy</button>
         <button id="btn-action-google-add" class="btn btn-info btn-block">  ➕ Dodaj do Google Calendar</button>
-
         <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
       </div>
     </div>
@@ -273,99 +274,156 @@ calendar = new FullCalendar.Calendar(calEl, {
   },
 
 
- eventContent: function(arg) {
+eventContent: function(arg) {
+
   if (!arg.event.id.startsWith('appt-')) {
     return;
   }
 
   const createdBy = arg.event.extendedProps.created_by;
   const status = arg.event.extendedProps.status;
+  const paymentStatus = arg.event.extendedProps.payment_status;
+  const provider = arg.event.extendedProps.payment_provider;
 
   const sourceIcon = createdBy === 'patient' ? '👤' : '✍️';
 
   const completedBadge = status === 'completed'
-    ? `<span class="fc-completed-badge">✔</span>`
-    : '';
+  ? `<span class="fc-completed-badge">✔</span>`
+  : '';
+
+  // ==============================
+  // 💳 IKONKI PŁATNOŚCI
+  // ==============================
+
+  let paymentIcon = '';
+
+  if (provider === 'przelewy24' || provider === 'p24') {
+
+    if (paymentStatus === 'paid') {
+      paymentIcon = '🟣🪙';      // opłacone P24
+    } else {
+      paymentIcon = '🟣🚫';    // oczekuje P24
+    }
+
+  } else if (provider === 'manual_transfer') {
+
+    if (paymentStatus === 'paid') {
+      paymentIcon = '🏦🪙';
+    } else {
+      paymentIcon = '🏦🚫';
+    }
+
+  }
 
   return {
     html: `
       <div class="fc-event-title">
-        ${arg.event.title} ${sourceIcon} ${completedBadge}
+        ${arg.event.title}
+        ${sourceIcon}
+        ${completedBadge}
+        ${paymentIcon}
       </div>
     `
   };
 },
 
+eventClick: function(info) {
 
-
-
-  eventClick(info) {
-
-    if (info.event.id.startsWith('appt-')) {
+  // ==============================
+  // WIZYTA
+  // ==============================
+  if (info.event.id.startsWith('appt-')) {
 
     const id = info.event.extendedProps.appointment_id;
     const status = info.event.extendedProps.status;
+    const paymentStatus = info.event.extendedProps.payment_status;
+    const provider = info.event.extendedProps.payment_provider;
 
     currentAppointmentId = id;
     document.getElementById('appointment-id-holder').value = id;
 
     const btnComplete = document.getElementById('btn-action-complete');
+    const btnMarkPaid = document.getElementById('btn-action-mark-paid');
 
+    // domyślnie ukryj oba
+    btnComplete.style.display = 'none';
+    btnMarkPaid.style.display = 'none';
+
+    // ==============================
+    // 💰 OZNACZ JAKO OPŁACONA
+    // ==============================
+    if (paymentStatus === 'pending') {
+      btnMarkPaid.style.display = 'block';
+    }
+
+    // ==============================
+    // ✔ OZNACZ JAKO ZREALIZOWANĄ
+    // ==============================
     if (status === 'scheduled') {
-      btnComplete.style.display = 'block';
-    } else {
-      btnComplete.style.display = 'none';
+
+      // 🟢 wizyta bez płatności online (gabinet)
+      if (!provider) {
+        btnComplete.style.display = 'block';
+      }
+
+      // 🟢 online / tradycyjny → tylko jeśli paid
+      if (provider && paymentStatus === 'paid') {
+        btnComplete.style.display = 'block';
+      }
     }
 
     $('#appointmentActionModal').modal('show');
     return;
   }
 
+  // ==============================
+  // SLOT
+  // ==============================
+  if (info.event.id.startsWith('slot-')) {
 
+    currentSlotEvent = info.event;
 
-    if (info.event.id.startsWith('slot-')) {
-      currentSlotEvent = info.event;
+    const isVacation = info.event.extendedProps.is_vacation === true;
+    const btnAdd = document.getElementById('btn-slot-add-visit');
+    const btnDeactivate = document.getElementById('btn-slot-deactivate');
+    const infoEl = document.getElementById('slot-info');
 
-      const isVacation = info.event.extendedProps.is_vacation === true;
-      const btnAdd = document.getElementById('btn-slot-add-visit');
-      const btnDeactivate = document.getElementById('btn-slot-deactivate');
-      const infoEl = document.getElementById('slot-info');
+    if (!info.event.extendedProps.active) {
 
-      if (!info.event.extendedProps.active) {
-
-        if (isVacation) {
-          infoEl.innerText = '⛔ Urlop – nie można aktywować terminu';
-          btnAdd.style.display = 'none';
-          btnDeactivate.style.display = 'none';
-          $('#slotActionModal').modal('show');
-          return;
-        }
-
-        fetch('/doctor/availability/toggle', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({
-            slot_id: info.event.extendedProps.slot_id,
-            active: true
-          })
-        }).then(() => calendar.refetchEvents());
-
+      if (isVacation) {
+        infoEl.innerText = '⛔ Urlop – nie można aktywować terminu';
+        btnAdd.style.display = 'none';
+        btnDeactivate.style.display = 'none';
+        $('#slotActionModal').modal('show');
         return;
       }
 
-      if (isVacation) {
-        btnAdd.style.display = 'none';
-        btnDeactivate.style.display = 'none';
-        infoEl.innerText = '⛔ Urlop – brak możliwości dodania wizyty';
-      } else {
-        btnAdd.style.display = 'block';
-        btnDeactivate.style.display = 'block';
-        infoEl.innerText = info.event.start.toLocaleString();
-      }
+      fetch('/doctor/availability/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          slot_id: info.event.extendedProps.slot_id,
+          active: true
+        })
+      }).then(() => calendar.refetchEvents());
 
-      $('#slotActionModal').modal('show');
+      return;
     }
+
+    if (isVacation) {
+      btnAdd.style.display = 'none';
+      btnDeactivate.style.display = 'none';
+      infoEl.innerText = '⛔ Urlop – brak możliwości dodania wizyty';
+    } else {
+      btnAdd.style.display = 'block';
+      btnDeactivate.style.display = 'block';
+      infoEl.innerText = info.event.start.toLocaleString();
+    }
+
+    $('#slotActionModal').modal('show');
   }
+}
+
 });
 
 calendar.render();
@@ -373,6 +431,19 @@ calendar.render();
 
 
 /* ===== AKCJE WIZYTY ===== */
+document.getElementById('btn-action-details').onclick = function () {
+
+  if (!currentAppointmentId) return;
+
+  $('#appointmentActionModal').modal('hide');
+
+    window.open(
+    `/doctor/appointments/${currentAppointmentId}/details`,
+    'appointmentDetails',
+    'width=1200,height=900,scrollbars=yes'
+  );
+
+};
 
 document.getElementById('btn-action-edit').onclick = function(){
   $('#appointmentActionModal').modal('hide');
@@ -432,6 +503,24 @@ document.getElementById('btn-action-complete').onclick = function () {
     alert('Błąd zmiany statusu');
   });
 };
+
+document.getElementById('btn-action-mark-paid').onclick = function () {
+
+  if (!confirm('Oznaczyć wizytę jako opłaconą?')) return;
+
+  fetch(`/doctor/appointments/${currentAppointmentId}/mark-paid`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd oznaczania płatności');
+  });
+};
+
 
 
 document.getElementById('btn-action-cancel').onclick = function () {

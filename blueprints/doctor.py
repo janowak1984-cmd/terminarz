@@ -1,8 +1,8 @@
 import os
 import json
 import secrets
-from datetime import datetime, timedelta, date, time
 from calendar import monthrange
+from datetime import datetime, timedelta, date, time
 
 import holidays
 
@@ -17,20 +17,18 @@ from flask import (
     session,
     current_app,
 )
+
 from flask_login import login_required, current_user
 
-from sqlalchemy import (
-    extract,
-    func,
-    case,
-    or_,
-)
+from sqlalchemy import extract, func, case, or_, and_
+from sqlalchemy.orm import joinedload
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from extensions import db
+
 from models import (
     Appointment,
     Availability,
@@ -40,11 +38,13 @@ from models import (
     Setting,
     SMSMessage,
     ScheduleTemplate,
+    Payment,
 )
 
 from utils.settings import get_setting
 from utils.google_calendar import GoogleCalendarService
 from utils.sms_service import SMSService
+
 
 GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/calendar",
@@ -104,10 +104,6 @@ SORTABLE_COLUMNS = {
     "visit_type": Appointment.visit_type,
 }
 
-
-from sqlalchemy import or_, and_, case
-from datetime import datetime
-
 @doctor_bp.route("/appointments")
 @login_required
 def appointments():
@@ -136,9 +132,12 @@ def appointments():
     # ─────────────────────────────
     # 📌 BAZOWE ZAPYTANIE (ZAWSZE PIERWSZE)
     # ─────────────────────────────
-    query = Appointment.query.filter(
-        Appointment.doctor_id == current_user.id
+    query = (
+        Appointment.query
+        .options(joinedload(Appointment.payments))  # 🔥 brak N+1
+        .filter(Appointment.doctor_id == current_user.id)
     )
+
 
     # ─────────────────────────────
     # 🔍 FILTRY (JAK SMS)
@@ -229,24 +228,36 @@ def appointments():
         error_out=False
     )
 
-    return render_template(
-        "doctor/appointments.html",
-        appointments=pagination.items,
-        pagination=pagination,
-        show_past=show_past,
-        sort=sort,
-        dir=dir_,
-        visit_types=VisitType.query
-            .filter_by(active=True)
-            .order_by(VisitType.display_order.asc(), VisitType.id.asc())
-            .all(),
-        active_page="appointments"
-    )
+    appointments = pagination.items
+
+    for a in appointments:
+
+        latest_payment = None
+
+        if a.payments:
+            latest_payment = sorted(
+                a.payments,
+                key=lambda p: p.created_at,
+                reverse=True
+            )[0]
+
+        a.payment_status = latest_payment.status if latest_payment else None
+        a.payment_provider = latest_payment.provider if latest_payment else None
 
 
-
-
-
+        return render_template(
+            "doctor/appointments.html",
+            appointments=appointments,
+            pagination=pagination,
+            show_past=show_past,
+            sort=sort,
+            dir=dir_,
+            visit_types=VisitType.query
+                .filter_by(active=True)
+                .order_by(VisitType.display_order.asc(), VisitType.id.asc())
+                .all(),
+            active_page="appointments"
+        )
 
 @doctor_bp.route("/cancel/<int:appointment_id>", methods=["POST"])
 @login_required
@@ -261,7 +272,7 @@ def cancel_appointment(appointment_id):
         flash("Wizyta już anulowana", "doctor-warning")
         return redirect(url_for("doctor.appointments"))
 
-    # 1️⃣ NAJPIERW USUŃ Z GOOGLE
+    # 1️⃣ NAJPIERW GOOGLE
     try:
         GoogleCalendarService.delete_appointment(appt)
         appt.google_event_id = None
@@ -270,41 +281,85 @@ def cancel_appointment(appointment_id):
     except Exception as e:
         current_app.logger.error(f"Google delete error: {e}")
 
-    # 2️⃣ ZMIEŃ STATUS
+    # 2️⃣ PŁATNOŚĆ (jeśli istnieje)
+    payment = Payment.query.filter_by(
+        appointment_id=appt.id
+    ).first()
+
+    if payment:
+        if payment.status == "pending":
+            payment.status = "cancelled"
+        # jeśli paid → nie zmieniamy automatycznie
+        # jeśli cancelled → nic nie robimy
+
+    # 3️⃣ STATUS WIZYTY
     appt.status = "cancelled"
+    appt.cancelled_by = "doctor"
+    appt.cancelled_at = datetime.utcnow()
+
     db.session.commit()
 
     flash("✔ Wizyta anulowana", "doctor-success")
 
-    # 🔑 POWRÓT Z PEŁNYMI FILTRAMI
     return redirect(url_for(
         "doctor.appointments",
         **request.form.to_dict(flat=True)
     ))
+
 
 @doctor_bp.route("/appointments/<int:appointment_id>/complete", methods=["POST"])
 @login_required
 def complete_appointment(appointment_id):
-    appt = Appointment.query.get_or_404(appointment_id)
 
-    if appt.doctor_id != current_user.id:
-        flash("Brak dostępu", "error")
-        return redirect(url_for("doctor.appointments"))
+    appt = Appointment.query.filter_by(
+        id=appointment_id,
+        doctor_id=current_user.id
+    ).first_or_404()
 
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    # 🔒 Status musi być scheduled
     if appt.status != "scheduled":
-        flash("Nie można zmienić statusu tej wizyty", "doctor-warning")
+        msg = "Nie można zmienić statusu tej wizyty"
+        if is_ajax:
+            return jsonify({"error": msg}), 400
+        flash(msg, "doctor-warning")
         return redirect(url_for("doctor.appointments"))
 
+    # 🔒 Musi być opłacona (jeśli istnieje płatność)
+    from models import Payment
+
+    payment = Payment.query.filter_by(
+        appointment_id=appt.id
+    ).first()
+
+    if payment and payment.status != "paid":
+        msg = "Nie można zakończyć nieopłaconej wizyty"
+        if is_ajax:
+            return jsonify({"error": msg}), 400
+        flash(msg, "doctor-warning")
+        return redirect(url_for("doctor.appointments"))
+
+    # ✅ Zmiana statusu
     appt.status = "completed"
     db.session.commit()
 
+    # 🔄 Aktualizacja Google (opcjonalnie — jeśli chcesz zmienić tytuł)
+    try:
+        GoogleCalendarService.sync_appointment(appt, force_update=True)
+    except Exception as e:
+        current_app.logger.warning(f"[GOOGLE COMPLETE] {e}")
+
+    if is_ajax:
+        return jsonify({"status": "ok"})
+
     flash("✔ Wizyta oznaczona jako zrealizowana", "doctor-success")
 
-    # 🔑 POWRÓT Z PEŁNYMI FILTRAMI
     return redirect(url_for(
         "doctor.appointments",
         **request.form.to_dict(flat=True)
     ))
+
 
 # =================================================
 # API – GRAFIK (FULLCALENDAR)
@@ -316,14 +371,19 @@ def complete_appointment(appointment_id):
 @login_required
 def api_availability_calendar():
 
+    # ✅ POBIERZ WIZYTY NAJPIERW (JEDNO ZAPYTANIE)
+    appointments = (
+        db.session.query(Appointment)
+        .options(joinedload(Appointment.payments))
+        .filter(
+            Appointment.doctor_id == current_user.id,
+            Appointment.status.in_(["scheduled", "completed"])
+        )
+        .all()
+    )
+
+
     events = []
-
-    appointments = Appointment.query.filter(
-        Appointment.doctor_id == current_user.id,
-        Appointment.status.in_(["scheduled", "completed"])
-    ).all()
-
-
 
     vacations = Vacation.query.filter_by(
         doctor_id=current_user.id,
@@ -371,31 +431,54 @@ def api_availability_calendar():
         })
 
     # ---------- WIZYTY ----------
+    # 🔹 Zbierz wszystkie kody typów wizyt
+    visit_type_codes = {a.visit_type for a in appointments}
+
+    visit_types_map = {
+        vt.code: vt
+        for vt in VisitType.query.filter(
+            VisitType.code.in_(visit_type_codes)
+        ).all()
+    }
+
     for a in appointments:
-        vt = VisitType.query.filter_by(code=a.visit_type).first()
+
+        vt = visit_types_map.get(a.visit_type)
 
         color_id = vt.color if vt and vt.color else "1"
         color_hex = GOOGLE_COLORS.get(color_id, "#3788d8")
 
+        # 🔹 najnowsza płatność z relacji (bez dodatkowego zapytania)
+        latest_payment = None
+        if a.payments:
+            latest_payment = sorted(
+                a.payments,
+                key=lambda p: p.created_at,
+                reverse=True
+            )[0]
+
+        payment_status = latest_payment.status if latest_payment else None
+        payment_provider = latest_payment.provider if latest_payment else None
+
         events.append({
-        "id": f"appt-{a.id}",
-        "title": f"{a.patient_first_name} {a.patient_last_name}",
-        "start": a.start.isoformat(),
-        "end": a.end.isoformat(),
-        "display": "block",
-        "backgroundColor": color_hex,
-        "borderColor": color_hex,
-        "extendedProps": {
-            "appointment_id": a.id,
-            "phone": a.patient_phone,
-            "visit_type": a.visit_type,
-            "duration": a.duration,
-            "created_by": a.created_by,   # 👤 / ✍️ źródło wizyty
-            "status": a.status
-        }
-    })
-
-
+            "id": f"appt-{a.id}",
+            "title": f"{a.patient_first_name} {a.patient_last_name}",
+            "start": a.start.isoformat(),
+            "end": a.end.isoformat(),
+            "display": "block",
+            "backgroundColor": color_hex,
+            "borderColor": color_hex,
+            "extendedProps": {
+                "appointment_id": a.id,
+                "phone": a.patient_phone,
+                "visit_type": a.visit_type,
+                "duration": a.duration,
+                "created_by": a.created_by,
+                "status": a.status,
+                "payment_status": payment_status,
+                "payment_provider": payment_provider
+            }
+        })
 
 
     # ---------- URLOPY ----------
@@ -407,6 +490,7 @@ def api_availability_calendar():
             "display": "background",
             "backgroundColor": "#ffeeba"
         })
+
 
     # ---------- ŚWIĘTA ----------
     years = {
@@ -429,11 +513,9 @@ def api_availability_calendar():
         })
 
     current_app.logger.warning(f"EVENTS COUNT: {len(events)}")
-    #for e in events:
-    #       current_app.logger.warning(e)
-
 
     return jsonify(events)
+
 
 
 def _window_is_free_and_continuous(
@@ -480,6 +562,104 @@ def _window_is_free_and_continuous(
 
     return True
 
+#------------------------------------------------------------------------------
+# Funkcja do potwierdzania płatności
+# -----------------------------------------------------------------------------
+@doctor_bp.route("/appointments/<int:appointment_id>/mark-paid", methods=["POST"])
+@login_required
+def mark_paid(appointment_id):
+
+    appt = Appointment.query.filter_by(
+        id=appointment_id,
+        doctor_id=current_user.id
+    ).first_or_404()
+
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    payment = (
+        Payment.query
+        .filter_by(appointment_id=appt.id)
+        .order_by(Payment.created_at.desc())
+        .first()
+    )
+
+    if not payment:
+        msg = "Brak płatności"
+        if is_ajax:
+            return jsonify({"error": msg}), 400
+        flash(msg, "doctor-warning")
+        return redirect(url_for("doctor.pending_payments"))
+
+    if payment.status == "paid":
+        msg = "Płatność już oznaczona jako opłacona"
+        if is_ajax:
+            return jsonify({"error": msg}), 400
+        flash(msg, "doctor-warning")
+        return redirect(url_for("doctor.pending_payments"))
+
+    # ✅ ZMIANA STATUSU
+    payment.status = "paid"
+    payment.paid_at = datetime.utcnow()
+
+    db.session.commit()
+
+    # 🔄 GOOGLE
+    try:
+        GoogleCalendarService.sync_appointment(appt, force_update=True)
+    except Exception as e:
+        current_app.logger.warning(f"[GOOGLE AFTER PAY] {e}")
+
+    # 📩 SMS
+    try:
+        SMSService().send_confirmation(appt)
+    except Exception as e:
+        current_app.logger.warning(f"[SMS AFTER PAY] {e}")
+
+    # 📧 EMAIL
+    try:
+        from utils.email_service import EmailService
+        EmailService().send_confirmation(appt)
+    except Exception as e:
+        current_app.logger.warning(f"[EMAIL AFTER PAY] {e}")
+
+    # 🔁 AJAX (kalendarz)
+    if is_ajax:
+        return jsonify({"status": "ok"})
+
+    # 🔁 NORMALNY POST (lista oczekujących)
+    flash("✔ Płatność oznaczona jako opłacona", "doctor-success")
+
+    return redirect(url_for("doctor.pending_payments"))
+
+# =================================================
+# OZNACZ JAKO ZWRÓCONE
+# =================================================
+@doctor_bp.route("/payments/<int:payment_id>/mark-refunded", methods=["POST"])
+@login_required
+def mark_refunded(payment_id):
+
+    payment = (
+        Payment.query
+        .join(Appointment)
+        .filter(
+            Payment.id == payment_id,
+            Appointment.doctor_id == current_user.id
+        )
+        .first_or_404()
+    )
+
+    if payment.status != "paid":
+        flash("Można zwrócić tylko opłaconą płatność", "doctor-warning")
+        return redirect(url_for("doctor.refunds"))
+
+    payment.status = "refunded"
+    payment.refunded_at = datetime.utcnow()
+
+    db.session.commit()
+
+    flash("✔ Płatność oznaczona jako zwrócona", "doctor-success")
+
+    return redirect(url_for("doctor.refunds"))
 
 
 # =================================================
@@ -1217,6 +1397,8 @@ def blacklist_from_appointment_ajax(appointment_id):
     # =========================
     if cancel_appointment and appt.status != "cancelled":
         appt.status = "cancelled"
+        appt.cancelled_by = "doctor"
+        appt.cancelled_at = datetime.utcnow()
 
     db.session.commit()
     try:
@@ -1655,113 +1837,6 @@ def get_google_service():
     )
     return build("calendar", "v3", credentials=creds)
 
-
-@doctor_bp.route("/google/rebuild", methods=["POST"])
-@login_required
-def google_rebuild_calendar():
-    """
-    🔄 ODBUDOWA KALENDARZA GOOGLE
-    - usuwa wszystkie eventy aplikacji
-    - tworzy je od nowa z DB
-    """
-
-    # 1️⃣ pobierz wizyty które MAJĄ być w Google
-    appointments = (
-        Appointment.query
-        .filter(
-            Appointment.status.in_(["scheduled", "completed"]),
-            (
-                Appointment.google_event_id.is_(None)
-                | (Appointment.google_sync_status.in_(["error", "deleted"]))
-            )
-        )
-        .all()
-    )
-
-
-    deleted = 0
-    created = 0
-
-    # 2️⃣ USUŃ eventy z Google (jeśli istnieją)
-    for appt in appointments:
-        google_event_id = getattr(appt, "google_event_id", None)
-        if google_event_id:
-            try:
-                GoogleCalendarService.delete_appointment(appt)
-                appt.google_event_id = None
-                appt.google_sync_status = "deleted"
-                appt.google_last_sync_at = datetime.utcnow()
-                db.session.commit()
-
-                deleted += 1
-            except Exception as e:
-                current_app.logger.warning(
-                    f"[GOOGLE REBUILD] delete failed appt {appt.id}: {e}"
-                )
-
-
-    # 3️⃣ UTWÓRZ WSZYSTKO OD NOWA
-    for appt in appointments:
-        try:
-            GoogleCalendarService.sync_appointment(appt, force_update=True)
-            created += 1
-        except Exception as e:
-            current_app.logger.error(
-                f"[GOOGLE REBUILD] create failed appt {appt.id}: {e}"
-            )
-
-    flash(
-        f"🔄 Kalendarz Google odbudowany "
-        f"(usunięto: {deleted}, utworzono: {created})",
-        "success"
-    )
-
-    return {
-    "status": "ok",
-    "deleted": deleted,
-    "created": created
-}
-
-
-
-@doctor_bp.route("/google/sync-batch", methods=["POST"])
-@login_required
-def google_sync_batch():
-    MAX_BATCH = 20
-
-    appts = (
-        Appointment.query
-        .filter(
-            Appointment.doctor_id == current_user.id,
-            Appointment.status == "scheduled",
-            Appointment.google_sync_status != "synced"
-        )
-        .order_by(Appointment.start)
-        .limit(MAX_BATCH)
-        .all()
-    )
-
-
-    synced = 0
-    skipped = 0
-
-    for appt in appts:
-        try:
-            GoogleCalendarService.sync_appointment(
-                appt,
-                force_update=True
-            )
-            synced += 1
-        except Exception as e:
-            current_app.logger.warning(f"Batch sync skip {appt.id}: {e}")
-            skipped += 1
-
-    return jsonify({
-        "synced": synced,
-        "skipped": skipped,
-        "limit": MAX_BATCH
-    })
-
 # ───────────────────────────────────────
 # SMS – HISTORIA
 # ───────────────────────────────────────
@@ -1836,6 +1911,188 @@ def sms_retry(sms_id):
 
     flash("Ponowiono wysyłkę SMS", "success")
     return redirect(url_for("doctor.sms_list"))
+
+
+@doctor_bp.route("/appointments/<int:appointment_id>/details")
+@login_required
+def appointment_details(appointment_id):
+
+    # 🔹 Pobranie wizyty z kontrolą właściciela
+    appt = (
+        Appointment.query
+        .options(joinedload(Appointment.payments))
+        .filter_by(
+            id=appointment_id,
+            doctor_id=current_user.id
+        )
+        .first_or_404()
+    )
+
+    # 🔹 Typ wizyty
+    visit_type = VisitType.query.filter_by(
+        code=appt.visit_type
+    ).first()
+
+    # 🔹 SMS – od najnowszych
+    sms_messages = (
+        appt.sms_messages
+        .order_by(SMSMessage.created_at.desc())
+        .all()
+    )
+
+    # 🔹 Płatności – od najnowszych
+    payments = (
+        Payment.query
+        .filter_by(appointment_id=appt.id)
+        .order_by(Payment.created_at.desc())
+        .all()
+    )
+
+    # 🔹 Najnowsza płatność (do sekcji „Informacje o płatności”)
+    latest_payment = payments[0] if payments else None
+
+    return render_template(
+        "doctor/appointment_details.html",
+        appointment=appt,
+        visit_type=visit_type,
+        sms_messages=sms_messages,
+        payments=payments,
+        latest_payment=latest_payment
+    )
+
+@doctor_bp.route("/refunds")
+@login_required
+def refunds():
+
+    now = datetime.utcnow()
+
+    # tylko anulowane wizyty
+    appointments = (
+        Appointment.query
+        .options(joinedload(Appointment.payments))
+        .filter(
+            Appointment.doctor_id == current_user.id,
+            Appointment.status == "cancelled"
+        )
+        .order_by(Appointment.cancelled_at.desc())
+        .all()
+    )
+
+    traditional = []
+    p24 = []
+
+    for a in appointments:
+
+        if not a.payments:
+            continue
+
+        # najnowsza płatność
+        latest = sorted(
+            a.payments,
+            key=lambda p: p.created_at,
+            reverse=True
+        )[0]
+
+        # tylko opłacone kwalifikują się do zwrotu
+        if latest.status != "paid":
+            continue
+
+        days = (
+            (now - a.cancelled_at).days
+            if a.cancelled_at else 0
+        )
+
+        row = {
+            "appointment": a,
+            "payment": latest,
+            "days": days
+        }
+
+        if latest.provider == "manual_transfer":
+            traditional.append(row)
+
+        elif latest.provider in ("p24", "przelewy24"):
+            p24.append(row)
+
+    print("REFUNDS:", len(traditional), len(p24))
+
+    return render_template(
+        "doctor/refunds.html",
+        traditional=traditional,
+        p24=p24,
+        active_page="refunds"
+    )
+
+
+# =================================================
+# PŁATNOŚCI OCZEKUJĄCE – ROZBICIE NA PROVIDER
+# =================================================
+@doctor_bp.route("/pending-payments")
+@login_required
+def pending_payments():
+
+    from sqlalchemy import exists, and_
+    from datetime import datetime
+
+    now = datetime.utcnow()
+
+    payment_exists = (
+        db.session.query(Payment.id)
+        .filter(Payment.appointment_id == Appointment.id)
+        .exists()
+    )
+
+    paid_exists = (
+        db.session.query(Payment.id)
+        .filter(
+            Payment.appointment_id == Appointment.id,
+            Payment.status == "paid"
+        )
+        .exists()
+    )
+
+    appointments = (
+        Appointment.query
+        .options(joinedload(Appointment.payments))
+        .filter(
+            Appointment.doctor_id == current_user.id,
+            Appointment.status == "scheduled",
+            payment_exists,
+            ~paid_exists
+        )
+        .order_by(Appointment.start.asc())
+        .all()
+    )
+
+    traditional = []
+    p24 = []
+
+    for a in appointments:
+        latest = sorted(
+            a.payments,
+            key=lambda p: p.created_at,
+            reverse=True
+        )[0]
+
+        days_since = (now - a.created_at).days if a.created_at else 0
+
+        row = {
+            "appointment": a,
+            "payment": latest,
+            "days_since": days_since
+        }
+
+        if latest.provider == "manual_transfer":
+            traditional.append(row)
+        elif latest.provider in ("p24", "przelewy24"):
+            p24.append(row)
+
+    return render_template(
+        "doctor/pending_payments.html",
+        traditional=traditional,
+        p24=p24,
+        active_page="pending_payments"
+    )
 
 
 

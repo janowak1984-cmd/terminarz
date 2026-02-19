@@ -10,6 +10,7 @@ from utils.blacklist import is_phone_blacklisted
 from utils.google_calendar import GoogleCalendarService
 from utils.email_service import EmailService
 from utils.ip import get_client_ip
+from flask import make_response
 
 
 patient_test_bp = Blueprint(
@@ -32,7 +33,16 @@ SLOT_MINUTES = 15
 
 @patient_test_bp.route("/")
 def index():
-    return render_template("patient/index_test.html")
+    response = make_response(
+        render_template("patient/index_test.html")
+    )
+
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
+    return response
+
 
 
 # ───────────────────────────────────────
@@ -317,46 +327,63 @@ def api_hours():
 
     return jsonify([dt.strftime("%H:%M") for dt in chosen])
 
-
-
-
-
-
-
 # ───────────────────────────────────────
 # REZERWACJA WIZYTY
 # ───────────────────────────────────────
 
 @patient_test_bp.route("/reserve", methods=["POST"])
 def reserve():
+
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
 
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     visit_code = request.form.get("visit_type")
     payment_flow = request.form.get("payment_flow", "reserve")
+    payment_method = request.form.get("payment_method")
 
+    visit_type = VisitType.query.filter_by(
+        code=visit_code,
+        active=True
+    ).first()
 
-    visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
-
+    # ───────────────────────────────────
+    # WALIDACJE PODSTAWOWE
+    # ───────────────────────────────────
 
     if not visit_type:
         if is_ajax:
             return jsonify({"error": "Nieprawidłowy typ wizyty"}), 400
         flash("Nieprawidłowy typ wizyty", "patient-danger")
         return redirect(url_for("patient_test.index"))
-    
+
+    if payment_flow == "online" and payment_method not in ("p24", "traditional"):
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowa metoda płatności"}), 400
+        flash("Nieprawidłowa metoda płatności", "patient-danger")
+        return redirect(url_for("patient_test.index"))
+
     if visit_type.only_online_payment and payment_flow != "online":
         flash("Ta wizyta wymaga płatności online.", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
+    # ───────────────────────────────────
+    # TERMIN
+    # ───────────────────────────────────
+
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
 
-    start = datetime.strptime(
-        f"{request.form['day']} {request.form['hour']}",
-        "%Y-%m-%d %H:%M"
-    )
+    try:
+        start = datetime.strptime(
+            f"{request.form['day']} {request.form['hour']}",
+            "%Y-%m-%d %H:%M"
+        )
+    except Exception:
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowa data"}), 400
+        flash("Nieprawidłowa data", "patient-danger")
+        return redirect(url_for("patient_test.index"))
 
     if is_active_vacation_day(start.date()):
         if is_ajax:
@@ -399,6 +426,10 @@ def reserve():
         flash(msg, "patient-danger")
         return redirect(url_for("patient_test.index"))
 
+     # ───────────────────────────────────
+    # TWORZENIE WIZYTY
+    # ───────────────────────────────────
+
     appointment = Appointment(
         doctor_id=doctor_id,
         start=start,
@@ -411,13 +442,81 @@ def reserve():
         patient_email=email if email else None,
         cancel_token=uuid.uuid4().hex,
         created_by="patient",
-        client_ip=get_client_ip()
+        client_ip=get_client_ip(),
+        status="scheduled"
     )
 
     db.session.add(appointment)
+    db.session.flush()  # mamy appointment.id bez pełnego commit
+
+    from models import Payment
+
+    # ───────────────────────────────────
+    # 🟠 PRZELEW TRADYCYJNY (AJAX – BEZ REDIRECT)
+    # ───────────────────────────────────
+    if payment_flow == "online" and payment_method == "traditional":
+
+        from decimal import Decimal
+
+        amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
+
+        payment = Payment(
+            appointment_id=appointment.id,
+            provider="manual_transfer",
+            status="pending",
+            amount=amount_int,
+            currency="PLN"
+        )
+
+
+        db.session.add(payment)
+        db.session.commit()
+
+        try:
+            EmailService().send_traditional_payment_info(
+                appointment=appointment,
+                amount=visit_type.price
+            )
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL][TRADITIONAL] failed for {appointment.id}: {e}"
+            )
+
+        # ✅ ZWRACAMY JSON (nie flash, nie redirect)
+        if is_ajax:
+            return jsonify({
+                "success": True,
+                "message": (
+                    "Wizyta została zarezerwowana. "
+                    "Dane do przelewu zostały wysłane na podany adres e-mail. "
+                    "Wizyta zostanie potwierdzona po zaksięgowaniu płatności."
+                )
+            })
+
+        # fallback (gdyby ktoś jednak wysłał klasycznie)
+        flash(
+            "Wizyta została zarezerwowana. "
+            "Dane do przelewu zostały wysłane na podany adres e-mail.",
+            "patient-success"
+        )
+        return redirect(url_for("patient_test.index"))
+    
+    if payment_flow == "online" and payment_method == "p24":
+
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "appointment_id": appointment.id
+        })
+
+
+    # ───────────────────────────────────
+    # 🔵 PŁATNOŚĆ W GABINECIE (KLASYCZNY FLOW)
+    # ───────────────────────────────────
+
     db.session.commit()
 
-    # ───── Integracje (best-effort)
     try:
         GoogleCalendarService().sync_appointment(appointment)
     except Exception as e:
@@ -425,30 +524,23 @@ def reserve():
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
 
-    if payment_flow == "reserve":
+    try:
+        SMSService().send_confirmation(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[SMS][CONFIRMATION] failed for {appointment.id}: {e}"
+        )
 
-        try:
-            SMSService().send_confirmation(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-            )
-
-        try:
-            EmailService().send_confirmation(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-            )
-
-    # ✅ KLUCZOWA RÓŻNICA
-    if is_ajax:
-        return jsonify({
-            "appointment_id": appointment.id
-        })
+    try:
+        EmailService().send_confirmation(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[EMAIL][CONFIRMATION] failed for {appointment.id}: {e}"
+        )
 
     flash("Wizyta została zarezerwowana", "patient-success")
     return redirect(url_for("patient_test.index"))
+
 
 
 
@@ -505,6 +597,7 @@ def cancel_by_token(token):
         )
 
     appointment.status = "cancelled"
+    appointment.cancelled_by = "patient"
     appointment.cancelled_at = db.func.now()
 
     db.session.commit()
@@ -527,6 +620,16 @@ def cancel_by_token(token):
 def cancel_short(token):
     return redirect(
         url_for("patient_test.cancel_by_token", token=token)
+    )
+
+@patient_test_bp.route("/traditional-info/<int:appointment_id>")
+def traditional_info(appointment_id):
+
+    appointment = Appointment.query.get_or_404(appointment_id)
+
+    return render_template(
+        "patient/traditional_info.html",
+        appointment=appointment
     )
 
 
@@ -592,3 +695,5 @@ def vacation_status():
         "message_pl": message_pl,
         "message_en": message_en
     })
+
+

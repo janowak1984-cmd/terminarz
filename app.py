@@ -17,6 +17,8 @@ from blueprints.patient_test import patient_test_bp
 # ───────────────────────────────────────
 from apscheduler.schedulers.background import BackgroundScheduler
 from jobs.send_reminders import run as send_reminders_run
+from jobs.expire_unpaid_appointments import run as cancel_unpaid_run   # ← NOWY
+
 
 
 def create_app():
@@ -169,6 +171,10 @@ def create_app():
             with app.app_context():
                 send_reminders_run()
 
+        def cancel_unpaid_wrapper():
+            with app.app_context():
+                cancel_unpaid_run()
+
         scheduler.add_job(
             reminder_job_wrapper,
             trigger="interval",
@@ -177,8 +183,17 @@ def create_app():
             replace_existing=True
         )
 
+        scheduler.add_job(
+            cancel_unpaid_wrapper,
+            trigger="interval",
+            minutes=5,
+            id="cancel_unpaid_appointments",
+            replace_existing=True
+        )
+
         scheduler.start()
-        print("✅ Background SMS reminder scheduler started")
+    print("✅ Background schedulers started")
+
 
     return app
 

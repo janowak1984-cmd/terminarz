@@ -1,0 +1,195 @@
+{% extends "doctor/layout.html" %}
+{% block content %}
+
+<h2>💸 Zwroty płatności do zrealizowania</h2>
+<h5>Wizyty anulowane, ale już opłacone – wymagają zwrotu środków</h5>
+
+{# ===================================================== #}
+{# 🏦 PRZELEWY TRADYCYJNE #}
+{# ===================================================== #}
+
+<h3 class="mt-4">🏦 Przelewy tradycyjne (mBank)</h3>
+
+{% if traditional %}
+
+<table class="table table-bordered table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Data wizyty</th>
+            <th>Pacjent</th>
+            <th>Kwota</th>
+            <th>Kto anulował</th>
+            <th>Data anulowania</th>
+            <th>Ile dni minęło</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in traditional %}
+        {% set appt = row.appointment %}
+        {% set payment = row.payment %}
+        {% set days = row.days %}
+
+        <tr class="warning">
+            <td>{{ appt.id }}</td>
+            <td>{{ appt.start.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ appt.patient_first_name }} {{ appt.patient_last_name }}</td>
+            <td>{{ (payment.amount / 100)|round(2) }} zł</td>
+
+            <td>
+                {% if appt.cancelled_by == "patient" %}
+                    👤 Pacjent
+                {% elif appt.cancelled_by == "doctor" %}
+                    ✍️ Lekarz
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <td>
+                {{ appt.cancelled_at.strftime("%Y-%m-%d %H:%M") if appt.cancelled_at }}
+            </td>
+
+            <td>
+                {% if days <= 3 %}
+                    <span class="badge badge-success">{{ days }} dni</span>
+                {% elif days <= 7 %}
+                    <span class="badge badge-warning">{{ days }} dni</span>
+                {% else %}
+                    <span class="badge badge-danger">{{ days }} dni</span>
+                {% endif %}
+            </td>
+
+            <td>
+
+    <!-- 🔍 SZCZEGÓŁY -->
+    <a href="{{ url_for('doctor.appointment_details', appointment_id=appt.id) }}"
+       target="_blank"
+       class="btn btn-sm btn-primary">
+       🔍
+    </a>
+
+    <!-- 💸 ZWRÓCONE -->
+    <form method="post"
+          action="{{ url_for('doctor.mark_refunded', payment_id=payment.id) }}"
+          style="display:inline;">
+        <button class="btn btn-sm btn-success js-confirm-refund"
+                title="Oznacz jako zwrócone">
+            💸
+        </button>
+    </form>
+
+</td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+<div class="alert alert-info">
+    Brak przelewów tradycyjnych do zwrotu.
+</div>
+{% endif %}
+
+{# ===================================================== #}
+{# 🟣 PRZELEWY24 #}
+{# ===================================================== #}
+
+<h3 class="mt-5">🟣 Przelewy24</h3>
+
+{% if p24 %}
+
+<table class="table table-bordered table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Data wizyty</th>
+            <th>Pacjent</th>
+            <th>Kwota</th>
+            <th>Kto anulował</th>
+            <th>Data anulowania</th>
+            <th>Ile dni minęło</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in p24 %}
+        {% set appt = row.appointment %}
+        {% set payment = row.payment %}
+        {% set days = row.days %}
+
+        <tr class="danger">
+            <td>{{ appt.id }}</td>
+            <td>{{ appt.start.strftime("%Y-%m-%d %H:%M") }}</td>
+            <td>{{ appt.patient_first_name }} {{ appt.patient_last_name }}</td>
+            <td>{{ (payment.amount / 100)|round(2) }} zł</td>
+
+            <td>
+                {% if appt.cancelled_by == "patient" %}
+                    👤 Pacjent
+                {% elif appt.cancelled_by == "doctor" %}
+                    ✍️ Lekarz
+                {% else %}
+                    —
+                {% endif %}
+            </td>
+
+            <td>
+                {{ appt.cancelled_at.strftime("%Y-%m-%d %H:%M") if appt.cancelled_at }}
+            </td>
+
+            <td>
+                {% if days <= 3 %}
+                    <span class="badge badge-success">{{ days }} dni</span>
+                {% elif days <= 7 %}
+                    <span class="badge badge-warning">{{ days }} dni</span>
+                {% else %}
+                    <span class="badge badge-danger">{{ days }} dni</span>
+                {% endif %}
+            </td>
+
+           <td>
+
+    <!-- 🔍 SZCZEGÓŁY -->
+    <a href="{{ url_for('doctor.appointment_details', appointment_id=appt.id) }}"
+       target="_blank"
+       class="btn btn-sm btn-primary">
+       🔍
+    </a>
+
+    <!-- 💸 ZWRÓCONE -->
+    <form method="post"
+          action="{{ url_for('doctor.mark_refunded', payment_id=payment.id) }}"
+          style="display:inline;">
+        <button class="btn btn-sm btn-success js-confirm-refund"
+                title="Oznacz jako zwrócone">
+            💸
+        </button>
+    </form>
+
+</td>
+
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+<div class="alert alert-info">
+    Brak płatności Przelewy24 do zwrotu.
+</div>
+{% endif %}
+<script>
+document.addEventListener("click", function (e) {
+    const btn = e.target.closest(".js-confirm-refund");
+    if (!btn) return;
+
+    if (!confirm("Czy na pewno oznaczyć tę płatność jako zwróconą?")) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}
+

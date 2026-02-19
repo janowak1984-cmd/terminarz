@@ -10,6 +10,7 @@ from utils.email_service import EmailService
 from flask import Blueprint, request, jsonify, current_app, render_template
 from extensions import db
 from models import Appointment, Payment, VisitType
+from utils.google_calendar import GoogleCalendarService
 
 
 payments_bp = Blueprint(
@@ -23,6 +24,7 @@ payments_bp = Blueprint(
 # ==================================================
 @payments_bp.route("/init", methods=["POST"])
 def init_payment():
+
     data = request.get_json() or {}
     appointment_id = data.get("appointment_id")
 
@@ -41,6 +43,20 @@ def init_payment():
 
     if not visit_type or not visit_type.price or visit_type.price <= 0:
         return jsonify({"error": "Visit type not payable"}), 400
+    
+    existing = Payment.query.filter_by(
+        appointment_id=appointment.id,
+        provider="przelewy24"
+    ).filter(
+        Payment.status.in_(["init", "pending"])
+    ).first()
+
+    if existing:
+        return jsonify({
+            "payment_id": existing.id,
+            "session_id": existing.provider_session_id
+        })
+
 
     amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
     session_id = uuid.uuid4().hex
@@ -170,6 +186,14 @@ def payment_status():
             current_app.logger.warning("[P24 STATUS] Amount mismatch")
             payment.status = "failed"
             db.session.commit()
+
+            appointment = payment.appointment
+            if appointment:
+                try:
+                    EmailService().send_payment_retry(appointment)
+                except Exception:
+                    pass
+
             return "ERROR", 400
     except Exception:
         current_app.logger.warning("[P24 STATUS] Invalid amount format")
@@ -217,6 +241,12 @@ def payment_status():
     # ==================================================
     if not _p24_verify_transaction(payment):
         payment.status = "failed"
+
+        try:
+            EmailService().send_payment_retry(payment.appointment)
+        except Exception:
+            pass
+
         db.session.commit()
         return "ERROR", 400
 
@@ -225,7 +255,13 @@ def payment_status():
     # ==================================================
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
+
+    appointment = payment.appointment
+    if appointment:
+        appointment.status = "scheduled"
+
     db.session.commit()
+
 
     current_app.logger.warning(
         f"[P24 STATUS] Payment {payment.id} marked as PAID"
@@ -236,22 +272,36 @@ def payment_status():
     # ==================================================
     appointment = payment.appointment
 
-    if appointment:
-        try:
-            SMSService().send_confirmation(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[SMS][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
-            )
+    # 🔐 zabezpieczenie – jeśli z jakiegoś powodu brak wizyty
+    if not appointment:
+        current_app.logger.error(
+            f"[PAYMENT SUCCESS] Payment {payment.id} has no appointment!"
+        )
+        return "OK", 200
 
-        try:
-            EmailService().send_confirmation(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[EMAIL][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
-            )
+    try:
+        GoogleCalendarService().sync_appointment(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[GOOGLE][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
+        )
+
+    try:
+        SMSService().send_confirmation(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[SMS][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
+        )
+
+    try:
+        EmailService().send_confirmation(appointment)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[EMAIL][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
+        )
 
     return "OK", 200
+
 
 
 
@@ -317,6 +367,14 @@ def _build_p24_payload(payment: Payment):
 
     checksum = hashlib.sha384(json_string.encode("utf-8")).hexdigest()
 
+    appointment = payment.appointment
+
+    email = (
+        appointment.patient_email
+        if appointment and appointment.patient_email
+        else "kontakt@kingabobinska.pl"
+    )
+
     payload = {
         "merchantId": int(cfg["P24_MERCHANT_ID"]),
         "posId": int(cfg["P24_POS_ID"]),
@@ -324,13 +382,14 @@ def _build_p24_payload(payment: Payment):
         "amount": int(payment.amount),
         "currency": "PLN",
         "description": "Rezerwacja wizyty",
-        "email": payment.appointment.patient_email or "kontakt@kingabobinska.pl",
+        "email": email,
         "country": "PL",
         "language": "pl",
         "urlReturn": cfg["P24_RETURN_URL"],
         "urlStatus": cfg["P24_STATUS_URL"],
         "sign": checksum
     }
+
 
     current_app.logger.warning(f"[P24 DEBUG] SIGN JSON = {json_string}")
 

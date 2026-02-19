@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Szczegóły wizyty</title>
+
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css">
+
+<style>
+body {
+    padding: 30px;
+}
+.section {
+    margin-bottom: 40px;
+}
+.table th {
+    background: #f5f5f5;
+}
+.header-actions {
+    margin-bottom: 20px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="header-actions">
+    <button class="btn btn-default" onclick="window.print()">🖨 Drukuj</button>
+    <button class="btn btn-danger" onclick="window.close()">✖ Zamknij okno</button>
+</div>
+
+<!-- ===================== -->
+<!-- SZCZEGÓŁY WIZYTY -->
+<!-- ===================== -->
+
+<div class="section">
+    <h3>📋 Szczegóły wizyty</h3>
+   <table class="table table-bordered">
+
+    <tr>
+        <th>ID</th>
+        <td>{{ appointment.id }}</td>
+    </tr>
+
+    <tr>
+        <th>Status</th>
+        <td>
+            {% if appointment.status == "scheduled" %}
+                <span class="label label-primary">Zaplanowana</span>
+            {% elif appointment.status == "completed" %}
+                <span class="label label-success">Zrealizowana</span>
+            {% elif appointment.status == "cancelled" %}
+                <span class="label label-danger">Anulowana</span>
+            {% else %}
+                {{ appointment.status }}
+            {% endif %}
+        </td>
+    </tr>
+
+    <tr>
+        <th>Typ wizyty</th>
+        <td>
+            {% if visit_type %}
+                {{ visit_type.name }}
+            {% else %}
+                {{ appointment.visit_type }}
+            {% endif %}
+        </td>
+    </tr>
+
+    <tr>
+        <th>Start</th>
+        <td>{{ appointment.start.strftime("%d.%m.%Y %H:%M") }}</td>
+    </tr>
+
+    <tr>
+        <th>Koniec</th>
+        <td>{{ appointment.end.strftime("%d.%m.%Y %H:%M") }}</td>
+    </tr>
+
+    <tr>
+        <th>Czas trwania</th>
+        <td>{{ appointment.duration }} min</td>
+    </tr>
+
+    <tr>
+        <th>Imię</th>
+        <td>{{ appointment.patient_first_name }}</td>
+    </tr>
+
+    <tr>
+        <th>Nazwisko</th>
+        <td>{{ appointment.patient_last_name }}</td>
+    </tr>
+
+    <tr>
+        <th>Telefon</th>
+        <td>{{ appointment.patient_phone }}</td>
+    </tr>
+
+    <tr>
+        <th>Email</th>
+        <td>{{ appointment.patient_email or '-' }}</td>
+    </tr>
+
+    <tr>
+        <th>Utworzona przez</th>
+        <td>
+            {% if appointment.created_by == "patient" %}
+                👤 Pacjent
+            {% elif appointment.created_by == "doctor" %}
+                🩺 Lekarz
+            {% else %}
+                {{ appointment.created_by }}
+            {% endif %}
+        </td>
+    </tr>
+
+    <tr>
+        <th>Data utworzenia</th>
+        <td>{{ appointment.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+    </tr>
+
+    <tr>
+        <th>IP klienta</th>
+        <td>{{ appointment.client_ip or '-' }}</td>
+    </tr>
+
+</table>
+
+</div>
+
+<hr>
+
+<h3>💳 Informacje o płatności</h3>
+
+{% if latest_payment %}
+
+  <p>
+    <strong>Metoda płatności:</strong>
+    {% if latest_payment.provider == "przelewy24" %}
+      💳 Przelewy24 (online)
+    {% elif latest_payment.provider == "manual_transfer" %}
+      🏦 Przelew tradycyjny
+    {% else %}
+      💰 Płatność w gabinecie
+    {% endif %}
+  </p>
+
+  <p>
+    <strong>Status płatności:</strong>
+    {% if latest_payment.status == "paid" %}
+      <span class="label label-success">Opłacona</span>
+    {% elif latest_payment.status == "pending" %}
+      <span class="label label-warning">Oczekuje</span>
+    {% elif latest_payment.status == "init" %}
+      <span class="label label-info">Zainicjowana</span>
+    {% elif latest_payment.status == "failed" %}
+      <span class="label label-danger">Nieudana</span>
+    {% elif latest_payment.status == "cancelled" %}
+      <span class="label label-default">Anulowana</span>
+    {% else %}
+      {{ latest_payment.status }}
+    {% endif %}
+  </p>
+
+  <p>
+    <strong>Kwota:</strong>
+    {{ (latest_payment.amount / 100) | round(2) }} {{ latest_payment.currency }}
+  </p>
+
+  <p>
+    <strong>Data utworzenia:</strong>
+    {{ latest_payment.created_at }}
+  </p>
+
+  {% if latest_payment.paid_at %}
+    <p>
+      <strong>Data opłacenia:</strong>
+      {{ latest_payment.paid_at }}
+    </p>
+  {% endif %}
+
+{% else %}
+
+  <p>
+    <strong>Metoda płatności:</strong>  💵 Płatność w gabinecie
+  </p>
+
+  <p>
+    <strong>Status:</strong>
+    {% if appointment.status == "completed" %}
+      <span class="label label-success">Zrealizowana</span>
+    {% else %}
+      <span class="label label-default">Brak płatności online</span>
+    {% endif %}
+  </p>
+
+{% endif %}
+
+
+<!-- ===================== -->
+<!-- SMS -->
+<!-- ===================== -->
+
+<div class="section">
+    <h3>📩 Historia SMS</h3>
+
+    {% if sms_list %}
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Typ</th>
+                <th>Status</th>
+                <th>Telefon</th>
+                <th>Treść</th>
+                <th>Błąd</th>
+                <th>Utworzono</th>
+                <th>Wysłano</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sms in sms_list %}
+            <tr>
+                <td>{{ sms.id }}</td>
+                <td>{{ sms.type }}</td>
+                <td>{{ sms.status }}</td>
+                <td>{{ sms.phone }}</td>
+                <td style="max-width:300px; white-space: pre-wrap;">
+                    {{ sms.content }}
+                </td>
+                <td>{{ sms.error_message or '-' }}</td>
+                <td>{{ sms.created_at }}</td>
+                <td>{{ sms.sent_at or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Brak wysłanych SMS dla tej wizyty.</p>
+    {% endif %}
+</div>
+
+<!-- ===================== -->
+<!-- EMAIL -->
+<!-- ===================== -->
+
+<div class="section">
+    <h3>📧 Historia maili</h3>
+
+    {% if emails %}
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Typ</th>
+                <th>Status</th>
+                <th>Do</th>
+                <th>Temat</th>
+                <th>Błąd</th>
+                <th>Utworzono</th>
+                <th>Wysłano</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for mail in emails %}
+            <tr>
+                <td>{{ mail.id }}</td>
+
+                <td>{{ mail.type }}</td>
+
+                <td>
+                    {% if mail.status == "sent" %}
+                        <span class="label label-success">Wysłany</span>
+                    {% elif mail.status == "failed" %}
+                        <span class="label label-danger">Błąd</span>
+                    {% elif mail.status == "pending" %}
+                        <span class="label label-warning">Oczekuje</span>
+                    {% else %}
+                        {{ mail.status }}
+                    {% endif %}
+                </td>
+
+                <td>{{ mail.recipient }}</td>
+
+                <td style="max-width:250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    {{ mail.subject }}
+                </td>
+
+                <td>{{ mail.error_message or '-' }}</td>
+
+                <td>{{ mail.created_at }}</td>
+
+                <td>{{ mail.sent_at or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Brak wysłanych maili dla tej wizyty.</p>
+    {% endif %}
+</div>
+
+
+<!-- ===================== -->
+<!-- PŁATNOŚCI -->
+<!-- ===================== -->
+
+<div class="section">
+    <h3>💳 Historia płatności</h3>
+
+    {% if payments %}
+    <table class="table table-striped table-bordered">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Provider</th>
+                <th>Status</th>
+                <th>Kwota</th>
+                <th>Waluta</th>
+                <th>Session ID</th>
+                <th>Order ID</th>
+                <th>Utworzono</th>
+                <th>Zapłacono</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in payments %}
+            <tr>
+                <td>{{ p.id }}</td>
+                <td>{{ p.provider }}</td>
+                <td>{{ p.status }}</td>
+                <td>{{ "%.2f"|format(p.amount / 100) }}</td>
+                <td>{{ p.currency }}</td>
+                <td>{{ p.provider_session_id }}</td>
+                <td>{{ p.provider_order_id or '-' }}</td>
+                <td>{{ p.created_at }}</td>
+                <td>{{ p.paid_at or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>Brak płatności dla tej wizyty.</p>
+    {% endif %}
+</div>
+
+</div>
+
+</body>
+</html>

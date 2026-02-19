@@ -270,3 +270,37 @@ class EmailService:
         """
 
         return subject, body
+    
+    def send_traditional_payment_info(self, appointment, amount):
+
+        if not appointment.patient_email:
+            return
+
+        subject = "Dane do przelewu – potwierdzenie rezerwacji"
+
+        body = f"""
+    Dzień dobry {appointment.patient_first_name},
+
+    Dziękujemy za rezerwację wizyty:
+
+    Data: {appointment.start.strftime('%d.%m.%Y %H:%M')}
+    Kwota: {amount:.2f} PLN
+
+    Prosimy o wykonanie przelewu na dane:
+
+    Odbiorca: Indywidualna Praktyka Lekarska Kinga Bobińska
+    Numer konta: 70 1140 2004 0000 3502 5354 7449
+    Tytuł przelewu: Wizyta {appointment.id}
+
+    Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
+
+    Pozdrawiamy,
+    Gabinet
+    """
+
+        return self.send_raw(
+            to=appointment.patient_email,
+            subject=subject,
+            body=body
+        )
+

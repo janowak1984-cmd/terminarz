@@ -297,21 +297,19 @@
     <th>{{ sort_link("Data", "start") }}</th>
     <th>Godzina</th>
     <th>{{ sort_link("Nazwisko", "patient_last_name") }}</th>
+    <th>{{ sort_link("Imię", "patient_first_name") }}</th>
     <th>{{ sort_link("Status", "status") }}</th>
-    <th>Imię</th>
     <th class="text-center">
       {{ sort_link("Źródło", "created_by") }}
     </th>
     <th>{{ sort_link("Telefon", "patient_phone") }}</th>
-    <th>Email</th>
+    <th>{{ sort_link("Email", "patient_email") }}</th>
     <th>{{ sort_link("IP", "client_ip") }}</th>
+    <th class="text-center">💳</th>
     <th>{{ sort_link("Typ", "visit_type") }}</th>
     <th></th>
   </tr>
 </thead>
-
-
-
 
  <tbody>
 {% for a in appointments %}
@@ -320,6 +318,7 @@
   <td>{{ a.start.strftime('%H:%M') }} – {{ a.end.strftime('%H:%M') }}</td>
 
   <td>{{ a.patient_last_name }}</td>
+  <td>{{ a.patient_first_name }}</td>
 
   <!-- STATUS -->
   <td>
@@ -337,8 +336,6 @@
       </span>
     {% endif %}
   </td>
-
-  <td>{{ a.patient_first_name }}</td>
 
   <!-- ŹRÓDŁO -->
   <td class="text-center">
@@ -362,36 +359,107 @@
     {% endif %}
   </td>
 
+  <td class="text-center">
+  {% set provider = a.payment_provider %}
+
+  {% if not provider %}
+      <span title="Płatność w gabinecie">💵</span>
+
+  {% elif provider == "manual_transfer" %}
+      <span title="Przelew tradycyjny">🏦</span>
+
+  {% elif provider in ["p24", "przelewy24"] %}
+      <span title="Przelewy24">🟣</span>
+
+  {% else %}
+      —
+  {% endif %}
+</td>
+
+
   <td>{{ a.visit_type }}</td>
 
   <!-- AKCJE -->
   <td>
-    {% if a.status == "scheduled" %}
+{% if a.status == "scheduled" %}
+
+  <!-- 🔍 SZCZEGÓŁY -->
+  <a href="{{ url_for('doctor.appointment_details', appointment_id=a.id) }}"
+     target="_blank"
+     class="btn btn-sm btn-primary">
+     🔍
+  </a>
+
+  {# ============================= #}
+  {# ✔ ZREALIZUJ #}
+  {# ============================= #}
+
+  {% set provider = a.payment_provider %}
+  {% set payment_status = a.payment_status %}
+
+  {# 🟢 BRAK PŁATNOŚCI ONLINE #}
+  {% if not provider %}
       <form method="post"
             action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
             style="display:inline">
         {% for k, v in request.args.items() %}
           <input type="hidden" name="{{ k }}" value="{{ v }}">
         {% endfor %}
-        <button class="btn btn-sm btn-success" title="Oznacz wizytę jako zrealizowaną">
+        <button class="btn btn-sm btn-success js-confirm-complete"
+                title="Oznacz wizytę jako zrealizowaną">
           ✔
         </button>
       </form>
+  {% endif %}
 
+  {# 🟢 ONLINE + OPŁACONA #}
+  {% if provider and payment_status == "paid" %}
       <form method="post"
-            action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
-            style="display:inline; margin-left:4px;">
+            action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+            style="display:inline">
         {% for k, v in request.args.items() %}
           <input type="hidden" name="{{ k }}" value="{{ v }}">
         {% endfor %}
-        <button class="btn btn-sm btn-danger" title="Anuluj wizytę">
-          ✖
+        <button class="btn btn-sm btn-success js-confirm-complete"
+                title="Oznacz wizytę jako zrealizowaną">
+          ✔
         </button>
       </form>
-    {% else %}
-      —
-    {% endif %}
-  </td>
+  {% endif %}
+
+  {# 🟠 ONLINE + NIEOPŁACONA #}
+  {% if provider and payment_status == "pending" %}
+      <form method="post"
+            action="{{ url_for('doctor.mark_paid', appointment_id=a.id) }}"
+            style="display:inline">
+        {% for k, v in request.args.items() %}
+          <input type="hidden" name="{{ k }}" value="{{ v }}">
+        {% endfor %}
+        <button class="btn btn-sm btn-warning js-confirm-paid"
+                title="Oznacz jako opłaconą">
+          💰
+        </button>
+      </form>
+  {% endif %}
+
+  {# ✖ ANULUJ #}
+  <form method="post"
+        action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
+        style="display:inline; margin-left:4px;">
+    {% for k, v in request.args.items() %}
+      <input type="hidden" name="{{ k }}" value="{{ v }}">
+    {% endfor %}
+    <button class="btn btn-sm btn-danger js-confirm-cancel"
+            title="Anuluj wizytę">
+      ✖
+    </button>
+  </form>
+
+{% else %}
+  —
+{% endif %}
+</td>
+
 </tr>
 {% else %}
   <tr>
@@ -484,6 +552,41 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+
+  // ✔ ZREALIZOWANA
+  document.querySelectorAll(".js-confirm-complete")
+    .forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        if (!confirm("Oznaczyć wizytę jako zrealizowaną?")) {
+          e.preventDefault();
+        }
+      });
+    });
+
+  // ✖ ANULOWANA
+  document.querySelectorAll(".js-confirm-cancel")
+    .forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        if (!confirm("Na pewno anulować wizytę?")) {
+          e.preventDefault();
+        }
+      });
+    });
+
+});
+
+// 💰 OZNACZ JAKO OPŁACONA
+document.querySelectorAll(".js-confirm-paid")
+  .forEach(btn => {
+    btn.addEventListener("click", function (e) {
+      if (!confirm("Oznaczyć wizytę jako opłaconą?")) {
+        e.preventDefault();
+      }
+    });
+  });
+
 </script>
 
 {% endblock %}

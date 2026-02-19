@@ -80,6 +80,10 @@ class Appointment(db.Model):
 
     cancel_token = db.Column(db.String(64), unique=True, index=True)
     cancelled_at = db.Column(db.DateTime)
+    cancelled_by = db.Column(
+    db.Enum("patient", "doctor", name="appointment_cancelled_by"),
+        nullable=True
+    )
 
     # ===== GOOGLE CALENDAR SYNC =====
     google_event_id = db.Column(db.String(255), nullable=True)
@@ -338,6 +342,7 @@ class Payment(db.Model):
             "paid",
             "failed",
             "cancelled",
+            "refunded",
             name="payment_status"
         ),
         nullable=False,

@@ -1,0 +1,163 @@
+{% extends "doctor/layout.html" %}
+{% block content %}
+
+<h2>💳 Oczekujące płatności</h2>
+<h5>Wizyty są zarezerwowane, ale nadal czekamy na płatność</h5>
+
+<!-- ===================== -->
+<!-- 🔵 PRZELEWY TRADYCYJNE -->
+<!-- ===================== -->
+<h3 class="mt-4">🏦 Przelewy tradycyjne (mBank)</h3>
+
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>Data wizyty</th>
+      <th>Pacjent</th>
+      <th>Telefon</th>
+      <th>Kwota</th>
+      <th>Status</th>
+      <th>Dni od rezerwacji</th>
+      <th>Akcje</th>
+    </tr>
+  </thead>
+  <tbody>
+
+  {% set total_traditional = 0 %}
+
+  {% for row in traditional %}
+    {% set total_traditional = total_traditional + row.payment.amount %}
+    <tr>
+      <td>{{ row.appointment.start.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ row.appointment.patient_first_name }} {{ row.appointment.patient_last_name }}</td>
+      <td>{{ row.appointment.patient_phone }}</td>
+      <td>{{ (row.payment.amount / 100)|round(2) }} PLN</td>
+
+      <td>
+        <span class="badge bg-warning text-dark">
+          {{ row.payment.status }}
+        </span>
+      </td>
+
+      <td>
+        {% if row.days_since > 3 %}
+          <span class="text-danger fw-bold">{{ row.days_since }} dni</span>
+        {% else %}
+          {{ row.days_since }} dni
+        {% endif %}
+      </td>
+
+      <td>
+
+        <!-- 🔍 Szczegóły -->
+        <a href="{{ url_for('doctor.appointment_details', appointment_id=row.appointment.id) }}"
+           target="_blank"
+           class="btn btn-sm btn-info">
+           🔍
+        </a>
+
+        <!-- 💰 Oznacz jako opłaconą -->
+        <form method="post"
+      action="{{ url_for('doctor.mark_paid', appointment_id=row.appointment.id) }}"
+      style="display:inline">
+  <button class="btn btn-sm btn-warning js-confirm-paid"
+          title="Oznacz jako opłaconą">
+    💰
+  </button>
+</form>
+
+
+      </td>
+    </tr>
+
+  {% else %}
+    <tr>
+      <td colspan="7" class="text-center text-muted">
+        Brak zaległych przelewów tradycyjnych
+      </td>
+    </tr>
+  {% endfor %}
+
+  </tbody>
+</table>
+
+{% if total_traditional > 0 %}
+<p class="fw-bold text-danger">
+  Łączna zaległa kwota: {{ (total_traditional / 100)|round(2) }} PLN
+</p>
+{% endif %}
+
+
+
+
+<!-- ===================== -->
+<!-- 🟣 PRZELEWY24 -->
+<!-- ===================== -->
+<h3 class="mt-5">🟣 Przelewy24</h3>
+
+<table class="table table-striped table-hover">
+  <thead>
+    <tr>
+      <th>Data wizyty</th>
+      <th>Pacjent</th>
+      <th>Telefon</th>
+      <th>Kwota</th>
+      <th>Status</th>
+      <th>Dni od rezerwacji</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+
+  {% set total_p24 = 0 %}
+
+  {% for row in p24 %}
+    {% set total_p24 = total_p24 + row.payment.amount %}
+    <tr>
+      <td>{{ row.appointment.start.strftime('%Y-%m-%d %H:%M') }}</td>
+      <td>{{ row.appointment.patient_first_name }} {{ row.appointment.patient_last_name }}</td>
+      <td>{{ row.appointment.patient_phone }}</td>
+      <td>{{ (row.payment.amount / 100)|round(2) }} PLN</td>
+      <td><span class="badge bg-warning text-dark">{{ row.payment.status }}</span></td>
+      <td>
+        {% if row.days_since > 1 %}
+          <span class="text-danger fw-bold">{{ row.days_since }} dni</span>
+        {% else %}
+          {{ row.days_since }} dni
+        {% endif %}
+      </td>
+      <td>
+        <a href="{{ url_for('doctor.appointment_details', appointment_id=row.appointment.id) }}"
+           target="_blank"
+           class="btn btn-sm btn-info">🔍</a>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="text-center text-muted">Brak zaległych płatności P24</td></tr>
+  {% endfor %}
+
+  </tbody>
+</table>
+
+{% if total_p24 > 0 %}
+<p class="fw-bold text-danger">
+  Łączna zaległa kwota: {{ (total_p24 / 100)|round(2) }} PLN
+</p>
+{% endif %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+  document.querySelectorAll(".js-confirm-paid")
+    .forEach(btn => {
+      btn.addEventListener("click", function (e) {
+        if (!confirm("Oznaczyć wizytę jako opłaconą?")) {
+          e.preventDefault();
+        }
+      });
+    });
+
+});
+</script>
+
+{% endblock %}
+

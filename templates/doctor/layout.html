@@ -105,6 +105,16 @@
        Typy wizyt
     </a>
 
+    <a href="{{ url_for('doctor.pending_payments') }}"
+      class="{% if active_page == 'pending_payments' %}active{% endif %}">
+      💳 Oczekujące płatności
+    </a>
+
+    <a href="{{ url_for('doctor.refunds') }}"
+      class="{% if active_page == 'refunds' %}active{% endif %}">
+      💸 Zwroty
+    </a>
+
     <a href="{{ url_for('doctor.vacations_view') }}"
        class="{% if active_page == 'vacations' %}active{% endif %}">
        Urlopy
