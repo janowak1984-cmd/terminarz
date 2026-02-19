@@ -464,9 +464,12 @@ def reserve():
 
         amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
 
+        import uuid
+
         payment = Payment(
             appointment_id=appointment.id,
             provider="manual_transfer",
+            provider_session_id=uuid.uuid4().hex,  # 👈 DODAJ TO
             status="pending",
             amount=amount_int,
             currency="PLN"
