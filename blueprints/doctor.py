@@ -2303,19 +2303,21 @@ def email_list():
 
     # ───────── FILTRY ─────────
 
-    email = request.args.get("email")
+    email = request.args.get("email", "").strip()
     if email:
-        query = query.filter(EmailMessage.email.ilike(f"%{email}%"))
+        query = query.filter(
+            EmailMessage.email.ilike(f"%{email}%")
+        )
 
-    email_type = request.args.get("type")
+    email_type = request.args.get("type", "").strip()
     if email_type:
         query = query.filter(EmailMessage.type == email_type)
 
-    status = request.args.get("status")
+    status = request.args.get("status", "").strip()
     if status:
         query = query.filter(EmailMessage.status == status)
 
-    appointment_id = request.args.get("appointment_id")
+    appointment_id = request.args.get("appointment_id", "").strip()
     if appointment_id:
         query = query.filter(
             EmailMessage.appointment_id == appointment_id
@@ -2323,29 +2325,26 @@ def email_list():
 
     date_from = request.args.get("date_from")
     if date_from:
-        query = query.filter(
-            EmailMessage.created_at >= date_from
-        )
+        try:
+            df = datetime.strptime(date_from, "%Y-%m-%d")
+            query = query.filter(EmailMessage.created_at >= df)
+        except ValueError:
+            pass
 
     date_to = request.args.get("date_to")
     if date_to:
-        query = query.filter(
-            EmailMessage.created_at <= date_to
-        )
-
-    # ───────── PAGINACJA ─────────
+        try:
+            dt = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
+            query = query.filter(EmailMessage.created_at < dt)
+        except ValueError:
+            pass
 
     page = request.args.get("page", 1, type=int)
-    per_page = 20
 
     pagination = (
         query
         .order_by(EmailMessage.created_at.desc())
-        .paginate(
-            page=page,
-            per_page=per_page,
-            error_out=False
-        )
+        .paginate(page=page, per_page=20, error_out=False)
     )
 
     args = request.args.to_dict(flat=True)
@@ -2358,7 +2357,6 @@ def email_list():
         pagination_args=args,
         active_page="email"
     )
-
 # ───────────────────────────────────────
 # EMAIL – RETRY FAILED
 # ───────────────────────────────────────
