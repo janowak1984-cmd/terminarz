@@ -168,18 +168,18 @@ body {
 
   <p>
     <strong>Kwota:</strong>
-    {{ (latest_payment.amount / 100) | round(2) }} {{ latest_payment.currency }}
+    {{ "%.2f"|format(latest_payment.amount / 100) }} {{ latest_payment.currency }}
   </p>
 
   <p>
     <strong>Data utworzenia:</strong>
-    {{ latest_payment.created_at }}
+    {{ latest_payment.created_at.strftime("%d.%m.%Y %H:%M") }}
   </p>
 
   {% if latest_payment.paid_at %}
     <p>
       <strong>Data opłacenia:</strong>
-      {{ latest_payment.paid_at }}
+       {{ latest_payment.paid_at.strftime("%d.%m.%Y %H:%M") }}
     </p>
   {% endif %}
 
@@ -227,14 +227,24 @@ body {
             <tr>
                 <td>{{ sms.id }}</td>
                 <td>{{ sms.type }}</td>
-                <td>{{ sms.status }}</td>
+                <td>
+                    {% if sms.status == "sent" %}
+                        <span class="label label-success">Wysłany</span>
+                    {% elif sms.status == "failed" %}
+                        <span class="label label-danger">Błąd</span>
+                    {% elif sms.status == "pending" %}
+                        <span class="label label-warning">Oczekuje</span>
+                    {% else %}
+                        {{ sms.status }}
+                    {% endif %}
+                </td>
                 <td>{{ sms.phone }}</td>
                 <td style="max-width:300px; white-space: pre-wrap;">
                     {{ sms.content }}
                 </td>
                 <td>{{ sms.error_message or '-' }}</td>
-                <td>{{ sms.created_at }}</td>
-                <td>{{ sms.sent_at or '-' }}</td>
+                <td>{{ sms.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td>{{ sms.sent_at.strftime("%d.%m.%Y %H:%M") if sms.sent_at else "-" }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -284,7 +294,7 @@ body {
                     {% endif %}
                 </td>
 
-                <td>{{ mail.recipient }}</td>
+                <td>{{ mail.email }}</td>
 
                 <td style="max-width:250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {{ mail.subject }}
@@ -292,9 +302,8 @@ body {
 
                 <td>{{ mail.error_message or '-' }}</td>
 
-                <td>{{ mail.created_at }}</td>
-
-                <td>{{ mail.sent_at or '-' }}</td>
+               <td>{{ mail.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td>{{ mail.sent_at.strftime("%d.%m.%Y %H:%M") if mail.sent_at else "-" }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -332,13 +341,27 @@ body {
             <tr>
                 <td>{{ p.id }}</td>
                 <td>{{ p.provider }}</td>
-                <td>{{ p.status }}</td>
+                <td>
+                    {% if p.status == "paid" %}
+                        <span class="label label-success">Opłacona</span>
+                    {% elif p.status == "pending" %}
+                        <span class="label label-warning">Oczekuje</span>
+                    {% elif p.status == "failed" %}
+                        <span class="label label-danger">Nieudana</span>
+                    {% elif p.status == "cancelled" %}
+                        <span class="label label-default">Anulowana</span>
+                    {% elif p.status == "refunded" %}
+                        <span class="label label-info">Zwrot</span>
+                    {% else %}
+                        {{ p.status }}
+                    {% endif %}
+                </td>
                 <td>{{ "%.2f"|format(p.amount / 100) }}</td>
                 <td>{{ p.currency }}</td>
                 <td>{{ p.provider_session_id }}</td>
                 <td>{{ p.provider_order_id or '-' }}</td>
-                <td>{{ p.created_at }}</td>
-                <td>{{ p.paid_at or '-' }}</td>
+                <td>{{ p.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
+                <td>{{ p.paid_at.strftime("%d.%m.%Y %H:%M") if p.paid_at else "-" }}</td>
             </tr>
             {% endfor %}
         </tbody>

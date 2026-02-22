@@ -113,6 +113,13 @@ class Appointment(db.Model):
         cascade="all, delete-orphan"
     )
 
+    email_messages = db.relationship(
+        "EmailMessage",
+        backref="appointment",
+        lazy="dynamic",
+        cascade="all, delete-orphan"
+    )
+
     payments = db.relationship(
         "Payment",
         backref="appointment",
@@ -160,7 +167,46 @@ class SMSMessage(db.Model):
     sent_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=db.func.now())
 
+class EmailMessage(db.Model):
+    __tablename__ = "email_messages"
 
+    id = db.Column(db.Integer, primary_key=True)
+
+    appointment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("appointments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    email = db.Column(db.String(120), nullable=False)
+
+    type = db.Column(
+        db.Enum("confirmation", "reminder", "payment_retry", "custom",
+                name="email_type"),
+        nullable=False
+    )
+
+    status = db.Column(
+        db.Enum("pending", "sent", "failed",
+                name="email_status"),
+        default="pending",
+        nullable=False
+    )
+
+    provider = db.Column(db.String(50), default="sendgrid")
+
+    provider_message_id = db.Column(db.String(100))
+
+    subject = db.Column(db.String(255), nullable=False)
+
+    content = db.Column(db.Text, nullable=False)
+
+    error_message = db.Column(db.Text)
+
+    sent_at = db.Column(db.DateTime)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ==================================================
 # SZABLONY GENEROWANIA GRAFIKU
