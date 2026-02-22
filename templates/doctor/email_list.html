@@ -19,18 +19,10 @@
     <div class="col-md-2">
       <select name="type" class="form-control">
         <option value="">Typ</option>
-        <option value="confirmation" {% if request.args.type == "confirmation" %}selected{% endif %}>
-          Confirmation
-        </option>
-        <option value="reminder" {% if request.args.type == "reminder" %}selected{% endif %}>
-          Reminder
-        </option>
-        <option value="payment_retry" {% if request.args.type == "payment_retry" %}selected{% endif %}>
-          Payment Retry
-        </option>
-        <option value="custom" {% if request.args.type == "custom" %}selected{% endif %}>
-          Custom
-        </option>
+        <option value="confirmation" {% if request.args.type == "confirmation" %}selected{% endif %}>Confirmation</option>
+        <option value="reminder" {% if request.args.type == "reminder" %}selected{% endif %}>Reminder</option>
+        <option value="payment_retry" {% if request.args.type == "payment_retry" %}selected{% endif %}>Payment Retry</option>
+        <option value="custom" {% if request.args.type == "custom" %}selected{% endif %}>Custom</option>
       </select>
     </div>
 
@@ -61,9 +53,7 @@
 
     <div class="col-md-12 text-end">
       <button class="btn btn-primary">Szukaj</button>
-      <a href="{{ url_for('doctor.email_list') }}" class="btn btn-secondary">
-        Reset
-      </a>
+      <a href="{{ url_for('doctor.email_list') }}" class="btn btn-secondary">Reset</a>
     </div>
 
   </form>
@@ -102,7 +92,6 @@
         </td>
 
         <td>{{ email.email }}</td>
-
         <td>{{ email.type }}</td>
 
         <td>
@@ -115,12 +104,25 @@
           {% endif %}
         </td>
 
-        <td style="max-width: 200px;">
+        <td style="max-width:200px;">
           <strong>{{ email.subject }}</strong>
         </td>
 
-        <td style="max-width: 320px;">
-          <pre class="small mb-0 text-wrap">{{ email.content }}</pre>
+        <td style="max-width:260px; white-space:normal;">
+          {% set preview = email.content
+              |striptags
+              |replace('\n',' ')
+              |truncate(120, True, '...') %}
+
+          <div class="small text-muted">
+            {{ preview }}
+          </div>
+
+          <button class="btn btn-sm btn-outline-secondary mt-1"
+                  data-bs-toggle="modal"
+                  data-bs-target="#emailModal{{ email.id }}">
+            Podgląd
+          </button>
         </td>
 
         <td>{{ email.provider_message_id or "—" }}</td>
@@ -130,7 +132,6 @@
         </td>
 
         <td>{{ email.created_at }}</td>
-
         <td>{{ email.sent_at or "—" }}</td>
 
         <td>
@@ -150,7 +151,6 @@
         </td>
 
       </tr>
-
       {% else %}
       <tr>
         <td colspan="12" class="text-center text-muted">
@@ -160,6 +160,48 @@
       {% endfor %}
     </tbody>
   </table>
+
+  <!-- MODALE (poza tabelą – poprawny HTML) -->
+  {% for email in email_messages %}
+  <div class="modal fade"
+       id="emailModal{{ email.id }}"
+       tabindex="-1">
+
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h5 class="modal-title">
+            📧 {{ email.subject }}
+          </h5>
+          <button type="button"
+                  class="btn-close"
+                  data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <div style="background:#f8f9fa; padding:15px; border-radius:6px;">
+            {{ email.content|safe }}
+          </div>
+
+          <hr>
+
+          <details>
+            <summary class="small text-muted">
+              Pokaż kod HTML
+            </summary>
+            <pre class="small text-wrap mt-2">
+{{ email.content }}
+            </pre>
+          </details>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+  {% endfor %}
 
   <!-- PAGINACJA -->
   {% if pagination.pages > 1 %}
