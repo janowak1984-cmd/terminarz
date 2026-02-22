@@ -44,6 +44,7 @@ from models import (
 from utils.settings import get_setting
 from utils.google_calendar import GoogleCalendarService
 from utils.sms_service import SMSService
+from models import EmailMessage
 
 
 GOOGLE_SCOPES = [
@@ -2125,6 +2126,14 @@ def appointment_details(appointment_id):
         .all()
     )
 
+    # 🔥 DODAJ TO
+    emails = (
+        EmailMessage.query
+        .filter_by(appointment_id=appt.id)
+        .order_by(EmailMessage.created_at.desc())
+        .all()
+    )
+
     payments = (
         Payment.query
         .filter_by(appointment_id=appt.id)
@@ -2139,6 +2148,7 @@ def appointment_details(appointment_id):
         appointment=appt,
         visit_type=visit_type,
         sms_messages=sms_messages,
+        emails=emails,                 # 🔥 TO BYŁO BRAKUJĄCE
         payments=payments,
         latest_payment=latest_payment
     )

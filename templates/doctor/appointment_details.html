@@ -20,6 +20,39 @@ body {
 .header-actions {
     margin-bottom: 20px;
 }
+.message-box {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 10px;
+    border-radius: 6px;
+    max-height: 200px;
+    overflow: auto;
+    font-size: 13px;
+}
+
+.message-box pre {
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.message-box h1,
+.message-box h2,
+.message-box h3 {
+    margin-top: 0;
+    font-size: 16px;
+}
+
+.message-box a {
+    color: #d73930;
+    text-decoration: none;
+}
+
+.message-box a:hover {
+    text-decoration: underline;
+}
+.message-box {
+    max-height: 180px;
+}
 </style>
 </head>
 <body>
@@ -239,8 +272,10 @@ body {
                     {% endif %}
                 </td>
                 <td>{{ sms.phone }}</td>
-                <td style="max-width:300px; white-space: pre-wrap;">
-                    {{ sms.content }}
+                <td style="max-width:320px;">
+                    <div class="message-box">
+                        <pre>{{ sms.content }}</pre>
+                    </div>
                 </td>
                 <td>{{ sms.error_message or '-' }}</td>
                 <td>{{ sms.created_at.strftime("%d.%m.%Y %H:%M") }}</td>
@@ -270,6 +305,7 @@ body {
                 <th>Status</th>
                 <th>Do</th>
                 <th>Temat</th>
+                <th>Treść</th>
                 <th>Błąd</th>
                 <th>Utworzono</th>
                 <th>Wysłano</th>
@@ -298,6 +334,13 @@ body {
 
                 <td style="max-width:250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                     {{ mail.subject }}
+                </td>
+                <td style="max-width:350px;">
+                   <div class="message-box">
+                    <div style="white-space: normal;">
+                        {{ mail.content | safe }}
+                    </div>
+                </div>
                 </td>
 
                 <td>{{ mail.error_message or '-' }}</td>
