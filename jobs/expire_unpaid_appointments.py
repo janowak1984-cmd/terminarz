@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 from models import Appointment, Payment
 from extensions import db
+from utils.google_calendar import GoogleCalendarService
 
 
 # ───────────────────────────────────────
@@ -48,7 +49,6 @@ def _run():
         .all()
     )
 
-
     logger.info(f"Payments to check: {len(payments)}")
 
     expired_count = 0
@@ -69,10 +69,22 @@ def _run():
             f"(payment {payment.id})"
         )
 
+        # 🔴 Anulowanie wizyty
         appointment.status = "cancelled"
+        appointment.cancelled_by = "system"
+        appointment.cancelled_at = datetime.utcnow()
+
         payment.status = "failed"
 
         expired_count += 1
+
+        # 🗑 Usuń z Google Calendar
+        try:
+            GoogleCalendarService.delete_appointment(appointment)
+        except Exception as e:
+            logger.error(
+                f"Google delete failed for appt {appointment.id}: {e}"
+            )
 
     db.session.commit()
 
