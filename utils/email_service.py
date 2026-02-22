@@ -262,8 +262,12 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
 
         <hr style="border:none; border-top:1px solid #eee; margin:25px 0;">
 
-        <p style="font-size:12px; color:#999; text-align:center;">
-        Gabinet Podologiczny<br>
+        <p style="font-size:12px; color:#999; text-align:center; line-height:1.6;">
+        Rejestracja wizyt<br>
+        W razie potrzeby prosimy o kontakt.<br>
+        <a href="tel:+48698554077" style="color:#d73930; text-decoration:none;">
+            +48 698 554 077
+        </a><br><br>
         Ta wiadomość została wygenerowana automatycznie.
         </p>
 
@@ -312,8 +316,12 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
 
         <hr style="border:none; border-top:1px solid #eee; margin:25px 0;">
 
-        <p style="font-size:12px; color:#999; text-align:center;">
-        Gabinet Podologiczny<br>
+        <p style="font-size:12px; color:#999; text-align:center; line-height:1.6;">
+        Rejestracja wizyt<br>
+        W razie potrzeby prosimy o kontakt.<br>
+        <a href="tel:+48698554077" style="color:#d73930; text-decoration:none;">
+            +48 698 554 077
+        </a><br><br>
         Ta wiadomość została wygenerowana automatycznie.
         </p>
 
