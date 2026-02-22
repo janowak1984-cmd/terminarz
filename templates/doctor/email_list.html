@@ -119,8 +119,8 @@
           </div>
 
           <button class="btn btn-sm btn-outline-secondary mt-1"
-                  data-bs-toggle="modal"
-                  data-bs-target="#emailModal{{ email.id }}">
+                  data-toggle="modal"
+                  data-target="#emailModal{{ email.id }}">
             Podgląd
           </button>
         </td>
@@ -164,19 +164,22 @@
   <!-- MODALE (poza tabelą – poprawny HTML) -->
   {% for email in email_messages %}
   <div class="modal fade"
-       id="emailModal{{ email.id }}"
-       tabindex="-1">
+     id="emailModal{{ email.id }}"
+     tabindex="-1"
+     role="dialog">
 
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-lg" role="document">
       <div class="modal-content">
 
         <div class="modal-header">
-          <h5 class="modal-title">
+          <h4 class="modal-title">
             📧 {{ email.subject }}
-          </h5>
+          </h4>
           <button type="button"
-                  class="btn-close"
-                  data-bs-dismiss="modal"></button>
+                class="close"
+                data-dismiss="modal">
+        &times;
+        </button>
         </div>
 
         <div class="modal-body">
