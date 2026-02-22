@@ -380,90 +380,82 @@
   <td>{{ a.visit_type }}</td>
 
   <!-- AKCJE -->
-  <td>
-{% if a.status == "scheduled" %}
+<td>
 
-  <!-- 🔍 SZCZEGÓŁY -->
+  <!-- 🔍 SZCZEGÓŁY – ZAWSZE DOSTĘPNE -->
   <a href="{{ url_for('doctor.appointment_details', appointment_id=a.id) }}"
      target="_blank"
      class="btn btn-sm btn-primary">
      🔍
   </a>
 
-  {# ============================= #}
-  {# ✔ ZREALIZUJ #}
-  {# ============================= #}
+  {% if a.status == "scheduled" %}
 
-  {% set provider = a.payment_provider %}
-  {% set payment_status = a.payment_status %}
+      {# ============================= #}
+      {# ✔ ZREALIZUJ #}
+      {# ============================= #}
 
-  {# 🟢 BRAK PŁATNOŚCI ONLINE #}
-  {% if not provider %}
+      {% set provider = a.payment_provider %}
+      {% set payment_status = a.payment_status %}
+
+      {% if not provider %}
+          <form method="post"
+                action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+                style="display:inline">
+            {% for k, v in request.args.items() %}
+              <input type="hidden" name="{{ k }}" value="{{ v }}">
+            {% endfor %}
+            <button class="btn btn-sm btn-success js-confirm-complete">
+              ✔
+            </button>
+          </form>
+      {% endif %}
+
+      {% if provider and payment_status == "paid" %}
+          <form method="post"
+                action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
+                style="display:inline">
+            {% for k, v in request.args.items() %}
+              <input type="hidden" name="{{ k }}" value="{{ v }}">
+            {% endfor %}
+            <button class="btn btn-sm btn-success js-confirm-complete">
+              ✔
+            </button>
+          </form>
+      {% endif %}
+
+      {% if provider and payment_status == "pending" %}
+          <form method="post"
+                action="{{ url_for('doctor.mark_paid', appointment_id=a.id) }}"
+                style="display:inline">
+            {% for k, v in request.args.items() %}
+              <input type="hidden" name="{{ k }}" value="{{ v }}">
+            {% endfor %}
+            <button class="btn btn-sm btn-warning js-confirm-paid">
+              💰
+            </button>
+          </form>
+      {% endif %}
+
       <form method="post"
-            action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
-            style="display:inline">
+            action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
+            style="display:inline; margin-left:4px;">
         {% for k, v in request.args.items() %}
           <input type="hidden" name="{{ k }}" value="{{ v }}">
         {% endfor %}
-        <button class="btn btn-sm btn-success js-confirm-complete"
-                title="Oznacz wizytę jako zrealizowaną">
-          ✔
+        <button class="btn btn-sm btn-danger js-confirm-cancel">
+          ✖
         </button>
       </form>
+
   {% endif %}
 
-  {# 🟢 ONLINE + OPŁACONA #}
-  {% if provider and payment_status == "paid" %}
-      <form method="post"
-            action="{{ url_for('doctor.complete_appointment', appointment_id=a.id) }}"
-            style="display:inline">
-        {% for k, v in request.args.items() %}
-          <input type="hidden" name="{{ k }}" value="{{ v }}">
-        {% endfor %}
-        <button class="btn btn-sm btn-success js-confirm-complete"
-                title="Oznacz wizytę jako zrealizowaną">
-          ✔
-        </button>
-      </form>
-  {% endif %}
-
-  {# 🟠 ONLINE + NIEOPŁACONA #}
-  {% if provider and payment_status == "pending" %}
-      <form method="post"
-            action="{{ url_for('doctor.mark_paid', appointment_id=a.id) }}"
-            style="display:inline">
-        {% for k, v in request.args.items() %}
-          <input type="hidden" name="{{ k }}" value="{{ v }}">
-        {% endfor %}
-        <button class="btn btn-sm btn-warning js-confirm-paid"
-                title="Oznacz jako opłaconą">
-          💰
-        </button>
-      </form>
-  {% endif %}
-
-  {# ✖ ANULUJ #}
-  <form method="post"
-        action="{{ url_for('doctor.cancel_appointment', appointment_id=a.id) }}"
-        style="display:inline; margin-left:4px;">
-    {% for k, v in request.args.items() %}
-      <input type="hidden" name="{{ k }}" value="{{ v }}">
-    {% endfor %}
-    <button class="btn btn-sm btn-danger js-confirm-cancel"
-            title="Anuluj wizytę">
-      ✖
-    </button>
-  </form>
-
-{% else %}
-  —
-{% endif %}
 </td>
 
 </tr>
 {% else %}
   <tr>
-    <td colspan="10" class="text-center text-muted">
+    <td colspan="12" class="text-center text-muted">
       Brak wizyt
     </td>
   </tr>
