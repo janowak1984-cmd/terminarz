@@ -1,0 +1,209 @@
+{% extends "doctor/layout.html" %}
+
+{% block title %}Email{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <h2 class="mb-3">📧 Historia Email</h2>
+
+  <!-- FILTRY -->
+  <form method="get" class="row g-2 mb-4">
+
+    <div class="col-md-2">
+      <input type="text" name="email" class="form-control"
+             placeholder="Email"
+             value="{{ request.args.email }}">
+    </div>
+
+    <div class="col-md-2">
+      <select name="type" class="form-control">
+        <option value="">Typ</option>
+        <option value="confirmation" {% if request.args.type == "confirmation" %}selected{% endif %}>
+          Confirmation
+        </option>
+        <option value="reminder" {% if request.args.type == "reminder" %}selected{% endif %}>
+          Reminder
+        </option>
+        <option value="payment_retry" {% if request.args.type == "payment_retry" %}selected{% endif %}>
+          Payment Retry
+        </option>
+        <option value="custom" {% if request.args.type == "custom" %}selected{% endif %}>
+          Custom
+        </option>
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <select name="status" class="form-control">
+        <option value="">Status</option>
+        <option value="pending" {% if request.args.status == "pending" %}selected{% endif %}>Pending</option>
+        <option value="sent" {% if request.args.status == "sent" %}selected{% endif %}>Sent</option>
+        <option value="failed" {% if request.args.status == "failed" %}selected{% endif %}>Failed</option>
+      </select>
+    </div>
+
+    <div class="col-md-2">
+      <input type="number" name="appointment_id" class="form-control"
+             placeholder="Appointment ID"
+             value="{{ request.args.appointment_id }}">
+    </div>
+
+    <div class="col-md-2">
+      <input type="date" name="date_from" class="form-control"
+             value="{{ request.args.date_from }}">
+    </div>
+
+    <div class="col-md-2">
+      <input type="date" name="date_to" class="form-control"
+             value="{{ request.args.date_to }}">
+    </div>
+
+    <div class="col-md-12 text-end">
+      <button class="btn btn-primary">Szukaj</button>
+      <a href="{{ url_for('doctor.email_list') }}" class="btn btn-secondary">
+        Reset
+      </a>
+    </div>
+
+  </form>
+
+  <!-- TABELA -->
+  <table class="table table-sm table-striped table-hover align-middle w-100">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Appointment</th>
+        <th>Email</th>
+        <th>Typ</th>
+        <th>Status</th>
+        <th>Temat</th>
+        <th>Treść</th>
+        <th>Provider ID</th>
+        <th>Błąd</th>
+        <th>Utworzono</th>
+        <th>Wysłano</th>
+        <th>Akcje</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for email in email_messages %}
+      <tr>
+
+        <td>{{ email.id }}</td>
+
+        <td>
+          <a href="{{ url_for('doctor.appointment_details',
+                               appointment_id=email.appointment_id) }}"
+             target="_blank">
+            {{ email.appointment_id }}
+          </a>
+        </td>
+
+        <td>{{ email.email }}</td>
+
+        <td>{{ email.type }}</td>
+
+        <td>
+          {% if email.status == "sent" %}
+            <span class="badge bg-success">sent</span>
+          {% elif email.status == "failed" %}
+            <span class="badge bg-danger">failed</span>
+          {% else %}
+            <span class="badge bg-secondary">pending</span>
+          {% endif %}
+        </td>
+
+        <td style="max-width: 200px;">
+          <strong>{{ email.subject }}</strong>
+        </td>
+
+        <td style="max-width: 320px;">
+          <pre class="small mb-0 text-wrap">{{ email.content }}</pre>
+        </td>
+
+        <td>{{ email.provider_message_id or "—" }}</td>
+
+        <td class="text-danger small">
+          {{ email.error_message or "—" }}
+        </td>
+
+        <td>{{ email.created_at }}</td>
+
+        <td>{{ email.sent_at or "—" }}</td>
+
+        <td>
+          {% if email.status == "failed" %}
+            <form method="post"
+                  action="{{ url_for('doctor.email_retry',
+                                     email_id=email.id) }}"
+                  style="display:inline">
+              <button class="btn btn-sm btn-outline-warning"
+                      onclick="return confirm('Wysłać email ponownie?')">
+                Retry
+              </button>
+            </form>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+
+      </tr>
+
+      {% else %}
+      <tr>
+        <td colspan="12" class="text-center text-muted">
+          Brak wiadomości
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <!-- PAGINACJA -->
+  {% if pagination.pages > 1 %}
+  <nav aria-label="Paginacja Email">
+    <ul class="pagination justify-content-center mt-3">
+
+      <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
+        <a class="page-link"
+           href="{{ url_for('doctor.email_list',
+                            page=pagination.prev_num,
+                            **pagination_args) }}">
+          ‹
+        </a>
+      </li>
+
+      {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+        {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link"
+               href="{{ url_for('doctor.email_list',
+                                page=p,
+                                **pagination_args) }}">
+              {{ p }}
+            </a>
+          </li>
+        {% else %}
+          <li class="page-item disabled">
+            <span class="page-link">…</span>
+          </li>
+        {% endif %}
+      {% endfor %}
+
+      <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
+        <a class="page-link"
+           href="{{ url_for('doctor.email_list',
+                            page=pagination.next_num,
+                            **pagination_args) }}">
+          ›
+        </a>
+      </li>
+
+    </ul>
+  </nav>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -2287,5 +2287,113 @@ def pending_payments():
         active_page="pending_payments"
     )
 
+# ───────────────────────────────────────
+# EMAIL – HISTORIA
+# ───────────────────────────────────────
 
+@doctor_bp.route("/email")
+@login_required
+def email_list():
+
+    query = (
+        EmailMessage.query
+        .join(Appointment)
+        .filter(Appointment.doctor_id == current_user.id)
+    )
+
+    # ───────── FILTRY ─────────
+
+    email = request.args.get("email")
+    if email:
+        query = query.filter(EmailMessage.email.ilike(f"%{email}%"))
+
+    email_type = request.args.get("type")
+    if email_type:
+        query = query.filter(EmailMessage.type == email_type)
+
+    status = request.args.get("status")
+    if status:
+        query = query.filter(EmailMessage.status == status)
+
+    appointment_id = request.args.get("appointment_id")
+    if appointment_id:
+        query = query.filter(
+            EmailMessage.appointment_id == appointment_id
+        )
+
+    date_from = request.args.get("date_from")
+    if date_from:
+        query = query.filter(
+            EmailMessage.created_at >= date_from
+        )
+
+    date_to = request.args.get("date_to")
+    if date_to:
+        query = query.filter(
+            EmailMessage.created_at <= date_to
+        )
+
+    # ───────── PAGINACJA ─────────
+
+    page = request.args.get("page", 1, type=int)
+    per_page = 20
+
+    pagination = (
+        query
+        .order_by(EmailMessage.created_at.desc())
+        .paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+    )
+
+    args = request.args.to_dict(flat=True)
+    args.pop("page", None)
+
+    return render_template(
+        "doctor/email_list.html",
+        email_messages=pagination.items,
+        pagination=pagination,
+        pagination_args=args,
+        active_page="email"
+    )
+
+# ───────────────────────────────────────
+# EMAIL – RETRY FAILED
+# ───────────────────────────────────────
+
+@doctor_bp.route("/email/<int:email_id>/retry", methods=["POST"])
+@login_required
+def email_retry(email_id):
+
+    email = (
+        EmailMessage.query
+        .join(Appointment)
+        .filter(
+            EmailMessage.id == email_id,
+            Appointment.doctor_id == current_user.id
+        )
+        .first_or_404()
+    )
+
+    appointment = Appointment.query.get_or_404(
+        email.appointment_id
+    )
+
+    from utils.email_service import EmailService
+    service = EmailService()
+
+    if email.type == "confirmation":
+        service.send_confirmation(appointment)
+
+    elif email.type == "reminder":
+        service.send_reminder(appointment)
+
+    elif email.type == "payment_retry":
+        service.send_payment_retry(appointment)
+
+    flash("Ponowiono wysyłkę email", "doctor-success")
+
+    return redirect(url_for("doctor.email_list"))
 

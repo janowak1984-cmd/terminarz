@@ -129,6 +129,11 @@
        class="{% if active_page == 'sms' %}active{% endif %}">
        SMS
     </a>
+    
+    <a href="{{ url_for('doctor.email_list') }}"
+      class="nav-link {% if active_page == 'email' %}active{% endif %}">
+      Email
+    </a>
 
     <a href="{{ url_for('doctor.settings_view') }}"
        class="{% if active_page == 'settings' %}active{% endif %}">
