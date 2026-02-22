@@ -350,9 +350,9 @@ def reserve():
         active=True
     ).first()
 
-    # ───────────────────────────────────
+    # ─────────────────────────
     # WALIDACJE
-    # ───────────────────────────────────
+    # ─────────────────────────
 
     if not visit_type:
         if is_ajax:
@@ -390,110 +390,106 @@ def reserve():
         flash("Termin niedostępny", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
-    # ======================================================
-    # 🔒 TRANSAKCJA – BLOKADA SLOTÓW
-    # ======================================================
+    # ─────────────────────────
+    # SPRAWDZENIE SLOTÓW (bez locka)
+    # ─────────────────────────
 
-    try:
-        with db.session.begin():
+    slots = (
+        Availability.query
+        .filter(
+            Availability.start >= start,
+            Availability.start < start + timedelta(minutes=visit_minutes),
+            Availability.active.is_(True)
+        )
+        .order_by(Availability.start)
+        .all()
+    )
 
-            slots = (
-                Availability.query
-                .with_for_update()
-                .filter(
-                    Availability.start >= start,
-                    Availability.start < start + timedelta(minutes=visit_minutes),
-                    Availability.active.is_(True)
-                )
-                .order_by(Availability.start)
-                .all()
-            )
-
-            if len(slots) != required_slots:
-                raise ValueError("Termin niedostępny")
-
-            if not _window_is_free_and_continuous(slots):
-                raise ValueError("Termin zajęty")
-
-            doctor_id = slots[0].doctor_id
-
-            if is_phone_blacklisted(doctor_id, phone):
-                raise PermissionError(
-                    "Rezerwacja wizyty przez stronę jest niedostępna. "
-                    "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
-                )
-
-            # ───────────────────────────────────
-            # TWORZENIE WIZYTY
-            # ───────────────────────────────────
-
-            appointment = Appointment(
-                doctor_id=doctor_id,
-                start=start,
-                end=start + timedelta(minutes=visit_minutes),
-                duration=visit_minutes,
-                visit_type=visit_code,
-                patient_first_name=request.form.get("first_name"),
-                patient_last_name=request.form.get("last_name"),
-                patient_phone=phone,
-                patient_email=email if email else None,
-                cancel_token=uuid.uuid4().hex,
-                created_by="patient",
-                client_ip=get_client_ip(),
-                status="scheduled"
-            )
-
-            db.session.add(appointment)
-            db.session.flush()
-
-            # ───────────────────────────────────
-            # ONLINE – TRADITIONAL
-            # ───────────────────────────────────
-
-            if payment_flow == "online" and payment_method == "traditional":
-                from decimal import Decimal
-
-                amount_int = int(
-                    (visit_type.price * Decimal("100")).quantize(Decimal("1"))
-                )
-
-                payment = Payment(
-                    appointment_id=appointment.id,
-                    provider="manual_transfer",
-                    provider_session_id=uuid.uuid4().hex,
-                    status="pending",
-                    amount=amount_int,
-                    currency="PLN"
-                )
-
-                db.session.add(payment)
-
-    except PermissionError as e:
+    if len(slots) != required_slots:
         if is_ajax:
-            return jsonify({"error": str(e)}), 403
-        flash(str(e), "patient-danger")
+            return jsonify({"error": "Termin niedostępny"}), 400
+        flash("Termin niedostępny", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
-    except ValueError as e:
+    if not _window_is_free_and_continuous(slots):
         if is_ajax:
-            return jsonify({"error": str(e)}), 400
-        flash(str(e), "patient-danger")
+            return jsonify({"error": "Termin zajęty"}), 400
+        flash("Termin zajęty", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
-    # ======================================================
-    # 🔄 GOOGLE SYNC (po zakończeniu transakcji)
-    # ======================================================
+    doctor_id = slots[0].doctor_id
+
+    if is_phone_blacklisted(doctor_id, phone):
+        msg = (
+            "Rezerwacja wizyty przez stronę jest niedostępna. "
+            "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
+        )
+        if is_ajax:
+            return jsonify({"error": msg}), 403
+        flash(msg, "patient-danger")
+        return redirect(url_for("patient_test.index"))
+
+    # ─────────────────────────
+    # TWORZENIE WIZYTY
+    # ─────────────────────────
+
+    appointment = Appointment(
+        doctor_id=doctor_id,
+        start=start,
+        end=start + timedelta(minutes=visit_minutes),
+        duration=visit_minutes,
+        visit_type=visit_code,
+        patient_first_name=request.form.get("first_name"),
+        patient_last_name=request.form.get("last_name"),
+        patient_phone=phone,
+        patient_email=email if email else None,
+        cancel_token=uuid.uuid4().hex,
+        created_by="patient",
+        client_ip=get_client_ip(),
+        status="scheduled"
+    )
+
+    db.session.add(appointment)
+    db.session.flush()
+
+    # ─────────────────────────
+    # TRADITIONAL PAYMENT
+    # ─────────────────────────
+
+    if payment_flow == "online" and payment_method == "traditional":
+        from decimal import Decimal
+
+        amount_int = int(
+            (visit_type.price * Decimal("100")).quantize(Decimal("1"))
+        )
+
+        payment = Payment(
+            appointment_id=appointment.id,
+            provider="manual_transfer",
+            provider_session_id=uuid.uuid4().hex,
+            status="pending",
+            amount=amount_int,
+            currency="PLN"
+        )
+
+        db.session.add(payment)
+
+    db.session.commit()
+
+    # ─────────────────────────
+    # GOOGLE SYNC
+    # ─────────────────────────
 
     try:
-        GoogleCalendarService().sync_appointment(appointment, force_update=True)
+        GoogleCalendarService.sync_appointment(appointment, force_update=True)
     except Exception as e:
         current_app.logger.warning(
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
 
-    # ======================================================
+    # ─────────────────────────
     # FLOW ZWROTNY
-    # ======================================================
+    # ─────────────────────────
 
     if payment_flow == "online" and payment_method == "traditional":
 
@@ -512,14 +508,12 @@ def reserve():
                 "success": True,
                 "message": (
                     "Wizyta została zarezerwowana. "
-                    "Dane do przelewu zostały wysłane na podany adres e-mail. "
-                    "Wizyta zostanie potwierdzona po zaksięgowaniu płatności."
+                    "Dane do przelewu zostały wysłane na podany adres e-mail."
                 )
             })
 
         flash(
-            "Wizyta została zarezerwowana. "
-            "Dane do przelewu zostały wysłane na podany adres e-mail.",
+            "Wizyta została zarezerwowana. Dane do przelewu zostały wysłane na podany adres e-mail.",
             "patient-success"
         )
         return redirect(url_for("patient_test.index"))
@@ -530,7 +524,7 @@ def reserve():
             "appointment_id": appointment.id
         })
 
-    # 🔵 PŁATNOŚĆ W GABINECIE
+    # PŁATNOŚĆ W GABINECIE
     try:
         SMSService().send_confirmation(appointment)
     except Exception:
@@ -543,7 +537,6 @@ def reserve():
 
     flash("Wizyta została zarezerwowana", "patient-success")
     return redirect(url_for("patient_test.index"))
-
 
 # ───────────────────────────────────────
 # FUNKCJE POMOCNICZE
