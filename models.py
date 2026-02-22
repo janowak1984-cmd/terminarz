@@ -2,13 +2,31 @@ from extensions import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+import json
 
+
+# ==================================================
+# WSPÓLNY TIMESTAMP MIXIN
+# ==================================================
+class TimestampMixin:
+    created_at = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp(),
+        nullable=False
+    )
+
+    updated_at = db.Column(
+        db.DateTime,
+        server_default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False
+    )
 
 
 # ==================================================
 # LEKARZ / AUTH
 # ==================================================
-class Doctor(UserMixin, db.Model):
+class Doctor(UserMixin, TimestampMixin, db.Model):
     __tablename__ = "doctors"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -23,9 +41,9 @@ class Doctor(UserMixin, db.Model):
 
 
 # ==================================================
-# DOSTĘPNOŚĆ (SLOTY)
+# DOSTĘPNOŚĆ
 # ==================================================
-class Availability(db.Model):
+class Availability(TimestampMixin, db.Model):
     __tablename__ = "availabilities"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -39,21 +57,16 @@ class Availability(db.Model):
     start = db.Column(db.DateTime, nullable=False)
     end = db.Column(db.DateTime, nullable=False)
 
-    active = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=True
-    )
+    active = db.Column(db.Boolean, nullable=False, default=True)
 
 
 # ==================================================
 # WIZYTY
 # ==================================================
-class Appointment(db.Model):
+class Appointment(TimestampMixin, db.Model):
     __tablename__ = "appointments"
 
     id = db.Column(db.Integer, primary_key=True)
-
     doctor_id = db.Column(db.Integer, nullable=False)
 
     start = db.Column(db.DateTime, nullable=False)
@@ -81,31 +94,26 @@ class Appointment(db.Model):
     cancel_token = db.Column(db.String(64), unique=True, index=True)
     cancelled_at = db.Column(db.DateTime)
     cancelled_by = db.Column(
-    db.Enum("patient", "doctor", name="appointment_cancelled_by"),
+        db.Enum("patient", "doctor", name="appointment_cancelled_by"),
         nullable=True
     )
 
-    # ===== GOOGLE CALENDAR SYNC =====
-    google_event_id = db.Column(db.String(255), nullable=True)
+    google_event_id = db.Column(db.String(255))
     google_sync_status = db.Column(
         db.Enum("never", "synced", "deleted", "error", name="google_sync_status"),
         default="never",
         nullable=False
     )
-    google_last_sync_at = db.Column(db.DateTime, nullable=True)
+    google_last_sync_at = db.Column(db.DateTime)
 
-    # ===== SMS =====
     sms_confirmation_sent_at = db.Column(db.DateTime)
     sms_reminder_sent_at = db.Column(db.DateTime)
 
-    # ===== EMAIL =====
     email_confirmation_sent_at = db.Column(db.DateTime)
     email_reminder_sent_at = db.Column(db.DateTime)
 
-    created_at = db.Column(db.DateTime, default=db.func.now())
-    client_ip = db.Column(db.String(45), nullable=True)
+    client_ip = db.Column(db.String(45))
 
-    # ===== RELACJE =====
     sms_messages = db.relationship(
         "SMSMessage",
         backref="appointment",
@@ -128,11 +136,10 @@ class Appointment(db.Model):
     )
 
 
-
-
-
-
-class SMSMessage(db.Model):
+# ==================================================
+# SMS
+# ==================================================
+class SMSMessage(TimestampMixin, db.Model):
     __tablename__ = "sms_messages"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -161,13 +168,15 @@ class SMSMessage(db.Model):
     provider_message_id = db.Column(db.String(100))
 
     content = db.Column(db.Text, nullable=False)
-
     error_message = db.Column(db.Text)
 
     sent_at = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=db.func.now())
 
-class EmailMessage(db.Model):
+
+# ==================================================
+# EMAIL
+# ==================================================
+class EmailMessage(TimestampMixin, db.Model):
     __tablename__ = "email_messages"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -188,30 +197,25 @@ class EmailMessage(db.Model):
     )
 
     status = db.Column(
-        db.Enum("pending", "sent", "failed",
-                name="email_status"),
+        db.Enum("pending", "sent", "failed", name="email_status"),
         default="pending",
         nullable=False
     )
 
     provider = db.Column(db.String(50), default="sendgrid")
-
     provider_message_id = db.Column(db.String(100))
 
     subject = db.Column(db.String(255), nullable=False)
-
     content = db.Column(db.Text, nullable=False)
 
     error_message = db.Column(db.Text)
-
     sent_at = db.Column(db.DateTime)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ==================================================
-# SZABLONY GENEROWANIA GRAFIKU
+# SZABLONY
 # ==================================================
-class ScheduleTemplate(db.Model):
+class ScheduleTemplate(TimestampMixin, db.Model):
     __tablename__ = "schedule_templates"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -223,20 +227,13 @@ class ScheduleTemplate(db.Model):
     )
 
     name = db.Column(db.String(100), nullable=False)
-
     days_json = db.Column(db.JSON, nullable=False)
-
-    created_at = db.Column(
-        db.DateTime,
-        server_default=db.func.current_timestamp(),
-        nullable=False
-    )
 
 
 # ==================================================
 # TYPY WIZYT
 # ==================================================
-class VisitType(db.Model):
+class VisitType(TimestampMixin, db.Model):
     __tablename__ = "visit_types"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -246,42 +243,21 @@ class VisitType(db.Model):
 
     description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2))
-
     duration_minutes = db.Column(db.Integer, nullable=False)
 
-    # 🔢 kolejność wyświetlania (lista pacjenta + lekarza)
     display_order = db.Column(db.Integer, nullable=False, default=100)
     display_order_doctor = db.Column(db.Integer, nullable=False, default=100)
 
-    # 🎨 kolor wyświetlania w kalendarzu (FullCalendar)
-    color = db.Column(
-        db.String(7),
-        nullable=False,
-        default="#3788d8"
-    )
+    color = db.Column(db.String(7), nullable=False, default="#3788d8")
 
     active = db.Column(db.Boolean, nullable=False, default=True)
-    # 💳 płatność online
     only_online_payment = db.Column(db.Boolean, nullable=False, default=False)
 
-    created_at = db.Column(
-        db.DateTime,
-        server_default=db.func.current_timestamp(),
-        nullable=False
-    )
-
-    updated_at = db.Column(
-        db.DateTime,
-        server_default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
-        nullable=False
-    )
-
 
 # ==================================================
-# Urlopy
+# URLOPY
 # ==================================================
-class Vacation(db.Model):
+class Vacation(TimestampMixin, db.Model):
     __tablename__ = 'vacations'
 
     id = db.Column(db.Integer, primary_key=True)
@@ -297,21 +273,17 @@ class Vacation(db.Model):
     date_to = db.Column(db.Date, nullable=False)
 
     description = db.Column(db.String(255))
-
     active = db.Column(db.Boolean, default=True, nullable=False)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    google_event_id = db.Column(db.String(255))
 
-    google_event_id = db.Column(db.String(255), nullable=True)
-
-
-    # relacja pomocnicza (opcjonalna, nie wpływa na logikę)
     doctor = db.relationship('Doctor', backref='vacations')
 
-    def __repr__(self):
-        return f'<Vacation {self.date_from} - {self.date_to} doctor={self.doctor_id}>'
 
-class BlacklistPatient(db.Model):
+# ==================================================
+# BLACKLISTA
+# ==================================================
+class BlacklistPatient(TimestampMixin, db.Model):
     __tablename__ = "blacklist_patients"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -327,36 +299,18 @@ class BlacklistPatient(db.Model):
     last_name = db.Column(db.String(100), nullable=False)
 
     phone = db.Column(db.String(30), nullable=False, index=True)
-    email = db.Column(db.String(120), nullable=True)
+    email = db.Column(db.String(120))
 
     description = db.Column(db.Text, nullable=False)
+    blocked_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    blocked_at = db.Column(
-        db.DateTime,
-        nullable=False,
-        default=datetime.utcnow
-    )
+    active = db.Column(db.Boolean, nullable=False, default=True)
 
-    active = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=True
-    )
-
-    def __repr__(self):
-        return (
-            f"<BlacklistPatient "
-            f"{self.first_name} {self.last_name} "
-            f"phone={self.phone} "
-            f"active={self.active}>"
-        )
-    
 
 # ==================================================
-# Przelewy24
+# PŁATNOŚCI
 # ==================================================
-
-class Payment(db.Model):
+class Payment(TimestampMixin, db.Model):
     __tablename__ = "payments"
     __table_args__ = (
         db.UniqueConstraint(
@@ -378,45 +332,26 @@ class Payment(db.Model):
     provider_session_id = db.Column(db.String(128), nullable=False)
     provider_order_id = db.Column(db.String(128))
 
-    amount = db.Column(db.Integer, nullable=False)  # grosze
+    amount = db.Column(db.Integer, nullable=False)
     currency = db.Column(db.String(3), nullable=False, default="PLN")
 
     status = db.Column(
         db.Enum(
-            "init",
-            "pending",
-            "paid",
-            "failed",
-            "cancelled",
-            "refunded",
+            "init", "pending", "paid",
+            "failed", "cancelled", "refunded",
             name="payment_status"
         ),
         nullable=False,
         default="init"
     )
 
-    # 🔹 DATA UTWORZENIA (tylko raz)
-    created_at = db.Column(
-        db.DateTime,
-        server_default=db.func.current_timestamp(),
-        nullable=False
-    )
-
-    # 🔹 DATA OSTATNIEJ EDYCJI (auto update)
-    updated_at = db.Column(
-        db.DateTime,
-        server_default=db.func.current_timestamp(),
-        onupdate=db.func.current_timestamp(),
-        nullable=False
-    )
-
     paid_at = db.Column(db.DateTime)
 
 
 # ==================================================
-# Konfiguracja
+# KONFIGURACJA
 # ==================================================
-class Setting(db.Model):
+class Setting(TimestampMixin, db.Model):
     __tablename__ = "settings"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -424,49 +359,41 @@ class Setting(db.Model):
     description = db.Column(db.Text, nullable=False)
     value = db.Column(db.Text, nullable=False)
 
-    def __repr__(self):
-        return f"<Setting {self.key}>"
-    
 
-import json
-from extensions import db
-
+# ==================================================
+# DEFAULT SETTINGS
+# ==================================================
 DEFAULT_SETTINGS = [
     {
         "key": "calendar_visible_days",
         "description": "Dni tygodnia widoczne w kalendarzu lekarza",
         "value": json.dumps(["mon", "tue", "wed", "thu", "fri"])
     },
-
-    # ============================
-    # GOOGLE CALENDAR – KONFIG
-    # ============================
-
     {
         "key": "google_calendar_id",
-        "description": "ID kalendarza Google (np. primary)",
+        "description": "ID kalendarza Google",
         "value": ""
     },
     {
         "key": "google_access_token",
-        "description": "Access token Google Calendar (OAuth)",
+        "description": "Access token Google Calendar",
         "value": ""
     },
     {
         "key": "google_refresh_token",
-        "description": "Refresh token Google Calendar (OAuth)",
+        "description": "Refresh token Google Calendar",
         "value": ""
     },
     {
         "key": "google_connected",
-        "description": "Czy konto Google Calendar jest połączone",
+        "description": "Czy Google Calendar jest połączony",
         "value": "false"
     }
 ]
 
 
 def init_default_settings():
-    from models import Setting  # ⛔ import lokalny – ważne
+    from models import Setting
 
     for s in DEFAULT_SETTINGS:
         exists = Setting.query.filter_by(key=s["key"]).first()
@@ -480,4 +407,3 @@ def init_default_settings():
             )
 
     db.session.commit()
-
