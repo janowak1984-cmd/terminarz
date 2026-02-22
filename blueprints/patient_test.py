@@ -367,6 +367,8 @@ def reserve():
         return redirect(url_for("patient_test.index"))
 
     if visit_type.only_online_payment and payment_flow != "online":
+        if is_ajax:
+            return jsonify({"error": "Ta wizyta wymaga płatności online."}), 400
         flash("Ta wizyta wymaga płatności online.", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
@@ -481,7 +483,11 @@ def reserve():
     # ─────────────────────────
 
     try:
-        GoogleCalendarService.sync_appointment(appointment, force_update=True)
+        GoogleCalendarService.sync_appointment(appointment, force_update=True, payment_context={
+        "payment_flow": payment_flow,
+        "payment_method": payment_method
+    }
+)
     except Exception as e:
         current_app.logger.warning(
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"

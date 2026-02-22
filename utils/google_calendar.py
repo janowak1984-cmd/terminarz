@@ -122,7 +122,7 @@ class GoogleCalendarService:
     # --------------------------------------------------
 
     @staticmethod
-    def _build_event(appt):
+    def _build_event(appt, payment_context=None):
 
         from models import Payment
 
@@ -130,7 +130,9 @@ class GoogleCalendarService:
         base_color_id = visit_type.color if visit_type and visit_type.color else "1"
         color_id = base_color_id
 
-        # Źródło wizyty
+        # ───────────────────────────────────────
+        # ŹRÓDŁO WIZYTY
+        # ───────────────────────────────────────
         if appt.created_by == "patient":
             prefix = "👤"
             source_line = "Źródło wizyty: Rezerwacja online"
@@ -138,7 +140,10 @@ class GoogleCalendarService:
             prefix = "✍️"
             source_line = "Źródło wizyty: Dodana ręcznie"
 
-        # 🔎 STATUS PŁATNOŚCI
+        # ───────────────────────────────────────
+        # STATUS PŁATNOŚCI
+        # ───────────────────────────────────────
+
         payment = (
             Payment.query
             .filter_by(appointment_id=appt.id)
@@ -146,21 +151,38 @@ class GoogleCalendarService:
             .first()
         )
 
-        if not payment:
-            # brak rekordu płatności (np. płatność w gabinecie)
-            payment_line = "Status płatności: PŁATNOŚĆ W GABINECIE"
-            payment_icon = "💵 "
-            # zostawiamy kolor wizyty
+        payment_icon = ""
+        payment_line = ""
 
-        elif payment.status != "paid":
+        # 1️⃣ Jeżeli Payment już istnieje → baza jest źródłem prawdy
+        if payment:
+
+            if payment.status == "paid":
+                payment_icon = "✅ "
+                payment_line = "Status płatności: OPŁACONA"
+
+            else:
+                payment_icon = "🚫 "
+                payment_line = "Status płatności: OCZEKUJE NA PŁATNOŚĆ"
+                color_id = "11"  # czerwony w Google
+
+        # 2️⃣ Jeżeli Payment jeszcze nie istnieje,
+        #     ale wiemy z rezerwacji że to online
+        elif payment_context and payment_context.get("payment_flow") == "online":
+
+            payment_icon = "🚫 "
             payment_line = "Status płatności: OCZEKUJE NA PŁATNOŚĆ"
-            payment_icon = "⭕ "
-            color_id = "11"  # czerwony w Google
+            color_id = "11"
 
+        # 3️⃣ W przeciwnym razie → płatność w gabinecie
         else:
-            payment_line = "Status płatności: OPŁACONA"
-            payment_icon = "✅ "
-            # zostawiamy kolor wizyty
+
+            payment_icon = ""
+            payment_line = "Status płatności: PŁATNOŚĆ W GABINECIE"
+
+        # ───────────────────────────────────────
+        # OPIS
+        # ───────────────────────────────────────
 
         description = (
             f"{source_line}\n"
@@ -185,7 +207,6 @@ class GoogleCalendarService:
     # --------------------------------------------------
     # 🔁 SYNC (CREATE / UPDATE)
     # --------------------------------------------------
-
     @staticmethod
     def sync_appointment(appt, force_update=False):
         service = GoogleCalendarService.ensure_connection()

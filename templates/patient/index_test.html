@@ -324,7 +324,15 @@ function validateForm(requireEmail = false) {
 
   return ok;
 }
+$("#reserve_form").on("submit", function (e) {
 
+  // jeżeli kliknięto przycisk online, nie pozwalamy na zwykły submit
+  if ($("#payment_flow").val() === "online") {
+    e.preventDefault();
+    return false;
+  }
+
+});
 /* ===== WALIDACJA FORMULARZA (DOKLEJONA) ===== */
 $("#reserve_form").on("submit", function (e) {
 
@@ -478,6 +486,7 @@ $("#accept_terms").on("change", function () {
 // ===== USTAWIENIE FLOW =====
 $("#btn_reserve").on("click", function () {
   $("#payment_flow").val("reserve");
+  $("#payment_method").val("");   // wyraźnie czyścimy
 });
 
 function loadDaysForCurrentMonth() {
