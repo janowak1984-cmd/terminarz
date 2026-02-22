@@ -123,9 +123,14 @@ class GoogleCalendarService:
 
     @staticmethod
     def _build_event(appt):
-        visit_type = VisitType.query.filter_by(code=appt.visit_type).first()
-        color_id = visit_type.color if visit_type and visit_type.color else "1"
 
+        from models import Payment
+
+        visit_type = VisitType.query.filter_by(code=appt.visit_type).first()
+        base_color_id = visit_type.color if visit_type and visit_type.color else "1"
+        color_id = base_color_id
+
+        # Źródło wizyty
         if appt.created_by == "patient":
             prefix = "👤"
             source_line = "Źródło wizyty: Rezerwacja online"
@@ -133,13 +138,38 @@ class GoogleCalendarService:
             prefix = "✍️"
             source_line = "Źródło wizyty: Dodana ręcznie"
 
+        # 🔎 STATUS PŁATNOŚCI
+        payment = (
+            Payment.query
+            .filter_by(appointment_id=appt.id)
+            .order_by(Payment.id.desc())
+            .first()
+        )
+
+        if not payment:
+            # brak rekordu płatności (np. płatność w gabinecie)
+            payment_line = "Status płatności: PŁATNOŚĆ W GABINECIE"
+            payment_icon = "💵 "
+            # zostawiamy kolor wizyty
+
+        elif payment.status != "paid":
+            payment_line = "Status płatności: OCZEKUJE NA PŁATNOŚĆ"
+            payment_icon = "⭕ "
+            color_id = "11"  # czerwony w Google
+
+        else:
+            payment_line = "Status płatności: OPŁACONA"
+            payment_icon = "✅ "
+            # zostawiamy kolor wizyty
+
         description = (
-            f"{source_line}\n\n"
+            f"{source_line}\n"
+            f"{payment_line}\n\n"
             f"Telefon: {appt.patient_phone}"
         )
 
         return {
-            "summary": f"{prefix} Wizyta: {appt.patient_first_name} {appt.patient_last_name}",
+            "summary": f"{payment_icon}{prefix} Wizyta: {appt.patient_first_name} {appt.patient_last_name}",
             "description": description,
             "start": {
                 "dateTime": appt.start.isoformat(),

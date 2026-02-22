@@ -145,9 +145,6 @@ def register_payment():
 @payments_bp.route("/status", methods=["POST"])
 def payment_status():
 
-    # ==================================================
-    # ODBIÓR DANYCH (FORM LUB JSON)
-    # ==================================================
     data = request.form.to_dict() if request.form else request.get_json(silent=True) or {}
 
     required_fields = [
@@ -166,15 +163,22 @@ def payment_status():
     if not all(field in data for field in required_fields):
         current_app.logger.warning("[P24 STATUS] Missing required fields")
         return "ERROR", 400
+    
+    cfg = current_app.config
+
+    if int(data["merchantId"]) != int(cfg["P24_MERCHANT_ID"]):
+        current_app.logger.warning("[P24 STATUS] Invalid merchantId")
+        return "ERROR", 400
+
+    if int(data["posId"]) != int(cfg["P24_POS_ID"]):
+        current_app.logger.warning("[P24 STATUS] Invalid posId")
+        return "ERROR", 400
 
     session_id = data["sessionId"]
     order_id = data["orderId"]
     amount = data["amount"]
     received_sign = data["sign"]
 
-    # ==================================================
-    # ZNAJDŹ PŁATNOŚĆ
-    # ==================================================
     payment = Payment.query.filter_by(
         provider="przelewy24",
         provider_session_id=session_id
@@ -184,9 +188,7 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Payment not found")
         return "ERROR", 404
 
-    # ==================================================
-    # IDEMPOTENCY — JEŚLI JUŻ OPŁACONA → OK
-    # ==================================================
+    # 🔁 IDEMPOTENCY
     if payment.status == "paid":
         current_app.logger.warning("[P24 STATUS] Already paid - idempotent OK")
         return "OK", 200
@@ -197,17 +199,18 @@ def payment_status():
     try:
         if int(payment.amount) != int(amount):
             current_app.logger.warning("[P24 STATUS] Amount mismatch")
+
             payment.status = "failed"
             db.session.commit()
 
-            appointment = payment.appointment
-            if appointment:
+            if payment.appointment:
                 try:
-                    EmailService().send_payment_retry(appointment)
+                    EmailService().send_payment_retry(payment.appointment)
                 except Exception:
                     pass
 
             return "ERROR", 400
+
     except Exception:
         current_app.logger.warning("[P24 STATUS] Invalid amount format")
         return "ERROR", 400
@@ -244,61 +247,59 @@ def payment_status():
         current_app.logger.warning("[P24 STATUS] Invalid sign")
         return "ERROR", 400
 
-    # ==================================================
-    # USTAW ORDER ID
-    # ==================================================
     payment.provider_order_id = order_id
 
     # ==================================================
-    # VERIFY CALL DO P24
+    # VERIFY CALL
     # ==================================================
     if not _p24_verify_transaction(payment):
         payment.status = "failed"
-
-        try:
-            EmailService().send_payment_retry(payment.appointment)
-        except Exception:
-            pass
-
         db.session.commit()
+
+        if payment.appointment:
+            try:
+                EmailService().send_payment_retry(payment.appointment)
+            except Exception:
+                pass
+
         return "ERROR", 400
 
     # ==================================================
-    # SUKCES – ZMIANA STATUSU
+    # SUKCES
     # ==================================================
     payment.status = "paid"
     payment.paid_at = datetime.utcnow()
 
     appointment = payment.appointment
-    if appointment:
+
+    # 🔒 jeśli ktoś anulował wizytę w międzyczasie – nie przywracamy jej
+    if appointment and appointment.status != "cancelled":
         appointment.status = "scheduled"
 
     db.session.commit()
 
+    current_app.logger.warning(f"[P24 STATUS] Payment {payment.id} marked as PAID")
 
-    current_app.logger.warning(
-        f"[P24 STATUS] Payment {payment.id} marked as PAID"
-    )
-
-    # ==================================================
-    # WYŚLIJ POTWIERDZENIE (TYLKO TU!)
-    # ==================================================
-    appointment = payment.appointment
-
-    # 🔐 zabezpieczenie – jeśli z jakiegoś powodu brak wizyty
+    # 🔐 jeśli brak wizyty — kończymy
     if not appointment:
         current_app.logger.error(
             f"[PAYMENT SUCCESS] Payment {payment.id} has no appointment!"
         )
         return "OK", 200
 
+    # ==================================================
+    # 🔄 GOOGLE UPDATE (PENDING → CONFIRMED)
+    # ==================================================
     try:
-        GoogleCalendarService().sync_appointment(appointment)
+        GoogleCalendarService.sync_appointment(appointment, force_update=True)
     except Exception as e:
         current_app.logger.warning(
             f"[GOOGLE][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
         )
 
+    # ==================================================
+    # 📩 WYŚLIJ POTWIERDZENIE (TYLKO PO PŁATNOŚCI ONLINE)
+    # ==================================================
     try:
         SMSService().send_confirmation(appointment)
     except Exception as e:
@@ -394,8 +395,6 @@ def _build_p24_payload(payment: Payment):
         if appointment and appointment.patient_email
         else "kontakt@kingabobinska.pl"
     )
-    
-    appointment = payment.appointment
 
     client_name = ""
     phone = ""

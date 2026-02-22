@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, time
 import uuid
 
 from extensions import db
-from models import Availability, Appointment, VisitType, Vacation
+from models import Availability, Appointment, VisitType, Vacation, Payment
 from utils.cancel_policy import can_cancel_appointment
 from utils.sms_service import SMSService
 from utils.blacklist import is_phone_blacklisted
@@ -339,7 +339,6 @@ def reserve():
         or request.args.get("ajax") == "1"
     )
 
-
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
     visit_code = request.form.get("visit_type")
@@ -352,7 +351,7 @@ def reserve():
     ).first()
 
     # ───────────────────────────────────
-    # WALIDACJE PODSTAWOWE
+    # WALIDACJE
     # ───────────────────────────────────
 
     if not visit_type:
@@ -370,10 +369,6 @@ def reserve():
     if visit_type.only_online_payment and payment_flow != "online":
         flash("Ta wizyta wymaga płatności online.", "patient-danger")
         return redirect(url_for("patient_test.index"))
-
-    # ───────────────────────────────────
-    # TERMIN
-    # ───────────────────────────────────
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -395,87 +390,112 @@ def reserve():
         flash("Termin niedostępny", "patient-danger")
         return redirect(url_for("patient_test.index"))
 
-    slots = (
-        Availability.query
-        .filter(
-            Availability.start >= start,
-            Availability.start < start + timedelta(minutes=visit_minutes),
-            Availability.active.is_(True)
+    # ======================================================
+    # 🔒 TRANSAKCJA – BLOKADA SLOTÓW
+    # ======================================================
+
+    try:
+        with db.session.begin():
+
+            slots = (
+                Availability.query
+                .with_for_update()
+                .filter(
+                    Availability.start >= start,
+                    Availability.start < start + timedelta(minutes=visit_minutes),
+                    Availability.active.is_(True)
+                )
+                .order_by(Availability.start)
+                .all()
+            )
+
+            if len(slots) != required_slots:
+                raise ValueError("Termin niedostępny")
+
+            if not _window_is_free_and_continuous(slots):
+                raise ValueError("Termin zajęty")
+
+            doctor_id = slots[0].doctor_id
+
+            if is_phone_blacklisted(doctor_id, phone):
+                raise PermissionError(
+                    "Rezerwacja wizyty przez stronę jest niedostępna. "
+                    "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
+                )
+
+            # ───────────────────────────────────
+            # TWORZENIE WIZYTY
+            # ───────────────────────────────────
+
+            appointment = Appointment(
+                doctor_id=doctor_id,
+                start=start,
+                end=start + timedelta(minutes=visit_minutes),
+                duration=visit_minutes,
+                visit_type=visit_code,
+                patient_first_name=request.form.get("first_name"),
+                patient_last_name=request.form.get("last_name"),
+                patient_phone=phone,
+                patient_email=email if email else None,
+                cancel_token=uuid.uuid4().hex,
+                created_by="patient",
+                client_ip=get_client_ip(),
+                status="scheduled"
+            )
+
+            db.session.add(appointment)
+            db.session.flush()
+
+            # ───────────────────────────────────
+            # ONLINE – TRADITIONAL
+            # ───────────────────────────────────
+
+            if payment_flow == "online" and payment_method == "traditional":
+                from decimal import Decimal
+
+                amount_int = int(
+                    (visit_type.price * Decimal("100")).quantize(Decimal("1"))
+                )
+
+                payment = Payment(
+                    appointment_id=appointment.id,
+                    provider="manual_transfer",
+                    provider_session_id=uuid.uuid4().hex,
+                    status="pending",
+                    amount=amount_int,
+                    currency="PLN"
+                )
+
+                db.session.add(payment)
+
+    except PermissionError as e:
+        if is_ajax:
+            return jsonify({"error": str(e)}), 403
+        flash(str(e), "patient-danger")
+        return redirect(url_for("patient_test.index"))
+
+    except ValueError as e:
+        if is_ajax:
+            return jsonify({"error": str(e)}), 400
+        flash(str(e), "patient-danger")
+        return redirect(url_for("patient_test.index"))
+
+    # ======================================================
+    # 🔄 GOOGLE SYNC (po zakończeniu transakcji)
+    # ======================================================
+
+    try:
+        GoogleCalendarService().sync_appointment(appointment, force_update=True)
+    except Exception as e:
+        current_app.logger.warning(
+            f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
-        .order_by(Availability.start)
-        .all()
-    )
 
-    if len(slots) != required_slots:
-        if is_ajax:
-            return jsonify({"error": "Termin niedostępny"}), 400
-        flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient_test.index"))
+    # ======================================================
+    # FLOW ZWROTNY
+    # ======================================================
 
-    if not _window_is_free_and_continuous(slots):
-        if is_ajax:
-            return jsonify({"error": "Termin zajęty"}), 400
-        flash("Termin zajęty", "patient-danger")
-        return redirect(url_for("patient_test.index"))
-
-    doctor_id = slots[0].doctor_id
-
-    if is_phone_blacklisted(doctor_id, phone):
-        msg = (
-            "Rezerwacja wizyty przez stronę jest niedostępna. "
-            "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
-        )
-        if is_ajax:
-            return jsonify({"error": msg}), 403
-        flash(msg, "patient-danger")
-        return redirect(url_for("patient_test.index"))
-
-     # ───────────────────────────────────
-    # TWORZENIE WIZYTY
-    # ───────────────────────────────────
-
-    appointment = Appointment(
-        doctor_id=doctor_id,
-        start=start,
-        end=start + timedelta(minutes=visit_minutes),
-        duration=visit_minutes,
-        visit_type=visit_code,
-        patient_first_name=request.form.get("first_name"),
-        patient_last_name=request.form.get("last_name"),
-        patient_phone=phone,
-        patient_email=email if email else None,
-        cancel_token=uuid.uuid4().hex,
-        created_by="patient",
-        client_ip=get_client_ip(),
-        status="scheduled"
-    )
-
-    db.session.add(appointment)
-    db.session.flush()  # mamy appointment.id bez pełnego commit
-
-    from models import Payment
-
-    # ───────────────────────────────────
-    # 🟠 PRZELEW TRADYCYJNY (AJAX – BEZ REDIRECT)
-    # ───────────────────────────────────
     if payment_flow == "online" and payment_method == "traditional":
-
-        from decimal import Decimal
-
-        amount_int = int((visit_type.price * Decimal("100")).quantize(Decimal("1")))
-
-        payment = Payment(
-            appointment_id=appointment.id,
-            provider="manual_transfer",
-            provider_session_id=uuid.uuid4().hex,  # 👈 DODAJ TO
-            status="pending",
-            amount=amount_int,
-            currency="PLN"
-        )
-
-
-        db.session.add(payment)
-        db.session.commit()
 
         try:
             EmailService().send_traditional_payment_info(
@@ -487,7 +507,6 @@ def reserve():
                 f"[EMAIL][TRADITIONAL] failed for {appointment.id}: {e}"
             )
 
-        # ✅ ZWRACAMY JSON (nie flash, nie redirect)
         if is_ajax:
             return jsonify({
                 "success": True,
@@ -498,55 +517,32 @@ def reserve():
                 )
             })
 
-        # fallback (gdyby ktoś jednak wysłał klasycznie)
         flash(
             "Wizyta została zarezerwowana. "
             "Dane do przelewu zostały wysłane na podany adres e-mail.",
             "patient-success"
         )
         return redirect(url_for("patient_test.index"))
-    
+
     if payment_flow == "online" and payment_method == "p24":
-
-        db.session.commit()
-
         return jsonify({
             "success": True,
             "appointment_id": appointment.id
         })
 
-
-    # ───────────────────────────────────
-    # 🔵 PŁATNOŚĆ W GABINECIE (KLASYCZNY FLOW)
-    # ───────────────────────────────────
-
-    db.session.commit()
-
-    try:
-        GoogleCalendarService().sync_appointment(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
-        )
-
+    # 🔵 PŁATNOŚĆ W GABINECIE
     try:
         SMSService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[SMS][CONFIRMATION] failed for {appointment.id}: {e}"
-        )
+    except Exception:
+        pass
 
     try:
         EmailService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[EMAIL][CONFIRMATION] failed for {appointment.id}: {e}"
-        )
+    except Exception:
+        pass
 
     flash("Wizyta została zarezerwowana", "patient-success")
     return redirect(url_for("patient_test.index"))
-
-
 
 
 # ───────────────────────────────────────
