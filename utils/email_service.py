@@ -281,8 +281,45 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
         subject = "Przypomnienie o wizycie"
 
         body = f"""
-<h2>Przypomnienie o wizycie</h2>
-<p><strong>{date_str} godz. {time_str}</strong></p>
-"""
+    <div style="font-family: Arial, Helvetica, sans-serif; background:#f4f4f4; padding:30px 15px;">
+
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:8px; padding:30px; border:1px solid #e6e6e6;">
+
+        <h2 style="margin-top:0; color:#000000;">
+        Przypomnienie o wizycie
+        </h2>
+
+        <p style="font-size:16px; color:#333;">
+        Dzień dobry {appointment.patient_first_name},
+        </p>
+
+        <p style="font-size:16px; color:#333;">
+        Przypominamy o nadchodzącej wizycie:
+        </p>
+
+        <div style="background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #eee; margin:20px 0;">
+        <p style="margin:0; font-size:18px; font-weight:bold; color:#000;">
+            {date_str}
+        </p>
+        <p style="margin:5px 0 0 0; font-size:16px; color:#555;">
+            godz. {time_str}
+        </p>
+        </div>
+
+        <p style="font-size:14px; color:#666;">
+        W razie potrzeby prosimy o kontakt z gabinetem.
+        </p>
+
+        <hr style="border:none; border-top:1px solid #eee; margin:25px 0;">
+
+        <p style="font-size:12px; color:#999; text-align:center;">
+        Gabinet Podologiczny<br>
+        Ta wiadomość została wygenerowana automatycznie.
+        </p>
+
+    </div>
+
+    </div>
+    """
 
         return subject, body
