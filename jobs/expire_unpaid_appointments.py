@@ -71,7 +71,7 @@ def _run():
 
         # 🔴 Anulowanie wizyty
         appointment.status = "cancelled"
-        appointment.cancelled_by = "system"
+        appointment.cancelled_by = "doctor"
         appointment.cancelled_at = datetime.utcnow()
 
         payment.status = "failed"
