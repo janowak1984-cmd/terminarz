@@ -69,6 +69,55 @@
     background: #337ab7;
     color: #fff;
   }
+  /* ===== WSPÓLNY STYL PRZYCISKÓW ===== */
+
+.btn-book {
+  width: 100%;
+  height: 50px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+/* Rezerwuj */
+#btn_reserve {
+  background-color: #337ab7;
+  color: #fff;
+}
+
+#btn_reserve:hover {
+  background-color: #286090;
+}
+
+/* Zapłać */
+#btn_pay {
+  background-color: #d73930;
+  color: #fff;
+}
+
+#btn_pay:hover {
+  background-color: #b92d25;
+}
+
+/* Disabled */
+.btn-book:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Przelew tradycyjny */
+#btn_traditional {
+  background-color: #f0ad4e;
+  color: #fff;
+}
+
+#btn_traditional:hover {
+  background-color: #ec971f;
+}
+
+
 </style>
 
 <div class="container-fluid">
@@ -121,6 +170,8 @@
       <input type="hidden" name="visit_type" id="f_visit_type">
       <input type="hidden" name="day" id="f_day">
       <input type="hidden" name="hour" id="f_hour">
+      <input type="hidden" name="payment_flow" id="payment_flow" value="reserve">
+      <input type="hidden" name="payment_method" id="payment_method">
 
       <div class="form-group">
         <label>Imię</label>
@@ -164,18 +215,28 @@
       </a>
     </label>
     </div>
-     <button id="btn_reserve"
-        class="btn btn-primary btn-lg btn-block"
+     <button type="submit"
+        id="btn_reserve"
+        class="btn btn-book btn-lg btn-block"
         disabled>
-  Zarezerwuj wizytę
+  Płatność w gabinecie
 </button>
 
 <button type="button"
-        class="btn btn-default btn-lg btn-block"
-        disabled
-        style="opacity:0.5; cursor:not-allowed;">
-  Zapłać online
+        id="btn_pay"
+        class="btn btn-book btn-pay btn-lg btn-block"
+        disabled>
+  Zapłać online (Przelewy24)
 </button>
+
+<button type="button"
+        id="btn_traditional"
+        class="btn btn-book btn-traditional btn-lg btn-block"
+        disabled>
+  Przelew tradycyjny
+</button>
+
+
 
     </form>
   </div>
@@ -206,9 +267,10 @@ function resetDaySelection() {
   $(".calendar-day").removeClass("selected");
 }
 
-/* ===== WALIDACJA FORMULARZA (DOKLEJONA) ===== */
-$("#reserve_form").on("submit", function (e) {
+function validateForm(requireEmail = false) {
+
   resetErrors();
+  $("#err-email").text("Nieprawidłowy email");
   let ok = true;
 
   const nameRegex = /^[A-Za-zÀ-žąćęłńóśżźĄĆĘŁŃÓŚŻŹ]+([ -][A-Za-zÀ-žąćęłńóśżźĄĆĘŁŃÓŚŻŹ]+)*$/;
@@ -244,17 +306,41 @@ $("#reserve_form").on("submit", function (e) {
   }
 
   const email = $("#f_email").val().trim();
-  if (email && !emailRegex.test(email)) {
+
+  if (requireEmail && !email) {
     $("#f_email").addClass("has-error");
-    $("#err-email").show();
+    $("#err-email").text("Email jest wymagany przy płatności online").show();
     ok = false;
   }
+
+  if (email && !emailRegex.test(email)) {
+    $("#f_email").addClass("has-error");
+    $("#err-email").text("Nieprawidłowy email").show();
+    ok = false;
+  }
+
+  return ok;
+}
+$("#reserve_form").on("submit", function (e) {
+
+  // jeżeli kliknięto przycisk online, nie pozwalamy na zwykły submit
+  if ($("#payment_flow").val() === "online") {
+    e.preventDefault();
+    return false;
+  }
+
+});
+/* ===== WALIDACJA FORMULARZA (DOKLEJONA) ===== */
+$("#reserve_form").on("submit", function (e) {
+
+  const ok = validateForm(false); // email opcjonalny
 
   if (!ok) {
     e.preventDefault();
     return false;
   }
 });
+
 
 /* ===== KALENDARZ ===== */
 function renderCalendar() {
@@ -303,6 +389,16 @@ $(function () {
 /* ===== ZMIANA TYPU ===== */
 $("#visit_type").change(function () {
   const code = this.value;
+
+  const vt = visitTypes[code];
+
+  if (vt && vt.only_online_payment) {
+    $("#btn_reserve").hide();
+  } else {
+    $("#btn_reserve").show();
+  }
+
+
   resetDaySelection();
   $("#calendar_wrapper").hide();
 
@@ -377,9 +473,18 @@ $(document).on("click", ".hour-btn", function () {
 });
 
 $("#accept_terms").on("change", function () {
-  $("#btn_reserve").prop("disabled", !this.checked);
+  const enabled = this.checked;
+  $("#btn_reserve").prop("disabled", !enabled);
+  $("#btn_pay").prop("disabled", !enabled);
+  $("#btn_traditional").prop("disabled", !enabled);
 });
 
+
+// ===== USTAWIENIE FLOW =====
+$("#btn_reserve").on("click", function () {
+  $("#payment_flow").val("reserve");
+  $("#payment_method").val("");   // wyraźnie czyścimy
+});
 
 function loadDaysForCurrentMonth() {
   const code = $("#visit_type").val();
@@ -393,6 +498,181 @@ function loadDaysForCurrentMonth() {
     availableDays = days;
     renderCalendar();
   });
+}
+$("#btn_pay").on("click", function () {
+
+  $("#payment_flow").val("online");
+  $("#payment_method").val("p24");
+
+  const ok = validateForm(true);
+  if (!ok) return;
+
+  $("#btn_pay").prop("disabled", true);
+  $("#btn_reserve").prop("disabled", true);
+
+  const formData = $("#reserve_form").serialize();
+
+  $.ajax({
+    url: "/rejestracja/reserve?ajax=1",
+    method: "POST",
+    data: formData,
+    dataType: "json"
+  })
+  .done(function (resp) {
+
+    console.log("RESERVE RESPONSE:", resp);
+
+    if (!resp.success || !resp.appointment_id) {
+      showError(resp.error || "Błąd rezerwacji.");
+      $("#btn_pay").prop("disabled", false);
+      $("#btn_reserve").prop("disabled", false);
+      return;
+    }
+
+    const appointmentId = resp.appointment_id;
+
+    $.ajax({
+      url: "/payments/init",
+      method: "POST",
+      contentType: "application/json",
+      data: JSON.stringify({
+        appointment_id: appointmentId
+      }),
+      dataType: "json"
+    })
+    .done(function (p) {
+
+      if (!p.payment_id) {
+        showError("Błąd inicjalizacji płatności.");
+        $("#btn_pay").prop("disabled", false);
+        $("#btn_reserve").prop("disabled", false);
+        return;
+      }
+
+      $.ajax({
+        url: "/payments/register",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          payment_id: p.payment_id
+        }),
+        dataType: "json"
+      })
+      .done(function (r) {
+
+        if (!r.redirect_url) {
+          showError("Błąd rejestracji płatności.");
+          $("#btn_pay").prop("disabled", false);
+          $("#btn_reserve").prop("disabled", false);
+          return;
+        }
+
+        window.location.href = r.redirect_url;
+      })
+      .fail(function () {
+        showError("Błąd połączenia z operatorem płatności.");
+        $("#btn_pay").prop("disabled", false);
+        $("#btn_reserve").prop("disabled", false);
+      });
+
+    })
+    .fail(function () {
+      showError("Błąd inicjalizacji płatności.");
+      $("#btn_pay").prop("disabled", false);
+      $("#btn_reserve").prop("disabled", false);
+    });
+
+  })
+  .fail(function () {
+    showError("Wystąpił błąd połączenia.");
+    $("#btn_pay").prop("disabled", false);
+    $("#btn_reserve").prop("disabled", false);
+  });
+
+});
+
+
+  $("#btn_traditional").on("click", function () {
+
+  $("#payment_flow").val("online");
+  $("#payment_method").val("traditional");
+
+  const ok = validateForm(true);
+  if (!ok) return;
+
+  $("#btn_traditional").prop("disabled", true);
+  $("#btn_pay").prop("disabled", true);
+  $("#btn_reserve").prop("disabled", true);
+
+  const formData = $("#reserve_form").serialize();
+
+  $.ajax({
+    url: "/rejestracja/reserve?ajax=1",
+    method: "POST",
+    data: formData,
+    dataType: "json"
+  }).done(function (resp) {
+
+    if (resp.success) {
+
+      showSuccess(resp.message);
+
+      // reset formularza
+      $("#reserve_form")[0].reset();
+      $("#form_wrapper").hide();
+      $("#hours_wrapper").hide();
+      $("#calendar_wrapper").hide();
+      $("#hours").empty();
+
+    } else {
+      showError(resp.error || "Wystąpił błąd.");
+    }
+
+  })
+  .fail(function () {
+    showError("Wystąpił błąd połączenia.");
+  });
+
+});
+
+
+
+window.addEventListener("pageshow", function () {
+  const nav = performance.getEntriesByType("navigation")[0];
+
+  if (nav && nav.type === "back_forward") {
+    window.location.reload();
+  }
+});
+
+function showSuccess(msg) {
+
+  const html = `
+    <div class="alert alert-success">
+      <button type="button" class="close js-alert-close">
+        <span>&times;</span>
+      </button>
+      ${msg}
+    </div>
+  `;
+
+  $(".page-wrapper").prepend(html);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showError(msg) {
+
+  const html = `
+    <div class="alert alert-danger">
+      <button type="button" class="close js-alert-close">
+        <span>&times;</span>
+      </button>
+      ${msg}
+    </div>
+  `;
+
+  $(".page-wrapper").prepend(html);
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 </script>

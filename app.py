@@ -9,7 +9,7 @@ from config import Config
 from extensions import db, login_manager
 from models import Doctor
 from settings_defaults import init_default_settings
-from blueprints.patient_test import patient_test_bp
+from blueprints.patient import patient_bp
 
 
 # ───────────────────────────────────────
@@ -156,7 +156,6 @@ def create_app():
     app.register_blueprint(patient_bp, url_prefix="/rejestracja")
     app.register_blueprint(doctor_bp, url_prefix="/doctor")
     app.register_blueprint(auth_bp)
-    app.register_blueprint(patient_test_bp)
     app.register_blueprint(payments_bp)
 
 

@@ -3,13 +3,14 @@ from datetime import datetime, timedelta, time
 import uuid
 
 from extensions import db
-from models import Availability, Appointment, VisitType, Vacation
+from models import Availability, Appointment, VisitType, Vacation, Payment
 from utils.cancel_policy import can_cancel_appointment
 from utils.sms_service import SMSService
 from utils.blacklist import is_phone_blacklisted
 from utils.google_calendar import GoogleCalendarService
 from utils.email_service import EmailService
 from utils.ip import get_client_ip
+from flask import make_response
 
 
 patient_bp = Blueprint(
@@ -17,6 +18,7 @@ patient_bp = Blueprint(
     __name__,
     url_prefix="/rejestracja"
 )
+
 
 # ───────────────────────────────────────
 # KONFIGURACJA
@@ -31,7 +33,16 @@ SLOT_MINUTES = 15
 
 @patient_bp.route("/")
 def index():
-    return render_template("patient/index.html")
+    response = make_response(
+        render_template("patient/index.html")
+    )
+
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+
+    return response
+
 
 
 # ───────────────────────────────────────
@@ -42,14 +53,10 @@ def index():
 def api_visit_types():
     visit_types = (
         VisitType.query
-        .filter_by(
-            active=True,
-            only_online_payment=False
-        )
+        .filter_by(active=True)
         .order_by(VisitType.display_order.asc(), VisitType.id.asc())
         .all()
     )
-
 
     return jsonify([
         {
@@ -97,11 +104,8 @@ def api_days():
         return jsonify([])
 
     vt = VisitType.query.filter_by(code=visit_code, active=True).first()
-
     if not vt:
         return jsonify([])
-    
-    is_online = bool(vt.only_online_payment)
 
     visit_minutes = vt.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -187,11 +191,6 @@ def api_days():
         else:
             start = window[0].start
             end = start + timedelta(minutes=visit_minutes)
-            
-            # ⛔ SLOTY TESTOWE: po 18:00 tylko dla wizyt online
-            if not is_online and start.hour >= 18:
-                continue
-
             day_date = start.date()
 
             # ⛔ BLOKADA: dziś niedostępne
@@ -220,11 +219,8 @@ def api_hours():
         return jsonify([])
 
     visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
-
     if not visit_type:
         return jsonify([])
-    
-    is_online = bool(visit_type.only_online_payment)
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
@@ -279,10 +275,6 @@ def api_hours():
         start = window[0].start
         end = start + timedelta(minutes=visit_minutes)
 
-        # ⛔ SLOTY TESTOWE: po 18:00 tylko dla wizyt online
-        if not is_online and start.hour >= 18:
-            continue
-
         # ⛔ twarda blokada złych minut (ZAWSZE)
         if not is_nice_start(start):
             continue
@@ -335,63 +327,113 @@ def api_hours():
 
     return jsonify([dt.strftime("%H:%M") for dt in chosen])
 
-
-
-
-
-
-
 # ───────────────────────────────────────
 # REZERWACJA WIZYTY
 # ───────────────────────────────────────
 
 @patient_bp.route("/reserve", methods=["POST"])
 def reserve():
+
+    is_ajax = (
+        request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        or request.args.get("ajax") == "1"
+    )
+
     phone = request.form.get("phone", "").strip()
     email = request.form.get("email", "").strip()
-    visit_code = request.form["visit_type"]
+    visit_code = request.form.get("visit_type")
+    payment_flow = request.form.get("payment_flow", "reserve")
+    payment_method = request.form.get("payment_method")
 
-    visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
+    visit_type = VisitType.query.filter_by(
+        code=visit_code,
+        active=True
+    ).first()
+
+    # ─────────────────────────
+    # WALIDACJE
+    # ─────────────────────────
+
     if not visit_type:
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowy typ wizyty"}), 400
         flash("Nieprawidłowy typ wizyty", "patient-danger")
+        return redirect(url_for("patient.index"))
+
+    if payment_flow == "online" and payment_method not in ("p24", "traditional"):
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowa metoda płatności"}), 400
+        flash("Nieprawidłowa metoda płatności", "patient-danger")
+        return redirect(url_for("patient.index"))
+
+    if visit_type.only_online_payment and payment_flow != "online":
+        if is_ajax:
+            return jsonify({"error": "Ta wizyta wymaga płatności online."}), 400
+        flash("Ta wizyta wymaga płatności online.", "patient-danger")
         return redirect(url_for("patient.index"))
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
 
-    start = datetime.strptime(
-        f"{request.form['day']} {request.form['hour']}",
-        "%Y-%m-%d %H:%M"
-    )
+    try:
+        start = datetime.strptime(
+            f"{request.form['day']} {request.form['hour']}",
+            "%Y-%m-%d %H:%M"
+        )
+    except Exception:
+        if is_ajax:
+            return jsonify({"error": "Nieprawidłowa data"}), 400
+        flash("Nieprawidłowa data", "patient-danger")
+        return redirect(url_for("patient.index"))
 
     if is_active_vacation_day(start.date()):
+        if is_ajax:
+            return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_.index"))
+
+    # ─────────────────────────
+    # SPRAWDZENIE SLOTÓW (bez locka)
+    # ─────────────────────────
 
     slots = (
         Availability.query
         .filter(
             Availability.start >= start,
             Availability.start < start + timedelta(minutes=visit_minutes),
-            Availability.active == True
+            Availability.active.is_(True)
         )
         .order_by(Availability.start)
         .all()
     )
 
     if len(slots) != required_slots:
+        if is_ajax:
+            return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
         return redirect(url_for("patient.index"))
 
     if not _window_is_free_and_continuous(slots):
+        if is_ajax:
+            return jsonify({"error": "Termin zajęty"}), 400
         flash("Termin zajęty", "patient-danger")
         return redirect(url_for("patient.index"))
 
     doctor_id = slots[0].doctor_id
 
     if is_phone_blacklisted(doctor_id, phone):
-        flash("Rezerwacja wizyty za pośrednictwem strony internetowej jest niedostępna. Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077.", "patient-danger")
+        msg = (
+            "Rezerwacja wizyty przez stronę jest niedostępna. "
+            "Prosimy o kontakt telefoniczny z gabinetem: +48 698 554 077."
+        )
+        if is_ajax:
+            return jsonify({"error": msg}), 403
+        flash(msg, "patient-danger")
         return redirect(url_for("patient.index"))
+
+    # ─────────────────────────
+    # TWORZENIE WIZYTY
+    # ─────────────────────────
 
     appointment = Appointment(
         doctor_id=doctor_id,
@@ -399,52 +441,108 @@ def reserve():
         end=start + timedelta(minutes=visit_minutes),
         duration=visit_minutes,
         visit_type=visit_code,
-        patient_first_name=request.form["first_name"],
-        patient_last_name=request.form["last_name"],
+        patient_first_name=request.form.get("first_name"),
+        patient_last_name=request.form.get("last_name"),
         patient_phone=phone,
         patient_email=email if email else None,
         cancel_token=uuid.uuid4().hex,
         created_by="patient",
-        client_ip=get_client_ip()   # 👈 KLUCZOWE
+        client_ip=get_client_ip(),
+        status="scheduled"
     )
 
-
-
-
     db.session.add(appointment)
+    db.session.flush()
+
+    # ─────────────────────────
+    # TRADITIONAL PAYMENT
+    # ─────────────────────────
+
+    if payment_flow == "online" and payment_method == "traditional":
+        from decimal import Decimal
+
+        amount_int = int(
+            (visit_type.price * Decimal("100")).quantize(Decimal("1"))
+        )
+
+        payment = Payment(
+            appointment_id=appointment.id,
+            provider="manual_transfer",
+            provider_session_id=uuid.uuid4().hex,
+            status="pending",
+            amount=amount_int,
+            currency="PLN"
+        )
+
+        db.session.add(payment)
+
     db.session.commit()
 
+    # ─────────────────────────
+    # GOOGLE SYNC
+    # ─────────────────────────
+
     try:
-        gcal = GoogleCalendarService()
-        gcal.sync_appointment(appointment)
+        GoogleCalendarService.sync_appointment(appointment, force_update=True, payment_context={
+        "payment_flow": payment_flow,
+        "payment_method": payment_method
+    }
+)
     except Exception as e:
         current_app.logger.warning(
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
 
-    current_app.logger.warning("SMS CONFIRMATION: START")
+    # ─────────────────────────
+    # FLOW ZWROTNY
+    # ─────────────────────────
 
+    if payment_flow == "online" and payment_method == "traditional":
+
+        try:
+            EmailService().send_traditional_payment_info(
+                appointment=appointment,
+                amount=visit_type.price
+            )
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL][TRADITIONAL] failed for {appointment.id}: {e}"
+            )
+
+        if is_ajax:
+            return jsonify({
+                "success": True,
+                "message": (
+                    "Wizyta została zarezerwowana. "
+                    "Dane do przelewu zostały wysłane na podany adres e-mail."
+                )
+            })
+
+        flash(
+            "Wizyta została zarezerwowana. Dane do przelewu zostały wysłane na podany adres e-mail.",
+            "patient-success"
+        )
+        return redirect(url_for("patient.index"))
+
+    if payment_flow == "online" and payment_method == "p24":
+        return jsonify({
+            "success": True,
+            "appointment_id": appointment.id
+        })
+
+    # PŁATNOŚĆ W GABINECIE
     try:
         SMSService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[SMS][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-        )
+    except Exception:
+        pass
 
-    # ===============================
-    # 📧 EMAIL (NOWE)
-    # ===============================
     try:
         EmailService().send_confirmation(appointment)
-    except Exception as e:
-        current_app.logger.warning(
-            f"[EMAIL][CONFIRMATION] failed for appointment {appointment.id}: {e}"
-        )
-
+    except Exception:
+        pass
 
     flash("Wizyta została zarezerwowana", "patient-success")
     return redirect(url_for("patient.index"))
-
 
 # ───────────────────────────────────────
 # FUNKCJE POMOCNICZE
@@ -478,13 +576,23 @@ def _window_is_free_and_continuous(slots):
 @patient_bp.route("/cancel/<token>", methods=["GET", "POST"])
 def cancel_by_token(token):
 
-    appointment = Appointment.query.filter_by(cancel_token=token).first()
+    appointment = Appointment.query.filter_by(
+        cancel_token=token
+    ).first()
 
     if not appointment:
         return render_template(
             "patient/cancel_result.html",
             success=False,
-            message="Nieprawidłowy link"
+            message="Nieprawidłowy lub wygasły link"
+        )
+
+    # 🔒 jeśli już anulowana
+    if appointment.status == "cancelled":
+        return render_template(
+            "patient/cancel_result.html",
+            success=False,
+            message="Ta wizyta została już anulowana."
         )
 
     allowed, reason = can_cancel_appointment(appointment)
@@ -495,22 +603,26 @@ def cancel_by_token(token):
             message=reason
         )
 
-    # 🔹 GET = tylko pokaż stronę
+    # 🔹 GET → tylko potwierdzenie
     if request.method == "GET":
         return render_template(
             "patient/cancel_confirm.html",
             appointment=appointment
         )
 
-    # 🔹 POST = faktyczne anulowanie
+    # 🔹 POST → faktyczne anulowanie
     appointment.status = "cancelled"
+    appointment.cancelled_by = "patient"
     appointment.cancelled_at = db.func.now()
+
     db.session.commit()
 
     try:
         GoogleCalendarService().delete_appointment(appointment)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning(
+            f"[GOOGLE][PATIENT CANCEL] delete failed: {e}"
+        )
 
     return render_template(
         "patient/cancel_result.html",
@@ -525,6 +637,17 @@ def cancel_short(token):
     return redirect(
         url_for("patient.cancel_by_token", token=token)
     )
+
+@patient_bp.route("/traditional-info/<int:appointment_id>")
+def traditional_info(appointment_id):
+
+    appointment = Appointment.query.get_or_404(appointment_id)
+
+    return render_template(
+        "patient/traditional_info.html",
+        appointment=appointment
+    )
+
 
 # ───────────────────────────────────────
 # API: STATUS URLOPU (PUBLICZNE)
@@ -588,3 +711,5 @@ def vacation_status():
         "message_pl": message_pl,
         "message_en": message_en
     })
+
+
