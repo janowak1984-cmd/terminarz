@@ -2395,3 +2395,9 @@ def email_retry(email_id):
 
     return redirect(url_for("doctor.email_list"))
 
+@doctor_bp.app_context_processor
+def inject_google_status():
+    return {
+        "google_connected": get_setting("google_connected") == "1",
+        "google_error": get_setting("google_error")
+    }

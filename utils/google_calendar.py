@@ -62,10 +62,25 @@ class GoogleCalendarService:
 
     @staticmethod
     def _refresh_tokens():
+        """
+        Odświeża access token używając refresh_token.
+        Zwraca gotowy Google service lub None jeśli refresh się nie powiódł.
+        """
+
+        access_token = get_setting("google_access_token")
+        refresh_token = get_setting("google_refresh_token")
+
+        if not refresh_token:
+            current_app.logger.error("[GOOGLE] Missing refresh_token")
+            set_setting("google_connected", "0")
+            set_setting("google_error", "missing_refresh_token")
+            db.session.commit()
+            return None
+
         try:
             creds = Credentials(
-                token=get_setting("google_access_token"),
-                refresh_token=get_setting("google_refresh_token"),
+                token=access_token,
+                refresh_token=refresh_token,
                 token_uri="https://oauth2.googleapis.com/token",
                 client_id=current_app.config["GOOGLE_CLIENT_ID"],
                 client_secret=current_app.config["GOOGLE_CLIENT_SECRET"],
@@ -74,17 +89,41 @@ class GoogleCalendarService:
 
             creds.refresh(Request())
 
+            # 🔐 zapis nowego access token
             set_setting("google_access_token", creds.token)
+
+            # ⚠️ Google zwykle NIE zwraca refresh_token przy refresh,
+            # ale jeśli zwróci — aktualizujemy
+            if creds.refresh_token:
+                set_setting("google_refresh_token", creds.refresh_token)
+
             set_setting("google_connected", "1")
+            set_setting("google_error", "")
+
             db.session.commit()
 
-            current_app.logger.warning("[GOOGLE] token refreshed OK")
+            current_app.logger.info("[GOOGLE] token refreshed successfully")
+
             return build("calendar", "v3", credentials=creds)
 
-        except Exception as e:
-            current_app.logger.error(f"[GOOGLE] token refresh FAILED: {e}")
-            GoogleCalendarService.disconnect()
+        except RefreshError as e:
+            # 🔴 invalid_grant / revoked / expired
+            current_app.logger.error(f"[GOOGLE] RefreshError: {e}")
+
+            set_setting("google_connected", "0")
+            set_setting("google_error", "refresh_failed")
             db.session.commit()
+
+            return None
+
+        except Exception as e:
+            # 🟡 błąd sieciowy / timeout / chwilowy problem
+            current_app.logger.error(f"[GOOGLE] Unexpected refresh error: {e}")
+
+            # nie rozłączamy permanentnie — może być chwilowy problem
+            set_setting("google_error", "temporary_error")
+            db.session.commit()
+
             return None
 
     @staticmethod
