@@ -1615,14 +1615,16 @@ def is_phone_blacklisted(doctor_id, phone):
 @doctor_bp.route("/statistics")
 @login_required
 def statistics():
+
     year = request.args.get("year", type=int, default=datetime.now().year)
     tab = request.args.get("tab", "visits")
     current_year = datetime.now().year
     doctor_id = current_user.id
+    now = datetime.now()
 
-    # ───────────────────────────────────────
-    # WIZYTY – inicjalizacja 12 miesięcy
-    # ───────────────────────────────────────
+    # ==========================================================
+    # WIZYTY – 12 miesięcy
+    # ==========================================================
     stats = {m: {} for m in range(1, 13)}
 
     visit_types = (
@@ -1650,9 +1652,9 @@ def statistics():
     for month, visit_code, count in visit_rows:
         stats[int(month)][visit_code] = count
 
-    # ───────────────────────────────────────
-    # SMS – inicjalizacja 12 miesięcy
-    # ───────────────────────────────────────
+    # ==========================================================
+    # SMS – 12 miesięcy
+    # ==========================================================
     sms_stats = {m: {"sent": 0, "failed": 0} for m in range(1, 13)}
 
     sms_rows = (
@@ -1674,18 +1676,42 @@ def statistics():
         if status in ("sent", "failed"):
             sms_stats[int(month)][status] = count
 
-    # ───────────────────────────────────────
+    # ==========================================================
+    # EMAIL – 12 miesięcy
+    # ==========================================================
+    email_stats = {m: {"sent": 0, "failed": 0} for m in range(1, 13)}
+
+    email_rows = (
+        db.session.query(
+            extract("month", EmailMessage.created_at).label("month"),
+            EmailMessage.status,
+            func.count(EmailMessage.id)
+        )
+        .join(Appointment)
+        .filter(
+            extract("year", EmailMessage.created_at) == year,
+            Appointment.doctor_id == doctor_id
+        )
+        .group_by("month", EmailMessage.status)
+        .all()
+    )
+
+    for month, status, count in email_rows:
+        if status in ("sent", "failed"):
+            email_stats[int(month)][status] = count
+
+    # ==========================================================
     # 🧠 JAREK – STATYSTYKI TECHNICZNE
-    # ───────────────────────────────────────
+    # ==========================================================
     jarek_stats = None
+
     if tab == "jarek":
-        now = datetime.now()
 
         # ===== AVAILABILITIES =====
         availabilities_total = (
             db.session.query(func.count(Availability.id))
             .filter(Availability.doctor_id == doctor_id)
-            .scalar()
+            .scalar() or 0
         )
 
         availabilities_past = (
@@ -1694,14 +1720,14 @@ def statistics():
                 Availability.doctor_id == doctor_id,
                 Availability.start < now
             )
-            .scalar()
+            .scalar() or 0
         )
 
         # ===== APPOINTMENTS =====
         appointments_total = (
             db.session.query(func.count(Appointment.id))
             .filter(Appointment.doctor_id == doctor_id)
-            .scalar()
+            .scalar() or 0
         )
 
         appointments_completed = (
@@ -1710,7 +1736,7 @@ def statistics():
                 Appointment.doctor_id == doctor_id,
                 Appointment.status == "completed"
             )
-            .scalar()
+            .scalar() or 0
         )
 
         appointments_cancelled = (
@@ -1719,7 +1745,7 @@ def statistics():
                 Appointment.doctor_id == doctor_id,
                 Appointment.status == "cancelled"
             )
-            .scalar()
+            .scalar() or 0
         )
 
         appointments_scheduled_future = (
@@ -1729,10 +1755,9 @@ def statistics():
                 Appointment.status == "scheduled",
                 Appointment.start >= now
             )
-            .scalar()
+            .scalar() or 0
         )
 
-        # ❗ scheduled, ale już w przeszłości
         appointments_scheduled_past = (
             db.session.query(func.count(Appointment.id))
             .filter(
@@ -1740,25 +1765,37 @@ def statistics():
                 Appointment.status == "scheduled",
                 Appointment.end < now
             )
-            .scalar()
+            .scalar() or 0
         )
 
-        # ===== SMS / SZABLONY =====
+        # ===== LISTA S❗ =====
+        overdue_appointments = (
+            Appointment.query
+            .filter(
+                Appointment.doctor_id == doctor_id,
+                Appointment.status == "scheduled",
+                Appointment.end < now
+            )
+            .order_by(Appointment.start.desc())
+            .all()
+        )
+
+        # ===== SMS TOTAL =====
         sms_messages_total = (
             db.session.query(func.count(SMSMessage.id))
             .join(Appointment)
             .filter(Appointment.doctor_id == doctor_id)
-            .scalar()
+            .scalar() or 0
         )
 
-        # ===== EMAIL =====
+        # ===== EMAIL TOTAL =====
         email_confirmations_total = (
             db.session.query(func.count(Appointment.id))
             .filter(
                 Appointment.doctor_id == doctor_id,
                 Appointment.email_confirmation_sent_at.isnot(None)
             )
-            .scalar()
+            .scalar() or 0
         )
 
         email_reminders_total = (
@@ -1767,16 +1804,16 @@ def statistics():
                 Appointment.doctor_id == doctor_id,
                 Appointment.email_reminder_sent_at.isnot(None)
             )
-            .scalar()
+            .scalar() or 0
         )
 
-        email_total = (email_confirmations_total or 0) + (email_reminders_total or 0)
+        email_total = email_confirmations_total + email_reminders_total
 
-
+        # ===== TEMPLATES =====
         schedule_templates_total = (
             db.session.query(func.count(ScheduleTemplate.id))
             .filter(ScheduleTemplate.doctor_id == doctor_id)
-            .scalar()
+            .scalar() or 0
         )
 
         jarek_stats = {
@@ -1789,6 +1826,8 @@ def statistics():
             "appointments_scheduled_future": appointments_scheduled_future,
             "appointments_scheduled_past": appointments_scheduled_past,
 
+            "overdue_list": overdue_appointments,
+
             "sms_messages": sms_messages_total,
             "schedule_templates": schedule_templates_total,
 
@@ -1797,7 +1836,9 @@ def statistics():
             "email_reminders": email_reminders_total,
         }
 
-
+    # ==========================================================
+    # RETURN
+    # ==========================================================
     return render_template(
         "doctor/statistics.html",
         year=year,
@@ -1806,6 +1847,7 @@ def statistics():
         visit_types=visit_types,
         stats=stats,
         sms_stats=sms_stats,
+        email_stats=email_stats,
         jarek_stats=jarek_stats,
         active_page="statistics"
     )

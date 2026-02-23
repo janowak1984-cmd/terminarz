@@ -24,19 +24,28 @@
 </form>
 
 <!-- ZAKŁADKI -->
-<ul class="nav nav-tabs mb-3">
+<ul class="nav nav-tabs mb-4">
   <li class="nav-item">
     <a class="nav-link {% if tab == 'visits' %}active{% endif %}"
        href="{{ url_for('doctor.statistics', tab='visits', year=year) }}">
       Wizyty
     </a>
   </li>
+
   <li class="nav-item">
     <a class="nav-link {% if tab == 'sms' %}active{% endif %}"
        href="{{ url_for('doctor.statistics', tab='sms', year=year) }}">
       SMS
     </a>
   </li>
+
+  <li class="nav-item">
+    <a class="nav-link {% if tab == 'email' %}active{% endif %}"
+       href="{{ url_for('doctor.statistics', tab='email', year=year) }}">
+      Email
+    </a>
+  </li>
+
   <li class="nav-item">
     <a class="nav-link {% if tab == 'jarek' %}active{% endif %}"
        href="{{ url_for('doctor.statistics', tab='jarek', year=year) }}">
@@ -48,9 +57,12 @@
 {# ===================================================== #}
 {# =================== TAB: JAREK ======================= #}
 {# ===================================================== #}
-{% if tab == "jarek" %}
+
+{% if tab == "jarek" and jarek_stats %}
+
 <div class="row">
-  <div class="col-md-6 col-lg-4 mb-3">
+
+  <div class="col-md-12">
     <div class="panel panel-default h-100">
       <div class="panel-heading text-center">
         <strong>🧠 Statystyki techniczne</strong>
@@ -61,31 +73,29 @@
         <div class="d-flex justify-content-between">
           <span>Availabilities</span>
           <strong>
-          {{ jarek_stats.availabilities_total }}
-          <span class="text-muted">
-            ({{ jarek_stats.availabilities_past }})
-          </span>
-        </strong>
-
+            {{ jarek_stats.availabilities_total }}
+            <span class="text-muted">
+              ({{ jarek_stats.availabilities_past }})
+            </span>
+          </strong>
         </div>
 
-          <div class="d-flex justify-content-between">
-            <span>Appointments</span>
-            <strong>
-              {{ jarek_stats.appointments_total }}
-              <span class="text-muted">
-                (
-                Z: {{ jarek_stats.appointments_completed }},
-                A: {{ jarek_stats.appointments_cancelled }},
-                S: {{ jarek_stats.appointments_scheduled_future }},
-                <span class="text-danger">
-                  S❗: {{ jarek_stats.appointments_scheduled_past }}
-                </span>
-                )
+        <div class="d-flex justify-content-between">
+          <span>Appointments</span>
+          <strong>
+            {{ jarek_stats.appointments_total }}
+            <span class="text-muted">
+              (
+              Z: {{ jarek_stats.appointments_completed }},
+              A: {{ jarek_stats.appointments_cancelled }},
+              S: {{ jarek_stats.appointments_scheduled_future }},
+              <span class="text-danger">
+                S❗: {{ jarek_stats.appointments_scheduled_past }}
               </span>
-            </strong>
-          </div>
-
+              )
+            </span>
+          </strong>
+        </div>
 
         <div class="d-flex justify-content-between">
           <span>SMS Messages</span>
@@ -98,11 +108,10 @@
             {{ jarek_stats.email_total }}
             <span class="text-muted">
               (C: {{ jarek_stats.email_confirmations }},
-              R: {{ jarek_stats.email_reminders }})
+               R: {{ jarek_stats.email_reminders }})
             </span>
           </strong>
         </div>
-
 
         <div class="d-flex justify-content-between">
           <span>Schedule Templates</span>
@@ -112,13 +121,47 @@
       </div>
     </div>
   </div>
+ <div class="panel-heading text-center">Wizyty z przeszłości bez satusu zrealizowana lub anulowana</div>
+  {# 🔴 LISTA PRZETERMINOWANYCH #}
+  {% if jarek_stats.overdue_list %}
+  <div class="col-12">
+    <div class="panel panel-default">
+      <div class="panel-body p-0">
+        <table class="table table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Pacjent</th>
+              <th>Telefon</th>
+              <th>Typ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in jarek_stats.overdue_list %}
+            <tr>
+              <td>{{ a.start.strftime("%Y-%m-%d %H:%M") }}</td>
+              <td>{{ a.patient_first_name }} {{ a.patient_last_name }}</td>
+              <td>{{ a.patient_phone }}</td>
+              <td>{{ a.visit_type }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
 </div>
+
 {% endif %}
 
 {# ===================================================== #}
-{# ============ TABY: WIZYTY / SMS ===================== #}
+{# ============ TABY: WIZYTY / SMS / EMAIL ============= #}
 {# ===================================================== #}
-{% if tab != "jarek" %}
+
+{% if tab in ['visits', 'sms', 'email'] %}
+
 <div class="row">
 {% for month in range(1, 13) %}
   <div class="col-md-4 col-sm-6 mb-3">
@@ -153,11 +196,26 @@
           </div>
         {% endif %}
 
+        {# ───────── EMAIL ───────── #}
+        {% if tab == 'email' %}
+          <div class="d-flex justify-content-between">
+            <span>Wysłane</span>
+            <strong>{{ email_stats[month]['sent'] }}</strong>
+          </div>
+          <div class="d-flex justify-content-between">
+            <span>Błędy</span>
+            <strong class="text-danger">
+              {{ email_stats[month]['failed'] }}
+            </strong>
+          </div>
+        {% endif %}
+
       </div>
     </div>
   </div>
 {% endfor %}
 </div>
+
 {% endif %}
 
 {% endblock %}
