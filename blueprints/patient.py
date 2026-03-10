@@ -390,7 +390,7 @@ def reserve():
         if is_ajax:
             return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient.index"))
+        return redirect(url_for("patient_.index"))
 
     # ─────────────────────────
     # SPRAWDZENIE SLOTÓW (bez locka)
