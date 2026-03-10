@@ -268,158 +268,6 @@ def appointments():
         active_page="appointments"
     )
 
-    page = request.args.get("page", 1, type=int)
-
-    # ─────────────────────────────
-    # PARAMETRY FILTRÓW
-    # ─────────────────────────────
-    first_name = request.args.get("first_name", "").strip()
-    last_name = request.args.get("last_name", "").strip()
-    phone = request.args.get("phone", "").strip()
-    email = request.args.get("email", "").strip()
-    client_ip = request.args.get("client_ip", "").strip()
-    visit_type = request.args.get("visit_type")
-    status = request.args.get("status")
-    created_by = request.args.get("created_by")
-    date_from = request.args.get("date_from")
-    date_to = request.args.get("date_to")
-    show_past = request.args.get("show_past") == "1"
-
-    sort = request.args.get("sort", "start")
-    dir_ = request.args.get("dir", "asc")
-
-    now = datetime.now()
-
-    # ─────────────────────────────
-    # 📌 BAZOWE ZAPYTANIE (ZAWSZE PIERWSZE)
-    # ─────────────────────────────
-    query = (
-        Appointment.query
-        .options(joinedload(Appointment.payments))  # 🔥 brak N+1
-        .filter(Appointment.doctor_id == current_user.id)
-    )
-
-
-    # ─────────────────────────────
-    # 🔍 FILTRY (JAK SMS)
-    # ─────────────────────────────
-    if first_name:
-        query = query.filter(
-            Appointment.patient_first_name.ilike(f"%{first_name}%")
-        )
-
-    if last_name:
-        query = query.filter(
-            Appointment.patient_last_name.ilike(f"%{last_name}%")
-        )
-
-    if phone:
-        query = query.filter(
-            Appointment.patient_phone.ilike(f"%{phone}%")
-        )
-
-    if email:
-        query = query.filter(
-            Appointment.patient_email.ilike(f"%{email}%")
-        )
-    if client_ip:
-        query = query.filter(
-            Appointment.client_ip.ilike(f"%{client_ip}%")
-        )
-
-    if visit_type:
-        query = query.filter(Appointment.visit_type == visit_type)
-
-    if status:
-        query = query.filter(Appointment.status == status)
-
-    if created_by in ("doctor", "patient"):
-        query = query.filter(Appointment.created_by == created_by)
-
-    if date_from:
-        try:
-            df = datetime.strptime(date_from, "%Y-%m-%d")
-            query = query.filter(Appointment.start >= df)
-        except ValueError:
-            pass
-
-    if date_to:
-        try:
-            dt = datetime.strptime(date_to, "%Y-%m-%d") + timedelta(days=1)
-            query = query.filter(Appointment.start < dt)
-        except ValueError:
-            pass
-
-    # ─────────────────────────────
-    # ⏱️ TYLKO PRZYSZŁE (DOMYŚLNIE)
-    # ─────────────────────────────
-    if not show_past:
-        query = query.filter(Appointment.end >= now)
-
-    if sort not in SORTABLE_COLUMNS:
-        sort = "start"
-
-    if dir_ not in ("asc", "desc"):
-        dir_ = "asc"
-
-    column = SORTABLE_COLUMNS[sort]
-
-    if sort == "start" and dir_ == "asc":
-        # najpierw przyszłe, potem przeszłe
-        is_past = case(
-    (Appointment.end < now, 1),
-            else_=0
-        )
-
-        query = query.order_by(
-            is_past.asc(),
-            Appointment.start.asc()
-        )
-    else:
-        query = query.order_by(
-            column.desc() if dir_ == "desc" else column.asc()
-        )
-
-    # ─────────────────────────────
-    # 📄 PAGINACJA
-    # ─────────────────────────────
-    pagination = query.paginate(
-        page=page,
-        per_page=PER_PAGE,
-        error_out=False
-    )
-
-    appointments = pagination.items
-
-    for a in appointments:
-
-        latest_payment = None
-
-        if a.payments:
-            latest_payment = sorted(
-                a.payments,
-                key=lambda p: p.created_at,
-                reverse=True
-            )[0]
-
-        a.payment_status = latest_payment.status if latest_payment else None
-        a.payment_provider = latest_payment.provider if latest_payment else None
-
-
-        return render_template(
-            "doctor/appointments.html",
-            appointments=appointments,
-            pagination=pagination,
-            show_past=show_past,
-            sort=sort,
-            dir=dir_,
-            visit_types=VisitType.query
-                .filter_by(active=True)
-                .order_by(VisitType.display_order.asc(), VisitType.id.asc())
-                .all(),
-            active_page="appointments"
-        )
-
 @doctor_bp.route("/cancel/<int:appointment_id>", methods=["POST"])
 @login_required
 def cancel_appointment(appointment_id):
@@ -783,11 +631,31 @@ def mark_paid(appointment_id):
     except Exception as e:
         current_app.logger.warning(f"[EMAIL AFTER PAY] {e}")
 
-    # 🔁 AJAX (kalendarz)
+
+    # ─────────────────────────
+    # LINK DO WIZYTY ONLINE
+    # ─────────────────────────
+    if not appt.visit_type.startswith("phone_call"):
+
+        try:
+            SMSService().send_online_meet_link(appt)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[SMS ONLINE LINK AFTER PAY] {e}"
+            )
+
+        try:
+            from utils.email_service import EmailService
+            EmailService().send_online_meet_link(appt)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL ONLINE LINK AFTER PAY] {e}"
+            )
+
+    # 🔁 AJAX
     if is_ajax:
         return jsonify({"status": "ok"})
 
-    # 🔁 NORMALNY POST (lista oczekujących)
     flash("✔ Płatność oznaczona jako opłacona", "doctor-success")
 
     return redirect(url_for("doctor.pending_payments"))

@@ -277,6 +277,49 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
     """
 
         return subject, body
+    
+    # ───────────────────────────────────────
+    # ONLINE VISIT LINK EMAIL
+    # ───────────────────────────────────────
+    def send_online_meet_link(self, appointment: Appointment):
+
+        if not self._can_send():
+            return None
+
+        if not appointment.patient_email:
+            return None
+
+        subject, body = self._build_online_meet_content(appointment)
+
+        email_log = EmailMessage(
+            appointment_id=appointment.id,
+            email=appointment.patient_email,
+            type="online_meet",
+            subject=subject,
+            content=body,
+            status="pending"
+        )
+
+        db.session.add(email_log)
+        db.session.commit()
+
+        try:
+            self._send_email(
+                to_email=email_log.email,
+                subject=subject,
+                body=body,
+                html=True
+            )
+
+            email_log.status = "sent"
+            email_log.sent_at = datetime.utcnow()
+
+        except Exception as e:
+            email_log.status = "failed"
+            email_log.error_message = str(e)
+
+        db.session.commit()
+        return email_log
 
     def _build_reminder_content(self, appointment):
         date_str = appointment.start.strftime("%d.%m.%Y")
@@ -327,6 +370,53 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
 
     </div>
 
+    </div>
+    """
+
+        return subject, body
+    
+
+    def _build_online_meet_content(self, appointment):
+
+        date_str = appointment.start.strftime("%d.%m.%Y")
+        time_str = appointment.start.strftime("%H:%M")
+
+        meet_link = "https://meet.google.com/eev-cxtv-ycq"
+
+        subject = "Link do wizyty online"
+
+        body = f"""
+    <div style="font-family: Arial, Helvetica, sans-serif; background:#f4f4f4; padding:30px 15px;">
+
+    <div style="max-width:520px; margin:0 auto; background:#ffffff; border-radius:8px; padding:30px; border:1px solid #e6e6e6;">
+
+    <h2 style="margin-top:0; color:#000;">
+    Wizyta online
+    </h2>
+
+    <p>Dzień dobry {appointment.patient_first_name},</p>
+
+    <p>Twoja wizyta odbędzie się online:</p>
+
+    <div style="background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #eee; margin:20px 0;">
+    <p style="margin:0; font-size:18px; font-weight:bold;">{date_str}</p>
+    <p style="margin:5px 0 0 0;">godz. {time_str}</p>
+    </div>
+
+    <p>Aby dołączyć do wizyty kliknij w link:</p>
+
+    <div style="text-align:center; margin:25px 0;">
+    <a href="{meet_link}"
+    style="background:#d73930; color:#ffffff; text-decoration:none; padding:12px 22px; border-radius:6px; font-weight:bold;">
+    Dołącz do wizyty
+    </a>
+    </div>
+
+    <p style="font-size:14px; color:#666;">
+    Prosimy dołączyć kilka minut przed rozpoczęciem wizyty.
+    </p>
+
+    </div>
     </div>
     """
 

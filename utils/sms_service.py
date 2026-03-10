@@ -147,6 +147,48 @@ class SMSService:
         return sms
 
     # ───────────────────────────────────────
+    # ONLINE VISIT LINK SMS
+    # ───────────────────────────────────────
+    def send_online_meet_link(self, appointment: Appointment):
+
+        if not self._can_send():
+            return None
+
+        content = self._build_online_meet_content(appointment)
+
+        sms = SMSMessage(
+            appointment_id=appointment.id,
+            phone=appointment.patient_phone,
+            type="online_meet",
+            content=content,
+            status="pending"
+        )
+
+        db.session.add(sms)
+        db.session.commit()
+
+        try:
+            response = self._send_sms(sms.phone, sms.content)
+            data = response.json() if response.content else {}
+
+            if response.status_code == 200 and data.get("count", 0) > 0:
+                sms.status = "sent"
+                sms.sent_at = datetime.utcnow()
+                sms.provider_message_id = str(
+                    data.get("list", [{}])[0].get("id")
+                )
+            else:
+                sms.status = "failed"
+                sms.error_message = data.get("message", "Unknown error")
+
+        except Exception as e:
+            sms.status = "failed"
+            sms.error_message = str(e)
+
+        db.session.commit()
+        return sms
+
+    # ───────────────────────────────────────
     # CONTENT BUILDERS
     # ───────────────────────────────────────
     def _build_confirmation_content(self, appointment: Appointment) -> str:
@@ -169,4 +211,17 @@ class SMSService:
             f"Przypomnienie o wizycie:\n"
             f"{date_str} godz. {time_str}\n"
             f"Do zobaczenia."
+        )
+
+    def _build_online_meet_content(self, appointment: Appointment) -> str:
+
+        date_str = appointment.start.strftime("%d.%m.%Y")
+        time_str = appointment.start.strftime("%H:%M")
+
+        meet_link = "https://meet.google.com/eev-cxtv-ycq"
+
+        return (
+            f"Wizyta online {date_str} {time_str}. "
+            f"Link do spotkania: {meet_link}. "
+            f"Prosze dolaczyc kilka minut przed wizyta."
         )

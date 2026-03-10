@@ -390,7 +390,7 @@ def reserve():
         if is_ajax:
             return jsonify({"error": "Termin niedostępny"}), 400
         flash("Termin niedostępny", "patient-danger")
-        return redirect(url_for("patient_.index"))
+        return redirect(url_for("patient.index"))
 
     # ─────────────────────────
     # SPRAWDZENIE SLOTÓW (bez locka)
@@ -477,6 +477,32 @@ def reserve():
         db.session.add(payment)
 
     db.session.commit()
+
+    # ─────────────────────────
+    # ONLINE VISIT LINK
+    # ─────────────────────────
+
+    if (
+        not visit_code.startswith("phone_call")
+        and (
+            payment_flow != "online"
+            or payment_method == "traditional"
+        )
+    ):
+
+        try:
+            SMSService().send_online_meet_link(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[SMS][ONLINE LINK] failed: {e}"
+            )
+
+        try:
+            EmailService().send_online_meet_link(appointment)
+        except Exception as e:
+            current_app.logger.warning(
+                f"[EMAIL][ONLINE LINK] failed: {e}"
+            )
 
     # ─────────────────────────
     # GOOGLE SYNC
