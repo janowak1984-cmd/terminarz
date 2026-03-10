@@ -479,29 +479,6 @@ def reserve():
     db.session.commit()
 
     # ─────────────────────────
-    # ONLINE VISIT LINK
-    # ─────────────────────────
-
-    if (
-        not visit_code.startswith("phone_call")
-        and payment_flow != "online"
-    ):
-
-        try:
-            SMSService().send_online_meet_link(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[SMS][ONLINE LINK] failed: {e}"
-            )
-
-        try:
-            EmailService().send_online_meet_link(appointment)
-        except Exception as e:
-            current_app.logger.warning(
-                f"[EMAIL][ONLINE LINK] failed: {e}"
-            )
-
-    # ─────────────────────────
     # GOOGLE SYNC
     # ─────────────────────────
 

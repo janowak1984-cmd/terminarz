@@ -314,6 +314,33 @@ def payment_status():
             f"[EMAIL][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
         )
 
+
+    # ==================================================
+    # 🎥 LINK DO SPOTKANIA ONLINE (MEET)
+    # ==================================================
+
+    visit_type = VisitType.query.filter_by(code=appointment.visit_type).first()
+
+    if visit_type and "online" in visit_type.name.lower():
+
+        already_sent = appointment.sms_messages.filter_by(type="online_meet").first()
+
+        if not already_sent:
+
+            try:
+                SMSService().send_online_meet_link(appointment)
+            except Exception as e:
+                current_app.logger.warning(
+                    f"[SMS][ONLINE LINK] failed for appointment {appointment.id}: {e}"
+                )
+
+            try:
+                EmailService().send_online_meet_link(appointment)
+            except Exception as e:
+                current_app.logger.warning(
+                    f"[EMAIL][ONLINE LINK] failed for appointment {appointment.id}: {e}"
+                )
+
     return "OK", 200
 
 @payments_bp.route("/return", methods=["GET"])
