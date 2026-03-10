@@ -484,10 +484,7 @@ def reserve():
 
     if (
         not visit_code.startswith("phone_call")
-        and (
-            payment_flow != "online"
-            or payment_method == "traditional"
-        )
+        and payment_flow != "online"
     ):
 
         try:
