@@ -154,9 +154,15 @@ class SMSMessage(TimestampMixin, db.Model):
     phone = db.Column(db.String(20), nullable=False)
 
     type = db.Column(
-        db.Enum("confirmation", "reminder", "custom", name="sms_type"),
-        nullable=False
-    )
+    db.Enum(
+        "confirmation",
+        "reminder",
+        "custom",
+        "online_meet",
+        name="sms_type"
+    ),
+    nullable=False
+)
 
     status = db.Column(
         db.Enum("pending", "sent", "failed", name="sms_status"),
@@ -191,8 +197,14 @@ class EmailMessage(TimestampMixin, db.Model):
     email = db.Column(db.String(120), nullable=False)
 
     type = db.Column(
-        db.Enum("confirmation", "reminder", "payment_retry", "custom",
-                name="email_type"),
+        db.Enum(
+            "confirmation",
+            "reminder",
+            "payment_retry",
+            "custom",
+            "online_meet",
+            name="email_type"
+        ),
         nullable=False
     )
 
