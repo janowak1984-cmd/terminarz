@@ -33,7 +33,6 @@ def get_setting(key, default=None, cast=None):
 def set_setting(key, value):
     """
     Zapisuje / aktualizuje ustawienie w tabeli settings.
-    BEZ zmiany istniejących zachowań get_setting().
     """
 
     setting = Setting.query.filter_by(key=key).first()
@@ -43,7 +42,8 @@ def set_setting(key, value):
     else:
         setting = Setting(
             key=key,
-            value=str(value)
+            value=str(value),
+            description="system generated"
         )
         db.session.add(setting)
 
