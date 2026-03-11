@@ -4,7 +4,6 @@ from flask_login import login_required
 from extensions import db
 from models import VisitType
 from sqlalchemy import func
-from flask import jsonify
 
 
 # ✅ Oficjalne kolory Google Calendar (event.colorId → HEX)
@@ -60,6 +59,7 @@ def get_one(vt_id):
         "id": vt.id,
         "name": vt.name,
         "code": vt.code,
+        "type": vt.type,
         "description": vt.description,
         "price": float(vt.price) if vt.price is not None else None,
         "duration_minutes": vt.duration_minutes,
@@ -119,6 +119,7 @@ def create():
     vt = VisitType(
         name=data["name"],
         code=data["code"],
+        type=data.get("type", "office"),
         description=data.get("description"),
         price=price,
         duration_minutes=int(data["duration_minutes"]),
@@ -193,8 +194,10 @@ def update(vt_id):
 
     vt.name = data["name"]
     vt.code = data["code"]
+    vt.type = data.get("type", "office")
     vt.description = data.get("description")
-    vt.price = data.get("price")
+    price_raw = data.get("price")
+    vt.price = float(price_raw) if price_raw not in (None, "", []) else None
     vt.duration_minutes = int(data["duration_minutes"])
     vt.color = data.get("color", vt.color)
     vt.active = data.get("active", True)
