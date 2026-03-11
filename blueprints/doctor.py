@@ -41,7 +41,7 @@ from models import (
     Payment,
 )
 
-from utils.settings import get_setting
+from utils.settings import get_setting, set_setting
 from utils.google_calendar import GoogleCalendarService
 from utils.sms_service import SMSService
 from models import EmailMessage
@@ -1837,6 +1837,7 @@ def google_connect():
     )
 
     session["oauth_state"] = state
+    session["oauth_code_verifier"] = flow.code_verifier
     return redirect(authorization_url)
 
 
@@ -1874,6 +1875,7 @@ def google_callback():
         ),
         state=state_arg
     )
+    flow.code_verifier = session.get("oauth_code_verifier")
 
     # 🔑 code → token
     flow.fetch_token(authorization_response=request.url)
@@ -1896,17 +1898,6 @@ def google_callback():
 
     flash("Połączono z Google Calendar", "success")
     return redirect(url_for("doctor.settings_view"))
-
-
-
-def set_setting(key, value):
-    s = Setting.query.filter_by(key=key).first()
-    if s:
-        s.value = value
-    else:
-        s = Setting(key=key, description=key, value=value)
-        db.session.add(s)
-
 
 def get_google_service():
     creds = Credentials(
