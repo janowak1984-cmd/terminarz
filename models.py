@@ -379,6 +379,23 @@ class Setting(TimestampMixin, db.Model):
 
 
 # ==================================================
+# GOOGLE CALENDAR ERRORS
+# ==================================================
+class GoogleCalendarError(TimestampMixin, db.Model):
+    __tablename__ = "google_calendar_errors"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    appointment_id = db.Column(db.Integer, index=True)
+
+    email = db.Column(db.String(120))
+    phone = db.Column(db.String(30))
+
+    error_type = db.Column(db.String(100))
+    error = db.Column(db.Text, nullable=False)
+
+
+# ==================================================
 # DEFAULT SETTINGS
 # ==================================================
 DEFAULT_SETTINGS = [

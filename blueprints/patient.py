@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, time
 import uuid
 
 from extensions import db
-from models import Availability, Appointment, VisitType, Vacation, Payment
+from models import Availability, Appointment, VisitType, Vacation, Payment, GoogleCalendarError
 from utils.cancel_policy import can_cancel_appointment
 from utils.sms_service import SMSService
 from utils.blacklist import is_phone_blacklisted
@@ -483,15 +483,40 @@ def reserve():
     # ─────────────────────────
 
     try:
-        GoogleCalendarService.sync_appointment(appointment, force_update=True, payment_context={
-        "payment_flow": payment_flow,
-        "payment_method": payment_method
-    }
-)
+
+        GoogleCalendarService.sync_appointment(
+            appointment,
+            force_update=True,
+            payment_context={
+                "payment_flow": payment_flow,
+                "payment_method": payment_method
+            }
+        )
+
     except Exception as e:
+
         current_app.logger.warning(
             f"[GOOGLE][PATIENT CREATE] sync failed: {e}"
         )
+
+        try:
+
+            error_row = GoogleCalendarError(
+                appointment_id=appointment.id,
+                email=appointment.patient_email,
+                phone=appointment.patient_phone,
+                error_type=type(e).__name__,
+                error=str(e)
+            )
+
+            db.session.add(error_row)
+            db.session.commit()
+
+        except Exception as db_error:
+
+            current_app.logger.error(
+                f"[GOOGLE ERROR LOG FAILED] {db_error}"
+            )
 
     # ─────────────────────────
     # FLOW ZWROTNY

@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 
 from extensions import db
 from utils.settings import get_setting, set_setting
-from models import VisitType
+from models import VisitType, GoogleCalendarError
 
 
 # ======================================================
@@ -255,9 +255,22 @@ class GoogleCalendarService:
     @staticmethod
     def sync_appointment(appt, force_update=False, payment_context=None):
         service = GoogleCalendarService.ensure_connection()
+
         if not service:
+
             appt.google_sync_status = "error"
             appt.google_last_sync_at = datetime.utcnow()
+
+            db.session.add(
+                GoogleCalendarError(
+                    appointment_id=appt.id,
+                    email=appt.patient_email,
+                    phone=appt.patient_phone,
+                    error_type="NotConnected",
+                    error="Google Calendar not connected"
+                )
+            )
+
             db.session.commit()
             return
 
@@ -287,21 +300,52 @@ class GoogleCalendarService:
             db.session.commit()
 
         except HttpError as e:
+            
             if e.resp.status == 404:
-                # event skasowany ręcznie w Google
                 appt.google_event_id = None
                 db.session.commit()
                 GoogleCalendarService.sync_appointment(appt, force_update=True)
                 return
 
             appt.google_sync_status = "error"
+            appt.google_last_sync_at = datetime.utcnow()
+
+            db.session.add(
+                GoogleCalendarError(
+                    appointment_id=appt.id,
+                    email=appt.patient_email,
+                    phone=appt.patient_phone,
+                    error_type="HttpError",
+                    error=str(e)
+                )
+            )
+
             db.session.commit()
-            current_app.logger.error(f"[GOOGLE] sync failed appt={appt.id}: {e}")
+
+            current_app.logger.error(
+                f"[GOOGLE] sync failed appt={appt.id}: {e}"
+            )
 
         except Exception as e:
+
             appt.google_sync_status = "error"
+            appt.google_last_sync_at = datetime.utcnow()
+
+            db.session.add(
+                GoogleCalendarError(
+                    appointment_id=appt.id,
+                    email=appt.patient_email,
+                    phone=appt.patient_phone,
+                    error_type=type(e).__name__,
+                    error=str(e)
+                )
+            )
+
             db.session.commit()
-            current_app.logger.error(f"[GOOGLE] sync failed appt={appt.id}: {e}")
+
+            current_app.logger.error(
+                f"[GOOGLE] sync failed appt={appt.id}: {e}"
+            )
 
     # --------------------------------------------------
     # 🗑 DELETE
