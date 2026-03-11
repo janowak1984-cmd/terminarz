@@ -18,10 +18,20 @@
         <div class="vt-meta">
             {{ vt.code }} • {{ vt.duration_minutes }} min •
             {{ "%.2f"|format(vt.price or 0) }} zł • #{{ vt.display_order }}
+
             {% if vt.only_online_payment %}
               • <strong>💳 tylko online</strong>
             {% endif %}
-      </div>
+
+            •
+            {% if vt.type == "office" %}
+                🏥 Gabinet
+            {% elif vt.type == "call" %}
+                📞 Telefon
+            {% elif vt.type == "meet" %}
+                💻 Online
+            {% endif %}
+        </div>
 
       </div>
 
@@ -107,6 +117,15 @@
           <option value="30">30 minut</option>
           <option value="45">45 minut</option>
           <option value="60">60 minut</option>
+        </select>
+      </p>
+
+      <p>
+        Typ wizyty:<br>
+        <select id="vt-type">
+          <option value="office">Gabinet</option>
+          <option value="call">Telefon</option>
+          <option value="meet">Online (Meet)</option>
         </select>
       </p>
 
@@ -208,17 +227,18 @@ function saveVisitType() {
   if (priceRaw !== '' && Number(priceRaw) < 0) return showError('Cena nie może być ujemna.');
 
   const payload = {
-    name,
-    code,
-    description: document.getElementById('vt-description').value.trim(),
-    price: priceRaw === '' ? null : Number(priceRaw),
-    duration_minutes: Number(duration),
-    color: document.getElementById('vt-color').value || null,
-    active: document.getElementById('vt-active').checked,
-    display_order: Number(order),
-    display_order_doctor: Number(orderDoctor),
-    only_online_payment: document.getElementById('vt-only-online').checked
-  };
+  name,
+  code,
+  type: document.getElementById('vt-type').value,
+  description: document.getElementById('vt-description').value.trim(),
+  price: priceRaw === '' ? null : Number(priceRaw),
+  duration_minutes: Number(duration),
+  color: document.getElementById('vt-color').value || null,
+  active: document.getElementById('vt-active').checked,
+  display_order: Number(order),
+  display_order_doctor: Number(orderDoctor),
+  only_online_payment: document.getElementById('vt-only-online').checked
+};
 
 
   const url = id ? `/doctor/visit-types/${id}` : `/doctor/visit-types`;
@@ -249,6 +269,7 @@ function openEditModal(id) {
       document.getElementById('vt-id').value = vt.id;
       document.getElementById('vt-name').value = vt.name;
       document.getElementById('vt-code').value = vt.code;
+      document.getElementById('vt-type').value = vt.type;
       document.getElementById('vt-description').value = vt.description || '';
       document.getElementById('vt-price').value = vt.price ?? '';
       document.getElementById('vt-only-online').checked = !!vt.only_online_payment;
@@ -272,13 +293,14 @@ function openCreateModal() {
   document.getElementById('vt-id').value = '';
   document.getElementById('vt-name').value = '';
   document.getElementById('vt-code').value = '';
+  document.getElementById('vt-type').value = "office";
   document.getElementById('vt-description').value = '';
   document.getElementById('vt-price').value = '';
   document.getElementById('vt-only-online').checked = false;
   document.getElementById('vt-duration').value = '30';
   document.getElementById('vt-active').checked = true;
-  document.getElementById('vt-order').value = 100;
-  document.getElementById('vt-order-doctor').value = 100;
+  document.getElementById('vt-order').value = 20;
+  document.getElementById('vt-order-doctor').value = 20;
 
 
   document.getElementById('vt-color').value = DEFAULT_COLOR;

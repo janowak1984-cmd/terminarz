@@ -253,6 +253,12 @@ class VisitType(TimestampMixin, db.Model):
     name = db.Column(db.String(100), nullable=False)
     code = db.Column(db.String(50), nullable=False, unique=True)
 
+    type = db.Column(
+        db.Enum("office", "call", "meet", name="visit_type_kind"),
+        nullable=False,
+        default="office"
+    )
+
     description = db.Column(db.Text)
     price = db.Column(db.Numeric(10, 2))
     duration_minutes = db.Column(db.Integer, nullable=False)
