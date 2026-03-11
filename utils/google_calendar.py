@@ -254,6 +254,7 @@ class GoogleCalendarService:
     # --------------------------------------------------
     @staticmethod
     def sync_appointment(appt, force_update=False, payment_context=None):
+
         service = GoogleCalendarService.ensure_connection()
 
         if not service:
@@ -279,34 +280,70 @@ class GoogleCalendarService:
         if appt.google_sync_status == "synced" and not force_update:
             return
 
-        event_body = GoogleCalendarService._build_event(appt, payment_context=payment_context)
+        event_body = GoogleCalendarService._build_event(
+            appt,
+            payment_context=payment_context
+        )
 
         try:
+
             if appt.google_event_id:
+
                 service.events().update(
                     calendarId=calendar_id,
                     eventId=appt.google_event_id,
                     body=event_body
                 ).execute()
+
             else:
+
                 created = service.events().insert(
                     calendarId=calendar_id,
                     body=event_body
                 ).execute()
+
                 appt.google_event_id = created["id"]
 
             appt.google_sync_status = "synced"
             appt.google_last_sync_at = datetime.utcnow()
+
             db.session.commit()
 
         except HttpError as e:
-            
+
+            db.session.rollback()
+
+            # 🔑 token wygasł → spróbuj refresh i powtórz operację
+            if e.resp.status in (401, 403):
+
+                current_app.logger.warning(
+                    "[GOOGLE] token expired – retry after refresh"
+                )
+
+                service = GoogleCalendarService._refresh_tokens()
+
+                if service:
+                    GoogleCalendarService.sync_appointment(
+                        appt,
+                        force_update=True,
+                        payment_context=payment_context
+                    )
+                    return
+
+            # 📅 event nie istnieje → utwórz ponownie
             if e.resp.status == 404:
+
                 appt.google_event_id = None
                 db.session.commit()
-                GoogleCalendarService.sync_appointment(appt, force_update=True)
+
+                GoogleCalendarService.sync_appointment(
+                    appt,
+                    force_update=True,
+                    payment_context=payment_context
+                )
                 return
 
+            # 🔴 zapis błędu
             appt.google_sync_status = "error"
             appt.google_last_sync_at = datetime.utcnow()
 
@@ -327,6 +364,8 @@ class GoogleCalendarService:
             )
 
         except Exception as e:
+
+            db.session.rollback()
 
             appt.google_sync_status = "error"
             appt.google_last_sync_at = datetime.utcnow()
