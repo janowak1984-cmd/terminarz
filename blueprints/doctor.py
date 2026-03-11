@@ -616,8 +616,11 @@ def mark_paid(appointment_id):
         current_app.logger.warning(f"[GOOGLE AFTER PAY] {e}")
 
     # 📩 SMS
+    vt = VisitType.query.filter_by(code=appt.visit_type).first()
     try:
         SMSService().send_confirmation(appt)
+        if vt and vt.type == "meet":
+            SMSService().send_online_meet_link(appt)
     except Exception as e:
         current_app.logger.warning(f"[SMS AFTER PAY] {e}")
 
@@ -625,6 +628,8 @@ def mark_paid(appointment_id):
     try:
         from utils.email_service import EmailService
         EmailService().send_confirmation(appt)
+        if vt and vt.type == "meet":
+            EmailService().send_online_meet_link(appt)
     except Exception as e:
         current_app.logger.warning(f"[EMAIL AFTER PAY] {e}")
 

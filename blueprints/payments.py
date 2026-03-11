@@ -300,8 +300,11 @@ def payment_status():
     # ==================================================
     # 📩 WYŚLIJ POTWIERDZENIE (TYLKO PO PŁATNOŚCI ONLINE)
     # ==================================================
+    vt = VisitType.query.filter_by(code=appointment.visit_type).first()
     try:
         SMSService().send_confirmation(appointment)
+        if vt and vt.type == "meet":
+            SMSService().send_online_meet_link(appointment)
     except Exception as e:
         current_app.logger.warning(
             f"[SMS][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
@@ -309,6 +312,8 @@ def payment_status():
 
     try:
         EmailService().send_confirmation(appointment)
+        if vt and vt.type == "meet":
+            EmailService().send_online_meet_link(appointment)
     except Exception as e:
         current_app.logger.warning(
             f"[EMAIL][PAYMENT SUCCESS] failed for appointment {appointment.id}: {e}"
