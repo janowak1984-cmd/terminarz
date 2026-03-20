@@ -1,0 +1,85 @@
+/* ================================
+   GLOBAL – DARK BACKGROUND
+================================ */
+
+html, body {
+  min-height: 100%;
+}
+
+/* ================================
+   GŁÓWNY KONTEJNER (KARTA)
+================================ */
+
+.container,
+.container-fluid {
+  max-width: 1100px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #000000;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+/* ================================
+   TABELKI
+================================ */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+th, td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+
+/* ================================
+   PRZYCISKI
+================================ */
+
+button {
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+/* ================================
+   FLASH MESSAGE
+================================ */
+
+.flashes {
+  list-style: none;
+  padding: 0;
+}
+
+.flashes li.success {
+  color: green;
+}
+
+.flashes li.danger {
+  color: red;
+}
+
+/* ================================
+   FULLCALENDAR – DROBNE DOSTOSOWANIE
+================================ */
+
+.fc {
+  background: #ffffff;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.fc-toolbar-title {
+  font-weight: bold;
+}
+
+/* ================================
+   MODALE (BOOTSTRAP)
+================================ */
+
+.modal-content {
+  border-radius: 6px;
+}

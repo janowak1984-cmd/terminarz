@@ -1,0 +1,164 @@
+{% extends "doctor/layout.html" %}
+
+{% block content %}
+<div class="container-fluid" style="max-width:1000px;">
+
+  <h2>⚙️ Konfiguracja</h2>
+  <br>
+
+  <!-- ================================================= -->
+  <!-- 📅 KALENDARZ -->
+  <!-- ================================================= -->
+  <h4>📅 Kalendarz</h4>
+
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+    {% for s in settings %}
+      {% if s.key == "calendar_visible_days" %}
+      <tr>
+        <form method="post"
+              action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
+          <td><code>{{ s.key }}</code></td>
+          <td>{{ s.description }}</td>
+          <td>
+            {% set selected = s.value.split(",") %}
+            {% for d,label in [
+              ('mon','Pn'),('tue','Wt'),('wed','Śr'),
+              ('thu','Cz'),('fri','Pt'),('sat','So'),('sun','Nd')
+            ] %}
+              <label style="margin-right:10px;">
+                <input type="checkbox"
+                       name="days"
+                       value="{{ d }}"
+                       {% if d in selected %}checked{% endif %}>
+                {{ label }}
+              </label>
+            {% endfor %}
+          </td>
+          <td>
+            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
+          </td>
+        </form>
+      </tr>
+      {% endif %}
+    {% endfor %}
+
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ================================================= -->
+  <!-- 📨 SMS -->
+  <!-- ================================================= -->
+  <h4>📨 SMS</h4>
+
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+    {% for s in settings %}
+      {% if s.key in ["sms_enabled", "sms_reminders_enabled"] %}
+      <tr>
+        <form method="post"
+              action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
+          <td><code>{{ s.key }}</code></td>
+          <td>{{ s.description }}</td>
+          <td>
+            <input type="hidden" name="value" value="0">
+            <label>
+              <input type="checkbox"
+                     name="value"
+                     value="1"
+                     {% if s.value == "1" %}checked{% endif %}>
+              {% if s.key == "sms_enabled" %}
+                Wysyłka SMS aktywna
+              {% elif s.key == "sms_reminders_enabled" %}
+                Automatyczne przypomnienia SMS (48h)
+              {% endif %}
+            </label>
+          </td>
+          <td>
+            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
+          </td>
+        </form>
+      </tr>
+      {% endif %}
+    {% endfor %}
+
+    </tbody>
+  </table>
+
+  <hr>
+
+  <!-- ================================================= -->
+  <!-- 📧 EMAIL -->
+  <!-- ================================================= -->
+  <h4>📧 Email</h4>
+
+  <table class="table table-bordered table-striped">
+    <thead>
+      <tr>
+        <th style="width:25%;">Klucz</th>
+        <th style="width:35%;">Opis</th>
+        <th style="width:30%;">Wartość</th>
+        <th style="width:10%;"></th>
+      </tr>
+    </thead>
+    <tbody>
+
+    {% for s in settings %}
+      {% if s.key in ["email_enabled", "email_reminders_enabled"] %}
+      <tr>
+        <form method="post"
+              action="{{ url_for('doctor.update_setting', key=s.key) }}">
+
+          <td><code>{{ s.key }}</code></td>
+          <td>{{ s.description }}</td>
+          <td>
+            <input type="hidden" name="value" value="0">
+            <label>
+              <input type="checkbox"
+                     name="value"
+                     value="1"
+                     {% if s.value == "1" %}checked{% endif %}>
+              {% if s.key == "email_enabled" %}
+                Wysyłka email aktywna
+              {% elif s.key == "email_reminders_enabled" %}
+                Automatyczne przypomnienia email (48h)
+              {% endif %}
+            </label>
+          </td>
+          <td>
+            <button class="btn btn-xs btn-primary">💾 Zapisz</button>
+          </td>
+        </form>
+      </tr>
+      {% endif %}
+    {% endfor %}
+
+    </tbody>
+  </table>
+
+  <hr>
+
+</div>
+{% endblock %}

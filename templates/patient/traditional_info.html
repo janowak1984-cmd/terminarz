@@ -1,0 +1,20 @@
+{% extends "patient/layout.html" %}
+
+{% block content %}
+<div class="container">
+  <h2>Rezerwacja przyjęta</h2>
+
+  <p>
+    Dziękujemy za rezerwację wizyty w dniu
+    <strong>{{ appointment.start.strftime("%d.%m.%Y %H:%M") }}</strong>.
+  </p>
+
+  <p>
+    Na podany adres e-mail wysłaliśmy dane do przelewu.
+  </p>
+
+  <p>
+    Wizyta zostanie potwierdzona po zaksięgowaniu płatności.
+  </p>
+</div>
+{% endblock %}

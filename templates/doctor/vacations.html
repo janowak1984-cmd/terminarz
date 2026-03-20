@@ -1,0 +1,219 @@
+{% extends "doctor/layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="row">
+    <div class="col-md-6">
+      <h2>Urlopy</h2>
+    </div>
+    <div class="col-md-6 text-right">
+      <button class="btn btn-primary" data-toggle="modal" data-target="#vacationModal">
+        + Dodaj urlop
+      </button>
+    </div>
+  </div>
+
+  <table class="table table-striped" id="vacations-table">
+    <thead>
+    <tr>
+        <th>Od</th>
+        <th>Do</th>
+        <th>Opis</th>
+        <th>Status</th>
+        <th>Akcje</th>
+    </tr>
+    </thead>
+
+    <tbody>
+      <!-- wypełnia JS -->
+    </tbody>
+  </table>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal fade" id="vacationModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Dodaj urlop</h4>
+      </div>
+
+      <div class="modal-body">
+        <form id="vacation-form">
+
+          <!-- ID do edycji -->
+          <input type="hidden" name="id">
+
+          <div class="form-group">
+            <label>Data od</label>
+            <input type="date" class="form-control" name="date_from" required>
+          </div>
+
+          <div class="form-group">
+            <label>Data do</label>
+            <input type="date" class="form-control" name="date_to" required>
+          </div>
+
+          <div class="form-group">
+            <label>Opis</label>
+            <textarea class="form-control" name="description"></textarea>
+          </div>
+
+          <div class="checkbox">
+            <label>
+              <input type="checkbox" name="active" checked> Aktywny
+            </label>
+          </div>
+
+        </form>
+        <div class="text-danger" id="vacation-error" style="display:none;"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Anuluj</button>
+        <button type="button" class="btn btn-primary" id="save-vacation">
+          Zapisz
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+function loadVacations() {
+  $.getJSON("/doctor/vacations/api", function (data) {
+    var tbody = $("#vacations-table tbody");
+    tbody.empty();
+
+    if (data.length === 0) {
+      tbody.append(
+        "<tr><td colspan='5' class='text-muted'>Brak urlopów</td></tr>"
+      );
+      return;
+    }
+
+    data.forEach(function (v) {
+      tbody.append(
+        "<tr>" +
+          "<td>" + v.date_from + "</td>" +
+          "<td>" + v.date_to + "</td>" +
+          "<td>" + (v.description || "") + "</td>" +
+          "<td>" + (v.active ? "Aktywny" : "Nieaktywny") + "</td>" +
+          "<td>" +
+            "<button class='btn btn-xs btn-info edit-vacation' " +
+              "data-id='" + v.id + "' " +
+              "data-from='" + v.date_from + "' " +
+              "data-to='" + v.date_to + "' " +
+              "data-desc='" + (v.description || "") + "' " +
+              "data-active='" + v.active + "'>" +
+              "Edytuj</button> " +
+            "<button class='btn btn-xs btn-default toggle-vacation' data-id='" + v.id + "'>" +
+              (v.active ? "Dezaktywuj" : "Aktywuj") +
+            "</button> " +
+            "<button class='btn btn-xs btn-danger delete-vacation' data-id='" + v.id + "'>" +
+              "Usuń" +
+            "</button>" +
+          "</td>" +
+        "</tr>"
+      );
+    });
+  });
+}
+
+$(function () {
+  loadVacations();
+
+  // ZAPIS (CREATE / UPDATE)
+  $("#save-vacation").on("click", function () {
+    var form = $("#vacation-form");
+    var dateFrom = form.find("[name=date_from]").val();
+    var dateTo = form.find("[name=date_to]").val();
+
+    if (!dateFrom || !dateTo) {
+        $("#vacation-error").text("Wybierz obie daty").show();
+        return;
+    }
+
+    if (dateFrom > dateTo) {
+        $("#vacation-error").text("Data od nie może być późniejsza niż data do").show();
+        return;
+    }
+
+    var id = form.find("[name=id]").val();
+
+    var payload = {
+      date_from: form.find("[name=date_from]").val(),
+      date_to: form.find("[name=date_to]").val(),
+      description: form.find("[name=description]").val(),
+      active: form.find("[name=active]").is(":checked")
+    };
+
+    var url = id ? "/doctor/vacations/" + id : "/doctor/vacations/create";
+    var method = id ? "PUT" : "POST";
+
+    $("#vacation-error").hide();
+
+    $.ajax({
+      url: url,
+      method: method,
+      contentType: "application/json",
+      data: JSON.stringify(payload),
+      success: function () {
+        $("#vacationModal").modal("hide");
+        form[0].reset();
+        form.find("[name=id]").val("");
+        form.find("[name=active]").prop("checked", true);
+        $("#vacationModal .modal-title").text("Dodaj urlop");
+        loadVacations();
+      },
+      error: function (xhr) {
+        var msg = "Błąd zapisu";
+        if (xhr.responseJSON && xhr.responseJSON.error) {
+          msg = xhr.responseJSON.error;
+        }
+        $("#vacation-error").text(msg).show();
+      }
+    });
+  });
+
+  // EDYCJA
+  $(document).on("click", ".edit-vacation", function () {
+    var btn = $(this);
+    var form = $("#vacation-form");
+
+    form.find("[name=id]").val(btn.data("id"));
+    form.find("[name=date_from]").val(btn.data("from"));
+    form.find("[name=date_to]").val(btn.data("to"));
+    form.find("[name=description]").val(btn.data("desc"));
+    form.find("[name=active]").prop("checked", btn.data("active") === true || btn.data("active") === "true");
+
+    $("#vacationModal .modal-title").text("Edytuj urlop");
+    $("#vacationModal").modal("show");
+  });
+
+  // TOGGLE
+  $(document).on("click", ".toggle-vacation", function () {
+    var id = $(this).data("id");
+    $.post("/doctor/vacations/" + id + "/toggle", loadVacations);
+  });
+
+  // DELETE
+  $(document).on("click", ".delete-vacation", function () {
+    if (!confirm("Usunąć urlop?")) return;
+    var id = $(this).data("id");
+
+    $.ajax({
+      url: "/doctor/vacations/" + id,
+      method: "DELETE",
+      success: loadVacations
+    });
+  });
+
+});
+</script>
+{% endblock %}

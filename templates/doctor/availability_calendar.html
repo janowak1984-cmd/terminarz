@@ -1,0 +1,776 @@
+{% extends "doctor/layout.html" %}
+
+{% block extra_head %}
+<link rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<h2>🗓️ Grafik – kalendarz</h2>
+<!-- ================================================= -->
+<!-- MODAL: AKCJE SLOTU (NIETKNIĘTY) -->
+<!-- ================================================= -->
+<div id="slotActionModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Termin</h4>
+      </div>
+      <div class="modal-body">
+        <p id="slot-info" class="text-center"></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-slot-deactivate" class="btn btn-danger btn-block">❌ Dezaktywuj termin</button>
+        <button id="btn-slot-add-visit" class="btn btn-success btn-block">➕ Dodaj wizytę</button>
+        <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= -->
+<!-- MODAL: AKCJE WIZYTY -->
+<!-- ================================================= -->
+<div id="appointmentActionModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">Wizyta</h4>
+        <input type="hidden" id="appointment-id-holder">
+      </div>
+      <div class="modal-footer">
+        <button id="btn-action-details" class="btn btn-info btn-block">🔍 Wyświetl szczegóły wizyty</button>
+        <button id="btn-action-edit" class="btn btn-primary btn-block">✏️ Edytuj wizytę</button>
+        <button id="btn-action-move" class="btn btn-warning btn-block">📅 Przenieś wizytę</button>
+        <button id="btn-action-complete" class="btn btn-success btn-block">✔ Oznacz jako zrealizowaną</button>
+        <button id="btn-action-mark-paid" class="btn btn-success btn-block">💰 Oznacz jako opłacona</button>
+        <button id="btn-action-cancel" class="btn btn-danger btn-block">🗑 Anuluj wizytę</button>
+        <button id="btn-action-blacklist" class="btn btn-warning btn-block">➕ Dodaj do czarnej listy</button>
+        <button id="btn-action-google-add" class="btn btn-info btn-block">  ➕ Dodaj do Google Calendar</button>
+        <button class="btn btn-default btn-block" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ================================================= -->
+<!-- MODAL: EDYCJA WIZYTY -->
+<!-- ================================================= -->
+<div id="editAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">✏️ Edycja wizyty</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Imię</label><input id="m-first-name" class="form-control"></div>
+        <div class="form-group"><label>Nazwisko</label><input id="m-last-name" class="form-control"></div>
+        <div class="form-group"><label>Telefon</label><input id="m-phone" class="form-control"></div>
+        <div class="form-group"><label>Email</label><input id="m-email" class="form-control"></div>
+        <div class="form-group"><label>Typ wizyty</label><select id="m-visit-type" class="form-control"></select></div>
+        <p><strong>Start:</strong> <span id="m-start"></span></p>
+        <p><strong>Koniec:</strong> <span id="m-end"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-save-visit" class="btn btn-primary">💾 Zapisz</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ================================================= -->
+<!-- MODAL: PRZENIESIENIE WIZYTY -->
+<!-- ================================================= -->
+<div id="moveAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">📅 Przenieś wizytę</h4>
+      </div>
+
+      <div class="modal-body">
+
+        <div class="form-group">
+          <label>Nowy dzień</label>
+          <input type="date" id="m-move-day" class="form-control">
+        </div>
+
+        <div class="form-group">
+          <label>Nowa godzina</label>
+          <div class="row">
+            <div class="col-xs-6">
+              <select id="m-move-hour-h" class="form-control">
+                <!-- godziny 08–19 -->
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+              </select>
+            </div>
+            <div class="col-xs-6">
+              <select id="m-move-hour-m" class="form-control">
+                <option value="00">00</option>
+                <option value="15">15</option>
+                <option value="30">30</option>
+                <option value="45">45</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button id="btn-move-visit" class="btn btn-warning">📅 Przenieś</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================= -->
+<!-- MODAL: DODAJ WIZYTĘ (EMAIL DODANY) -->
+<!-- ================================================= -->
+<div id="addAppointmentModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">➕ Dodaj wizytę</h4>
+      </div>
+      <div class="modal-body">
+        <div class="form-group"><label>Imię</label><input id="a-first-name" class="form-control"></div>
+        <div class="form-group"><label>Nazwisko</label><input id="a-last-name" class="form-control"></div>
+        <div class="form-group"><label>Telefon</label><input id="a-phone" class="form-control"></div>
+        <div class="form-group"><label>Email</label><input id="a-email" class="form-control"></div>
+        <div class="form-group"><label>Typ wizyty</label><select id="a-visit-type" class="form-control"></select></div>
+        <p><strong>Termin:</strong> <span id="a-start"></span></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="btn-create-visit">➕ Dodaj wizytę</button>
+        <button class="btn btn-default" data-dismiss="modal">Zamknij</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ================================================= -->
+<!-- MODAL: BLACKLIST PACJENTA -->
+<!-- ================================================= -->
+<div id="blacklistModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">⛔ Dodaj pacjenta do czarnej listy</h4>
+      </div>
+
+      <div class="modal-body">
+        <input type="hidden" id="blacklist-appointment-id">
+
+        <div class="form-group">
+          <label>Powód blokady</label>
+          <textarea id="blacklist-description"
+                    class="form-control"
+                    rows="4"></textarea>
+        </div>
+
+        <div class="checkbox">
+          <label>
+            <input type="checkbox" id="blacklist-cancel-appointment">
+            Anuluj wizytę
+          </label>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-default" data-dismiss="modal">Anuluj</button>
+        <button class="btn btn-danger" id="btn-confirm-blacklist">
+          Zablokuj pacjenta
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div id="availabilityCalendar"
+     data-hidden-days='{{ hidden_days | default([]) | tojson }}'>
+</div>
+
+
+
+<script>
+  
+document.addEventListener('DOMContentLoaded', function () {
+
+let currentAppointmentId = null;
+let currentSlotEvent = null;
+
+const pad = n => n.toString().padStart(2,'0');
+const fmt = d => ({
+  date:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+  time:`${pad(d.getHours())}:${pad(d.getMinutes())}`,
+  full:`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+});
+
+const calEl = document.getElementById('availabilityCalendar');
+
+let hiddenDays = [];
+try {
+  hiddenDays = JSON.parse(calEl.dataset.hiddenDays || '[]');
+} catch (e) {
+  console.warn('Błędne hiddenDays, używam []', e);
+  hiddenDays = [];
+}
+
+const savedDate = localStorage.getItem('doctor_calendar_date');
+
+calendar = new FullCalendar.Calendar(calEl, {
+  initialView: 'timeGridWeek',
+  locale: 'pl',
+  firstDay: 1,
+
+  height: 'auto',      // 🔥 KLUCZ
+  expandRows: true,    // 🔥 wypełnia dostępne miejsce
+
+  initialDate: savedDate ? savedDate : undefined,
+
+  hiddenDays: hiddenDays,
+// ✅ TERAZ POPRAWNIE
+
+  slotMinTime: '08:00:00',
+  slotMaxTime: '20:00:00',
+  slotDuration: '00:15:00',
+
+  events: {
+    url: "{{ url_for('doctor.api_availability_calendar') }}"
+  },
+
+    datesSet: function(info) {
+    // zapisujemy pierwszy dzień aktualnego widoku (bez godziny)
+    localStorage.setItem(
+      'doctor_calendar_date',
+      info.startStr.substring(0, 10)
+    );
+  },
+
+
+eventContent: function(arg) {
+
+  if (!arg.event.id.startsWith('appt-')) {
+    return;
+  }
+
+  const createdBy = arg.event.extendedProps.created_by;
+  const status = arg.event.extendedProps.status;
+  const paymentStatus = arg.event.extendedProps.payment_status;
+  const provider = arg.event.extendedProps.payment_provider;
+
+  const sourceIcon = createdBy === 'patient' ? '👤' : '✍️';
+
+  const completedBadge = status === 'completed'
+  ? `<span class="fc-completed-badge">✔</span>`
+  : '';
+
+  // ==============================
+  // 💳 IKONKI PŁATNOŚCI
+  // ==============================
+
+  let paymentIcon = '';
+
+  if (provider === 'przelewy24' || provider === 'p24') {
+
+    if (paymentStatus === 'paid') {
+      paymentIcon = '🟣🪙';      // opłacone P24
+    } else {
+      paymentIcon = '🟣🚫';    // oczekuje P24
+    }
+
+  } else if (provider === 'manual_transfer') {
+
+    if (paymentStatus === 'paid') {
+      paymentIcon = '🏦🪙';
+    } else {
+      paymentIcon = '🏦🚫';
+    }
+
+  }
+
+  return {
+    html: `
+      <div class="fc-event-title">
+        ${arg.event.title}
+        ${sourceIcon}
+        ${completedBadge}
+        ${paymentIcon}
+      </div>
+    `
+  };
+},
+
+eventClick: function(info) {
+
+  // ==============================
+  // WIZYTA
+  // ==============================
+  if (info.event.id.startsWith('appt-')) {
+
+    const id = info.event.extendedProps.appointment_id;
+    const status = info.event.extendedProps.status;
+    const paymentStatus = info.event.extendedProps.payment_status;
+    const provider = info.event.extendedProps.payment_provider;
+
+    currentAppointmentId = id;
+    document.getElementById('appointment-id-holder').value = id;
+
+    const btnComplete = document.getElementById('btn-action-complete');
+    const btnMarkPaid = document.getElementById('btn-action-mark-paid');
+
+    // domyślnie ukryj oba
+    btnComplete.style.display = 'none';
+    btnMarkPaid.style.display = 'none';
+
+    // ==============================
+    // 💰 OZNACZ JAKO OPŁACONA
+    // ==============================
+    if (paymentStatus === 'pending') {
+      btnMarkPaid.style.display = 'block';
+    }
+
+    // ==============================
+    // ✔ OZNACZ JAKO ZREALIZOWANĄ
+    // ==============================
+    if (status === 'scheduled') {
+
+      // 🟢 wizyta bez płatności online (gabinet)
+      if (!provider) {
+        btnComplete.style.display = 'block';
+      }
+
+      // 🟢 online / tradycyjny → tylko jeśli paid
+      if (provider && paymentStatus === 'paid') {
+        btnComplete.style.display = 'block';
+      }
+    }
+
+    $('#appointmentActionModal').modal('show');
+    return;
+  }
+
+  // ==============================
+  // SLOT
+  // ==============================
+  if (info.event.id.startsWith('slot-')) {
+
+    currentSlotEvent = info.event;
+
+    const isVacation = info.event.extendedProps.is_vacation === true;
+    const btnAdd = document.getElementById('btn-slot-add-visit');
+    const btnDeactivate = document.getElementById('btn-slot-deactivate');
+    const infoEl = document.getElementById('slot-info');
+
+    if (!info.event.extendedProps.active) {
+
+      if (isVacation) {
+        infoEl.innerText = '⛔ Urlop – nie można aktywować terminu';
+        btnAdd.style.display = 'none';
+        btnDeactivate.style.display = 'none';
+        $('#slotActionModal').modal('show');
+        return;
+      }
+
+      fetch('/doctor/availability/toggle', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          slot_id: info.event.extendedProps.slot_id,
+          active: true
+        })
+      }).then(() => calendar.refetchEvents());
+
+      return;
+    }
+
+    if (isVacation) {
+      btnAdd.style.display = 'none';
+      btnDeactivate.style.display = 'none';
+      infoEl.innerText = '⛔ Urlop – brak możliwości dodania wizyty';
+    } else {
+      btnAdd.style.display = 'block';
+      btnDeactivate.style.display = 'block';
+      infoEl.innerText = info.event.start.toLocaleString();
+    }
+
+    $('#slotActionModal').modal('show');
+  }
+}
+
+});
+
+calendar.render();
+
+
+
+/* ===== AKCJE WIZYTY ===== */
+document.getElementById('btn-action-details').onclick = function () {
+
+  if (!currentAppointmentId) return;
+
+  $('#appointmentActionModal').modal('hide');
+
+    window.open(
+    `/doctor/appointments/${currentAppointmentId}/details`,
+    'appointmentDetails',
+    'width=1200,height=900,scrollbars=yes'
+  );
+
+};
+
+document.getElementById('btn-action-edit').onclick = function(){
+  $('#appointmentActionModal').modal('hide');
+
+  Promise.all([
+    fetch(`/doctor/appointments/api/${currentAppointmentId}`).then(r=>r.json()),
+    fetch('/doctor/visit-types/api').then(r=>r.json())
+  ]).then(([a,types])=>{
+    const s=document.getElementById('m-visit-type');
+    s.innerHTML='';
+    types.forEach(t=>{
+      const o=document.createElement('option');
+      o.value=t.code; o.textContent=t.name;
+      s.appendChild(o);
+    });
+    document.getElementById('m-first-name').value=a.first_name;
+    document.getElementById('m-last-name').value=a.last_name;
+    document.getElementById('m-phone').value=a.phone;
+    document.getElementById('m-email').value = a.email || '';
+    document.getElementById('m-visit-type').value=a.visit_type;
+    document.getElementById('m-start').innerText=a.start;
+    document.getElementById('m-end').innerText=a.end;
+    $('#editAppointmentModal').modal('show');
+  });
+};
+
+document.getElementById('btn-action-move').onclick = function(){
+  $('#appointmentActionModal').modal('hide');
+
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`)
+    .then(r => r.json())
+    .then(a => {
+      const [day, time] = a.start.split(' ');
+      const [hh, mm] = time.split(':');
+
+      document.getElementById('m-move-day').value = day;
+      document.getElementById('m-move-hour-h').value = hh;
+      document.getElementById('m-move-hour-m').value = mm;
+
+      $('#moveAppointmentModal').modal('show');
+    });
+};
+
+document.getElementById('btn-action-complete').onclick = function () {
+
+  if (!confirm('Oznaczyć wizytę jako zrealizowaną?')) return;
+
+  fetch(`/doctor/appointments/${currentAppointmentId}/complete`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd zmiany statusu');
+  });
+};
+
+document.getElementById('btn-action-mark-paid').onclick = function () {
+
+  if (!confirm('Oznaczyć wizytę jako opłaconą?')) return;
+
+  fetch(`/doctor/appointments/${currentAppointmentId}/mark-paid`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd oznaczania płatności');
+  });
+};
+
+
+
+document.getElementById('btn-action-cancel').onclick = function () {
+
+  if (!confirm('Anulować wizytę?')) return;
+
+  fetch(`/doctor/cancel/${currentAppointmentId}`, {
+    method: 'POST'
+  })
+  .then(() => {
+    $('.modal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd anulowania');
+  });
+};
+
+
+/* ===== SAVE / MOVE ===== */
+
+document.getElementById('btn-save-visit').onclick=function(){
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      first_name: document.getElementById('m-first-name').value,
+      last_name:  document.getElementById('m-last-name').value,
+      phone:      document.getElementById('m-phone').value,
+      email:      document.getElementById('m-email').value,
+      visit_type: document.getElementById('m-visit-type').value
+    })
+  }).then(()=>{
+    $('#editAppointmentModal').modal('hide');
+    calendar.refetchEvents();
+  });
+};
+
+document.getElementById('btn-move-visit').onclick = function () {
+
+  const day = document.getElementById('m-move-day').value;
+  const hh  = document.getElementById('m-move-hour-h').value;
+  const mm  = document.getElementById('m-move-hour-m').value;
+
+  if (!day || !hh || !mm) {
+    alert('Wybierz poprawny termin');
+    return;
+  }
+
+  // ⛔ NIE UŻYWAMY Date() ani toISOString()
+  const start = `${day} ${hh}:${mm}`;
+  
+  fetch(`/doctor/appointments/api/${currentAppointmentId}`)
+    .then(r => r.json())
+    .then(a => {
+
+      const duration = a.duration; // minuty
+
+      // backend sam policzy sloty, my tylko przekazujemy okno
+      return fetch('/doctor/appointments/move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: currentAppointmentId,
+          start: start,          // 🔥 lokalny czas
+          end: null,             // 🔥 backend policzy
+          duration: duration     // 🔥 jawnie
+        })
+      });
+    })
+    .then(async res => {
+      if (!res.ok) {
+        const data = await res.json();
+        alert(data.error || 'Nie udało się przenieść wizyty');
+        return;
+      }
+
+      $('#moveAppointmentModal').modal('hide');
+      calendar.refetchEvents();
+    })
+    .catch(err => {
+      console.error(err);
+      alert('Błąd połączenia z serwerem');
+    });
+};
+
+document.getElementById('btn-action-blacklist').onclick = function () {
+
+  document.getElementById('blacklist-appointment-id').value = currentAppointmentId;
+  document.getElementById('blacklist-description').value = '';
+  document.getElementById('blacklist-cancel-appointment').checked = false;
+
+  $('#appointmentActionModal').modal('hide');
+  $('#blacklistModal').modal('show');
+};
+ 
+
+/* ===== SLOTY – NIETKNIĘTE ===== */
+
+document.getElementById('btn-slot-add-visit').onclick = function () {
+  $('#slotActionModal').modal('hide');
+  const dt = fmt(currentSlotEvent.start);
+
+  fetch('/doctor/visit-types/api')
+    .then(r => r.json())
+    .then(types => {
+      const s = document.getElementById('a-visit-type');
+      s.innerHTML = '';
+
+      types
+        .sort((a, b) =>
+          (a.display_order_doctor ?? 100) -
+          (b.display_order_doctor ?? 100)
+        )
+        .forEach(t => {
+          const o = document.createElement('option');
+          o.value = t.code;
+          o.textContent = t.name;
+          s.appendChild(o);
+        });
+
+      document.getElementById('a-start').innerText = dt.full;
+      document.getElementById('a-first-name').value = '';
+      document.getElementById('a-last-name').value = '';
+      document.getElementById('a-phone').value = '';
+      document.getElementById('a-email').value = '';
+
+      $('#addAppointmentModal').modal('show');
+    });
+};
+
+
+document.getElementById('btn-create-visit').onclick = function () {
+  const dt = fmt(currentSlotEvent.start);
+
+  fetch('/doctor/appointments/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      first_name: document.getElementById('a-first-name').value,
+      last_name:  document.getElementById('a-last-name').value,
+      phone:      document.getElementById('a-phone').value,
+      email:      document.getElementById('a-email').value,
+      visit_type: document.getElementById('a-visit-type').value,
+      date: dt.date,
+      time: dt.time
+    })
+  })
+  .then(async res => {
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || 'Nie udało się dodać wizyty');
+      return;
+    }
+
+    $('#addAppointmentModal').modal('hide');
+    calendar.refetchEvents();
+  })
+  .catch(err => {
+    console.error(err);
+    alert('Błąd połączenia z serwerem');
+  });
+};
+
+document.getElementById('btn-slot-deactivate').onclick=function(){
+  fetch('/doctor/availability/toggle',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      slot_id:currentSlotEvent.extendedProps.slot_id,
+      active:false
+    })
+  }).then(()=>{
+    $('#slotActionModal').modal('hide');
+    calendar.refetchEvents();
+  });
+};
+
+});
+
+document.getElementById('btn-confirm-blacklist').onclick = function () {
+
+  const appointmentId =
+    document.getElementById('blacklist-appointment-id').value;
+
+  const description =
+    document.getElementById('blacklist-description').value.trim();
+
+  const cancelAppointment =
+    document.getElementById('blacklist-cancel-appointment').checked;
+
+  if (!description) {
+    alert('Podaj powód blokady');
+    return;
+  }
+
+  fetch(`/doctor/appointments/${appointmentId}/blacklist`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description: description,
+      cancel_appointment: cancelAppointment
+    })
+  })
+  .then(res => res.text())   // ✅ NIC WIĘCEJ
+  .then(() => {
+    $('#blacklistModal').modal('hide');
+    calendar.refetchEvents();
+    alert('Pacjent dodany do czarnej listy');
+  })
+  .catch(err => {
+    console.error('BLACKLIST ERROR:', err);
+    alert('Błąd techniczny – sprawdź konsolę');
+  });
+};
+
+document.getElementById('btn-action-google-add').onclick = function () {
+
+  const apptId =
+    document.getElementById('appointment-id-holder').value;
+
+  if (!apptId) {
+    alert("❌ Brak wybranej wizyty");
+    return;
+  }
+
+  if (!confirm(
+    "⚠️ To doda wizytę do Google Calendar.\n" +
+    "Może powstać duplikat.\n\n" +
+    "Kontynuować?"
+  )) return;
+
+  fetch(`/doctor/appointments/${apptId}/google-force`, {
+    method: 'POST'
+  })
+  .then(r => {
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return r.json();
+  })
+  .then(() => {
+    alert("✔ Wizyta dodana do Google Calendar");
+  })
+  .catch(err => {
+    console.error("GOOGLE FORCE ERROR:", err);
+    alert("❌ Błąd dodawania do Google Calendar");
+  });
+};
+
+</script>
+
+
+{% endblock %}

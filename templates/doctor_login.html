@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="pl">
+<head>
+    <meta charset="utf-8">
+    <title>Logowanie lekarza</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Optional: Bootstrap (jeśli już używasz w projekcie) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+        body {
+            background: #f4f6f8;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .login-card {
+            background: #fff;
+            width: 100%;
+            max-width: 420px;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+
+        .login-card h1 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .login-card .form-group {
+            margin-bottom: 15px;
+        }
+
+        .login-card label {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .login-card .btn-primary {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .login-footer {
+            margin-top: 15px;
+            text-align: center;
+            color: #777;
+            font-size: 13px;
+        }
+
+        .login-logo {
+            text-align: center;
+            margin-bottom: 15px;
+            font-size: 32px;
+        }
+
+        .alert {
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="login-card">
+
+    <div class="login-logo">🩺</div>
+
+    <h1>Panel lekarza</h1>
+
+    {# FLASH MESSAGES #}
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'danger' if category in ['danger', 'error'] else category }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <form method="post" autocomplete="off">
+        <div class="form-group">
+            <label for="username">Login</label>
+            <input
+                type="text"
+                class="form-control"
+                id="username"
+                name="username"
+                required
+                autofocus>
+        </div>
+
+        <div class="form-group">
+            <label for="password">Hasło</label>
+            <input
+                type="password"
+                class="form-control"
+                id="password"
+                name="password"
+                required>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Zaloguj się
+        </button>
+    </form>
+
+    <div class="login-footer">
+        © {{ now().year if now else '' }} Panel lekarza
+    </div>
+</div>
+
+</body>
+</html>
