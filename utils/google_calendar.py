@@ -1,3 +1,4 @@
+import json
 from datetime import datetime
 from flask import current_app
 from google.oauth2 import service_account
@@ -24,8 +25,15 @@ class GoogleCalendarService:
     @staticmethod
     def get_service():
         try:
-            credentials = service_account.Credentials.from_service_account_file(
-                current_app.config["GOOGLE_SERVICE_ACCOUNT_FILE"],
+            json_str = current_app.config.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+
+            if not json_str:
+                raise Exception("Missing GOOGLE_SERVICE_ACCOUNT_JSON")
+
+            info = json.loads(json_str)
+
+            credentials = service_account.Credentials.from_service_account_info(
+                info,
                 scopes=GoogleCalendarService.SCOPES
             )
 
