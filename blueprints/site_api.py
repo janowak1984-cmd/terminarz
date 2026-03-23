@@ -18,6 +18,7 @@ def contact_form():
     phone = data.get("phone", "").strip()
     message = data.get("message", "").strip()
 
+
     # ───── WALIDACJA ─────
     if not name or not NAME_REGEX.fullmatch(name):
         return jsonify(success=False, error="invalid_name"), 400
