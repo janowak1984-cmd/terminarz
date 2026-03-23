@@ -48,50 +48,50 @@ class EmailService:
         except Exception as e:
             raise Exception(f"Resend error: {str(e)}")
 
-        # ───────────────────────────────────────
-        # CONFIRMATION EMAIL
-        # ───────────────────────────────────────
-        def send_confirmation(self, appointment: Appointment):
+    # ───────────────────────────────────────
+    # CONFIRMATION EMAIL
+    # ───────────────────────────────────────
+    def send_confirmation(self, appointment: Appointment):
 
-            if not self._can_send():
-                return None
+        if not self._can_send():
+            return None
 
-            if not appointment.patient_email:
-                return None
+        if not appointment.patient_email:
+            return None
 
-            subject, body = self._build_confirmation_content(appointment)
+        subject, body = self._build_confirmation_content(appointment)
 
-            email_log = EmailMessage(
-                appointment_id=appointment.id,
-                email=appointment.patient_email,
-                type="confirmation",
+        email_log = EmailMessage(
+            appointment_id=appointment.id,
+            email=appointment.patient_email,
+            type="confirmation",
+            subject=subject,
+            content=body,
+            status="pending"
+        )
+
+        db.session.add(email_log)
+        db.session.commit()
+
+        try:
+            self._send_email(
+                to_email=email_log.email,
                 subject=subject,
-                content=body,
-                status="pending"
+                body=body,
+                html=True
             )
 
-            db.session.add(email_log)
-            db.session.commit()
+            email_log.status = "sent"
+            email_log.sent_at = datetime.utcnow()
 
-            try:
-                self._send_email(
-                    to_email=email_log.email,
-                    subject=subject,
-                    body=body,
-                    html=True
-                )
+            appointment.email_confirmation_sent_at = email_log.sent_at
 
-                email_log.status = "sent"
-                email_log.sent_at = datetime.utcnow()
+        except Exception as e:
+            email_log.status = "failed"
+            email_log.error_message = str(e)
 
-                appointment.email_confirmation_sent_at = email_log.sent_at
-
-            except Exception as e:
-                email_log.status = "failed"
-                email_log.error_message = str(e)
-
-            db.session.commit()
-            return email_log
+        db.session.commit()
+        return email_log
 
     def send_raw(self, *, to_email, subject, body, html=True):
 
@@ -209,6 +209,10 @@ Po zaksięgowaniu płatności wizyta zostanie potwierdzona.
 
         db.session.commit()
         return email_log
+
+    # ───────────────────────────────────────
+    # CONTENT BUILDERS
+    # ───────────────────────────────────────
 
     # ───────────────────────────────────────
     # CONTENT BUILDERS
