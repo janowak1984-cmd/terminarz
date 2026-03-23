@@ -53,10 +53,9 @@ def contact_form():
     # ───── WYSYŁKA ─────
     try:
         EmailService().send_raw(
-            to=to_email,
+            to_email=to_email,
             subject="Nowa wiadomość z formularza – kingabobinska.pl",
-            body=body,
-            reply_to=email
+            body=body
         )
     except Exception as e:
         current_app.logger.error(
