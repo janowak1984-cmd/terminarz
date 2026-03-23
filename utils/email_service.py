@@ -93,6 +93,24 @@ class EmailService:
             db.session.commit()
             return email_log
 
+def send_raw(self, *, to_email, subject, body, html=True):
+
+    if not self._can_send():
+        return False
+
+    try:
+        self._send_email(
+            to_email=to_email,
+            subject=subject,
+            body=body,
+            html=html
+        )
+        return True
+
+    except Exception as e:
+        print("RAW EMAIL ERROR:", e)
+        return False
+
     # ───────────────────────────────────────
     # REMINDER EMAIL
     # ───────────────────────────────────────
