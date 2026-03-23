@@ -1,4 +1,4 @@
-import requests
+import resend
 from datetime import datetime
 from flask import current_app
 
@@ -12,7 +12,8 @@ class EmailService:
     def __init__(self):
         self.enabled = get_setting("email_enabled", "1") == "1"
 
-        self.sendgrid_api_key = current_app.config.get("SENDGRID_API_KEY")
+        self.resend_api_key = current_app.config.get("RESEND_API_KEY")
+        resend.api_key = self.resend_api_key
         self.sender = current_app.config.get("MAIL_FROM")
 
         self.base_url = (
@@ -27,7 +28,7 @@ class EmailService:
         return (
             self.enabled
             and bool(self.sender)
-            and bool(self.sendgrid_api_key)
+            and bool(self.resend_api_key)
         )
 
     # ───────────────────────────────────────
@@ -35,83 +36,62 @@ class EmailService:
     # ───────────────────────────────────────
     def _send_email(self, *, to_email, subject, body, html=True):
 
-        sender_email = self.sender.split("<")[-1].strip(">").strip()
-        sender_name = self.sender.split("<")[0].strip()
-
-        payload = {
-            "personalizations": [{
-                "to": [{"email": to_email}]
-            }],
-            "from": {
-                "email": sender_email,
-                "name": sender_name
-            },
-            "subject": subject,
-            "content": [{
-                "type": "text/html" if html else "text/plain",
-                "value": body
-            }]
-        }
-
-        response = requests.post(
-            "https://api.sendgrid.com/v3/mail/send",
-            headers={
-                "Authorization": f"Bearer {self.sendgrid_api_key}",
-                "Content-Type": "application/json"
-            },
-            json=payload,
-            timeout=10
-        )
-
-        if response.status_code >= 300:
-            raise Exception(
-                f"SendGrid error {response.status_code}: {response.text}"
-            )
-
-    # ───────────────────────────────────────
-    # CONFIRMATION EMAIL
-    # ───────────────────────────────────────
-    def send_confirmation(self, appointment: Appointment):
-
-        if not self._can_send():
-            return None
-
-        if not appointment.patient_email:
-            return None
-
-        subject, body = self._build_confirmation_content(appointment)
-
-        email_log = EmailMessage(
-            appointment_id=appointment.id,
-            email=appointment.patient_email,
-            type="confirmation",
-            subject=subject,
-            content=body,
-            status="pending"
-        )
-
-        db.session.add(email_log)
-        db.session.commit()
-
         try:
-            self._send_email(
-                to_email=email_log.email,
-                subject=subject,
-                body=body,
-                html=True
-            )
-
-            email_log.status = "sent"
-            email_log.sent_at = datetime.utcnow()
-
-            appointment.email_confirmation_sent_at = email_log.sent_at
+            resend.Emails.send({
+                "from": self.sender or "onboarding@resend.dev",
+                "to": [to_email],
+                "subject": subject,
+                "html": body if html else None,
+                "text": body if not html else None,
+            })
 
         except Exception as e:
-            email_log.status = "failed"
-            email_log.error_message = str(e)
+            raise Exception(f"Resend error: {str(e)}")
 
-        db.session.commit()
-        return email_log
+        # ───────────────────────────────────────
+        # CONFIRMATION EMAIL
+        # ───────────────────────────────────────
+        def send_confirmation(self, appointment: Appointment):
+
+            if not self._can_send():
+                return None
+
+            if not appointment.patient_email:
+                return None
+
+            subject, body = self._build_confirmation_content(appointment)
+
+            email_log = EmailMessage(
+                appointment_id=appointment.id,
+                email=appointment.patient_email,
+                type="confirmation",
+                subject=subject,
+                content=body,
+                status="pending"
+            )
+
+            db.session.add(email_log)
+            db.session.commit()
+
+            try:
+                self._send_email(
+                    to_email=email_log.email,
+                    subject=subject,
+                    body=body,
+                    html=True
+                )
+
+                email_log.status = "sent"
+                email_log.sent_at = datetime.utcnow()
+
+                appointment.email_confirmation_sent_at = email_log.sent_at
+
+            except Exception as e:
+                email_log.status = "failed"
+                email_log.error_message = str(e)
+
+            db.session.commit()
+            return email_log
 
     # ───────────────────────────────────────
     # REMINDER EMAIL

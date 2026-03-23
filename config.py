@@ -47,9 +47,9 @@ class Config:
     )
 
     # ─────────────────────────
-    # SENDGRID (EMAIL API)
+    # RESEND (EMAIL API)
     # ─────────────────────────
-    SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
+    RESEND_API_KEY = os.environ.get("RESEND_API_KEY")
 
     # 📬 ADRES DO FORMULARZA KONTAKTOWEGO
     CONTACT_FORM_TO = os.environ.get(
