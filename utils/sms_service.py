@@ -267,7 +267,7 @@ class SMSService:
         )
     def _build_payment_notification_content(self, appointment: Appointment) -> str:
         return (
-            f"Pacjent {appointment.patient_name} "
+            f"Pacjent {appointment.patient_first_name} {appointment.patient_last_name}"
             f"({appointment.patient_phone}) "
             f"zarezerwowal i oplacil wizyte w P24."
         )
