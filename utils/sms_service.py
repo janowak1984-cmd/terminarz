@@ -266,8 +266,14 @@ class SMSService:
             f"Prosze dolaczyc kilka minut przed wizyta."
         )
     def _build_payment_notification_content(self, appointment: Appointment) -> str:
+        first_name = appointment.patient_first_name or ""
+        last_name = appointment.patient_last_name or ""
+        phone = appointment.patient_phone or ""
+
+        full_name = f"{first_name} {last_name}".strip()
+
         return (
-            f"Pacjent {appointment.patient_first_name} {appointment.patient_last_name}"
-            f"({appointment.patient_phone}) "
+            f"Pacjent {full_name} "
+            f"({phone}) "
             f"zarezerwowal i oplacil wizyte w P24."
         )

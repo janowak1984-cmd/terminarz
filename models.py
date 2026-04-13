@@ -159,6 +159,7 @@ class SMSMessage(TimestampMixin, db.Model):
         "reminder",
         "custom",
         "online_meet",
+        "payment_notification",
         name="sms_type"
     ),
     nullable=False
