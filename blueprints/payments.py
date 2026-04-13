@@ -303,6 +303,7 @@ def payment_status():
     vt = VisitType.query.filter_by(code=appointment.visit_type).first()
     try:
         SMSService().send_confirmation(appointment)
+        SMSService().send_payment_notification(appointment)
         if vt and vt.type == "meet":
             SMSService().send_online_meet_link(appointment)
     except Exception as e:

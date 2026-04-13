@@ -187,6 +187,46 @@ class SMSService:
 
         db.session.commit()
         return sms
+    
+    def send_payment_notification(self, appointment: Appointment):
+        if not self._can_send():
+            return None
+
+        phone = "+48608597050"
+
+        content = self._build_payment_notification_content(appointment)
+
+        sms = SMSMessage(
+            appointment_id=appointment.id,
+            phone=phone,
+            type="payment_notification",
+            content=content,
+            status="pending"
+        )
+
+        db.session.add(sms)
+        db.session.commit()
+
+        try:
+            response = self._send_sms(sms.phone, sms.content)
+            data = response.json() if response.content else {}
+
+            if response.status_code == 200 and data.get("count", 0) > 0:
+                sms.status = "sent"
+                sms.sent_at = datetime.utcnow()
+                sms.provider_message_id = str(
+                    data.get("list", [{}])[0].get("id")
+                )
+            else:
+                sms.status = "failed"
+                sms.error_message = data.get("message", "Unknown error")
+
+        except Exception as e:
+            sms.status = "failed"
+            sms.error_message = str(e)
+
+        db.session.commit()
+        return sms
 
     # ───────────────────────────────────────
     # CONTENT BUILDERS
@@ -224,4 +264,10 @@ class SMSService:
             f"Wizyta online {date_str} {time_str}. "
             f"Link do spotkania: {meet_link}. "
             f"Prosze dolaczyc kilka minut przed wizyta."
+        )
+    def _build_payment_notification_content(self, appointment: Appointment) -> str:
+        return (
+            f"Pacjent {appointment.patient_name} "
+            f"({appointment.patient_phone}) "
+            f"zarezerwowal i oplacil wizyte w P24."
         )
