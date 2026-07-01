@@ -370,42 +370,92 @@ def complete_appointment(appointment_id):
 @login_required
 def api_availability_calendar():
 
-    # ✅ POBIERZ WIZYTY NAJPIERW (JEDNO ZAPYTANIE)
+    # ==========================================================
+    # FULLCALENDAR → zakres aktualnie wyświetlanego widoku
+    # ==========================================================
+    try:
+        start = datetime.fromisoformat(
+            request.args["start"].replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+
+        end = datetime.fromisoformat(
+            request.args["end"].replace("Z", "+00:00")
+        ).replace(tzinfo=None)
+
+    except Exception:
+        # awaryjnie obecny tydzień
+        today = datetime.now()
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=7)
+
+    # ==========================================================
+    # WIZYTY
+    # ==========================================================
     appointments = (
         db.session.query(Appointment)
         .options(joinedload(Appointment.payments))
         .filter(
             Appointment.doctor_id == current_user.id,
-            Appointment.status.in_(["scheduled", "completed"])
+            Appointment.status.in_(["scheduled", "completed"]),
+            Appointment.start < end,
+            Appointment.end > start
         )
         .all()
     )
 
+    # ==========================================================
+    # URLOPY
+    # ==========================================================
+    vacations = (
+        Vacation.query
+        .filter(
+            Vacation.doctor_id == current_user.id,
+            Vacation.active.is_(True),
+            Vacation.date_from <= end.date(),
+            Vacation.date_to >= start.date()
+        )
+        .all()
+    )
+
+    # ==========================================================
+    # SLOTY
+    # ==========================================================
+    slots = (
+        Availability.query
+        .filter(
+            Availability.doctor_id == current_user.id,
+            Availability.start < end,
+            Availability.end > start
+        )
+        .all()
+    )
 
     events = []
 
-    vacations = Vacation.query.filter_by(
-        doctor_id=current_user.id,
-        active=True
-    ).all()
+    # ==========================================================
+    # ZAJĘTE SLOTY (O(1))
+    # ==========================================================
+    occupied_slots = set()
 
-    slots = Availability.query.filter_by(
-        doctor_id=current_user.id
-    ).all()
+    for a in appointments:
+
+        current = a.start
+
+        while current < a.end:
+            occupied_slots.add(current)
+            current += timedelta(minutes=15)
 
     # ---------- HELPERY ----------
-    def slot_has_appointment(slot):
-        for a in appointments:
-            if slot.start < a.end and slot.end > a.start:
-                return True
-        return False
 
     def is_vacation_day(d):
         return any(v.date_from <= d <= v.date_to for v in vacations)
 
-    # ---------- SLOTY ----------
+    # ==========================================================
+    # SLOTY
+    # ==========================================================
     for s in slots:
-        if slot_has_appointment(s):
+
+        if s.start in occupied_slots:
             continue
 
         vacation_flag = is_vacation_day(s.start.date())
@@ -429,8 +479,9 @@ def api_availability_calendar():
             }
         })
 
-    # ---------- WIZYTY ----------
-    # 🔹 Zbierz wszystkie kody typów wizyt
+    # ==========================================================
+    # WIZYTY
+    # ==========================================================
     visit_type_codes = {a.visit_type for a in appointments}
 
     visit_types_map = {
@@ -447,10 +498,13 @@ def api_availability_calendar():
         color_id = vt.color if vt and vt.color else "1"
         color_hex = GOOGLE_COLORS.get(color_id, "#3788d8")
 
-        # 🔹 najnowsza płatność z relacji (bez dodatkowego zapytania)
         latest_payment = None
+
         if a.payments:
-            latest_payment = max(a.payments, key=lambda p: p.created_at)
+            latest_payment = max(
+                a.payments,
+                key=lambda p: p.created_at
+            )
 
         payment_status = latest_payment.status if latest_payment else None
         payment_provider = latest_payment.provider if latest_payment else None
@@ -476,39 +530,55 @@ def api_availability_calendar():
             }
         })
 
-
-    # ---------- URLOPY ----------
+    # ==========================================================
+    # URLOPY
+    # ==========================================================
     for v in vacations:
         events.append({
             "id": f"vac-{v.id}",
-            "start": datetime.combine(v.date_from, time.min).isoformat(),
-            "end": datetime.combine(v.date_to + timedelta(days=1), time.min).isoformat(),
+            "start": datetime.combine(
+                v.date_from,
+                time.min
+            ).isoformat(),
+            "end": datetime.combine(
+                v.date_to + timedelta(days=1),
+                time.min
+            ).isoformat(),
             "display": "background",
             "backgroundColor": "#ffeeba"
         })
 
-
-    # ---------- ŚWIĘTA ----------
-    years = {
-        int(y[0]) for y in
-        db.session.query(db.func.extract('year', Availability.start))
-        .filter(Availability.doctor_id == current_user.id)
-        .distinct()
-        .all()
-        if y[0]
-    } or {date.today().year}
+    # ==========================================================
+    # ŚWIĘTA
+    # ==========================================================
+    years = set(range(start.year, end.year + 1))
 
     for d, name in holidays.PL(years=years).items():
+
+        if not (start.date() <= d < end.date()):
+            continue
+
         events.append({
             "id": f"holiday-{d}",
             "start": datetime.combine(d, time.min).isoformat(),
-            "end": datetime.combine(d + timedelta(days=1), time.min).isoformat(),
+            "end": datetime.combine(
+                d + timedelta(days=1),
+                time.min
+            ).isoformat(),
             "display": "background",
             "backgroundColor": "#fff3cd",
-            "extendedProps": {"name": name}
+            "extendedProps": {
+                "name": name
+            }
         })
 
-    current_app.logger.warning(f"EVENTS COUNT: {len(events)}")
+    current_app.logger.warning(
+        f"Calendar range: {start.date()} -> {end.date()} | "
+        f"Appointments={len(appointments)} "
+        f"Slots={len(slots)} "
+        f"Vacations={len(vacations)} "
+        f"Events={len(events)}"
+    )
 
     return jsonify(events)
 
