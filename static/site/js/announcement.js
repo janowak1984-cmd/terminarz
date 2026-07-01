@@ -24,7 +24,7 @@ const ANNOUNCEMENT = {
 
     message: {
 
-        pl: `
+    pl: `
 <p>
 Gabinet będzie <strong>nieczynny od 1 sierpnia do 3 września 2026 r.</strong>
 z powodu urlopu.
@@ -36,33 +36,21 @@ zachęcamy do wcześniejszej rezerwacji dostępnych terminów
 jeszcze w <strong>lipcu</strong>.
 </p>
 
-<p>
-Rejestracja wizyt zostanie wznowiona
-od <strong>4 września 2026 r.</strong>
-</p>
 `,
 
-        en: `
+    en: `
 <p>
-The clinic will be closed
-<strong>from August 1 to September 3, 2026</strong>
+The clinic will be <strong>closed from August 1 to September 3, 2026</strong>
 due to summer holidays.
 </p>
 
 <p>
 If you are planning an appointment before this period,
-we encourage you to book your visit
-during <strong>July</strong>.
-</p>
-
-<p>
-Appointments will resume on
-<strong>September 4, 2026.</strong>
+we encourage you to book your visit during <strong>July</strong>.
 </p>
 `
 
-    },
-
+},
     button: {
 
         pl: "Rozumiem",
