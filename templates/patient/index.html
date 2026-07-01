@@ -147,8 +147,13 @@
     </div>
 
     <div class="calendar-grid">
-      <div>Pn</div><div>Wt</div><div>Śr</div><div>Cz</div>
-      <div>Pt</div><div>Sb</div><div>Nd</div>
+      <div id="wd_mon">Pn</div>
+      <div id="wd_tue">Wt</div>
+      <div id="wd_wed">Śr</div>
+      <div id="wd_thu">Cz</div>
+      <div id="wd_fri">Pt</div>
+      <div id="wd_sat">Sb</div>
+      <div id="wd_sun">Nd</div>
     </div>
 
     <div class="calendar-grid" id="calendar"></div>
@@ -256,7 +261,27 @@ const TXT = {
     visitType: "Rodzaj wizyty",
     select: "-- wybierz --",
     hours: "Dostępne godziny",
-    patient: "Dane pacjenta"
+    patient: "Dane pacjenta",
+
+    firstName: "Imię",
+    lastName: "Nazwisko",
+    phone: "Telefon",
+    email: "Email (opcjonalnie)",
+
+    terms1: "Zapoznałem/-am się i akceptuję",
+    terms2: "Regulamin świadczenia usług medycznych",
+
+    reserve: "Płatność w gabinecie",
+    pay: "Zapłać online (Przelewy24)",
+    traditional: "Przelew tradycyjny",
+
+    mon: "Pn",
+    tue: "Wt",
+    wed: "Śr",
+    thu: "Cz",
+    fri: "Pt",
+    sat: "Sb",
+    sun: "Nd"
   },
 
   en: {
@@ -265,7 +290,27 @@ const TXT = {
     visitType: "Visit type",
     select: "-- select --",
     hours: "Available times",
-    patient: "Patient information"
+    patient: "Patient information",
+
+    firstName: "First name",
+    lastName: "Last name",
+    phone: "Phone number",
+    email: "Email (optional)",
+
+    terms1: "I have read and accept the",
+    terms2: "Terms and Conditions of Medical Services",
+
+    reserve: "Pay at the clinic",
+    pay: "Pay online (Przelewy24)",
+    traditional: "Bank transfer",
+
+    mon: "Mon",
+    tue: "Tue",
+    wed: "Wed",
+    thu: "Thu",
+    fri: "Fri",
+    sat: "Sat",
+    sun: "Sun"
   }
 
 };
@@ -375,7 +420,13 @@ function renderCalendar() {
   const m = currentMonth.getMonth();
 
   $("#calendar_title").text(
-    currentMonth.toLocaleDateString("pl-PL", { month: "long", year: "numeric" })
+    currentMonth.toLocaleDateString(
+        LANG === "en" ? "en-GB" : "pl-PL",
+        {
+            month: "long",
+            year: "numeric"
+        }
+    )
   );
 
   const first = new Date(y, m, 1);
@@ -415,6 +466,29 @@ $(function () {
   $("#hours_wrapper h3").text(T.hours);
 
   $("#form_wrapper h3").text(T.patient);
+
+  $(".form-group label").eq(0).text(T.firstName);
+  $(".form-group label").eq(1).text(T.lastName);
+  $(".form-group label").eq(2).text(T.phone);
+  $(".form-group label").eq(3).text(T.email);
+
+  $(".terms-label").contents().filter(function () {
+      return this.nodeType === 3;
+  }).first().replaceWith(T.terms1 + " ");
+
+  $(".terms-label a").text(T.terms2);
+
+  $("#btn_reserve").text(T.reserve);
+  $("#btn_pay").text(T.pay);
+  $("#btn_traditional").text(T.traditional);
+
+  $("#wd_mon").text(T.mon);
+  $("#wd_tue").text(T.tue);
+  $("#wd_wed").text(T.wed);
+  $("#wd_thu").text(T.thu);
+  $("#wd_fri").text(T.fri);
+  $("#wd_sat").text(T.sat);
+  $("#wd_sun").text(T.sun);
 
   $.getJSON(API + "/api/visit-types", function (data) {
     data.forEach(vt => {
