@@ -246,6 +246,32 @@
 <script>
 const API = "/rejestracja";
 
+const LANG = localStorage.getItem("lang") || "pl";
+
+const TXT = {
+
+  pl: {
+    back: "← Wróć na stronę główną",
+    title: "Rezerwacja wizyty",
+    visitType: "Rodzaj wizyty",
+    select: "-- wybierz --",
+    hours: "Dostępne godziny",
+    patient: "Dane pacjenta"
+  },
+
+  en: {
+    back: "← Back to home page",
+    title: "Book an appointment",
+    visitType: "Visit type",
+    select: "-- select --",
+    hours: "Available times",
+    patient: "Patient information"
+  }
+
+};
+
+const T = TXT[LANG];
+
 let visitTypes = {};
 let availableDays = [];
 let currentMonth = new Date();
@@ -376,6 +402,20 @@ function renderCalendar() {
 
 /* ===== LOAD TYPY ===== */
 $(function () {
+  // ===== TŁUMACZENIA =====
+
+  $("button.btn-link").text(T.back);
+
+  $("h2").text(T.title);
+
+  $("label").first().text(T.visitType);
+
+  $("#visit_type option:first").text(T.select);
+
+  $("#hours_wrapper h3").text(T.hours);
+
+  $("#form_wrapper h3").text(T.patient);
+
   $.getJSON(API + "/api/visit-types", function (data) {
     data.forEach(vt => {
       visitTypes[vt.code] = vt;

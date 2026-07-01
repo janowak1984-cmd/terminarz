@@ -1476,7 +1476,62 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 
+<!-- ===================================================== -->
+<!-- ANNOUNCEMENT -->
+<!-- ===================================================== -->
 
+<div
+    class="modal fade"
+    id="announcementModal"
+    tabindex="-1">
+
+    <div class="modal-dialog">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <button
+                    type="button"
+                    class="close"
+                    data-dismiss="modal">
+
+                    &times;
+
+                </button>
+
+                <h4
+                    class="modal-title"
+                    id="announcementTitle">
+
+                </h4>
+
+            </div>
+
+            <div
+                class="modal-body"
+                id="announcementBody">
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button
+                    type="button"
+                    class="btn btn-primary"
+                    id="announcementButton"
+                    data-dismiss="modal">
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+<script src="{{ url_for('static', filename='site/js/announcement.js') }}"></script>
 	</body>
 </html>
 
