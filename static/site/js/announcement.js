@@ -24,7 +24,7 @@ const ANNOUNCEMENT = {
 
     message: {
 
-    pl: `
+        pl: `
 <p>
 Gabinet będzie <strong>nieczynny od 1 sierpnia do 3 września 2026 r.</strong>
 z powodu urlopu.
@@ -35,10 +35,9 @@ Jeżeli planują Państwo wizytę przed tym terminem,
 zachęcamy do wcześniejszej rezerwacji dostępnych terminów
 jeszcze w <strong>lipcu</strong>.
 </p>
-
 `,
 
-    en: `
+        en: `
 <p>
 The clinic will be <strong>closed from August 1 to September 3, 2026</strong>
 due to summer holidays.
@@ -50,7 +49,16 @@ we encourage you to book your visit during <strong>July</strong>.
 </p>
 `
 
-},
+    },
+
+    buttonBook: {
+
+        pl: "Umów wizytę",
+
+        en: "Book appointment"
+
+    },
+
     button: {
 
         pl: "Rozumiem",
@@ -108,6 +116,9 @@ function showAnnouncement() {
     $("#announcementBody")
         .html(ANNOUNCEMENT.message[lang]);
 
+    $("#announcementBookButton")
+        .text(ANNOUNCEMENT.buttonBook[lang]);
+
     $("#announcementButton")
         .text(ANNOUNCEMENT.button[lang]);
 
@@ -139,5 +150,24 @@ function showAnnouncement() {
 $(function () {
 
     showAnnouncement();
+
+});
+
+// aktualizacja języka, jeśli popup jest otwarty
+window.addEventListener("languageChanged", function () {
+
+    const lang = localStorage.getItem("lang") || "pl";
+
+    $("#announcementTitle")
+        .text(ANNOUNCEMENT.title[lang]);
+
+    $("#announcementBody")
+        .html(ANNOUNCEMENT.message[lang]);
+
+    $("#announcementBookButton")
+        .text(ANNOUNCEMENT.buttonBook[lang]);
+
+    $("#announcementButton")
+        .text(ANNOUNCEMENT.button[lang]);
 
 });
