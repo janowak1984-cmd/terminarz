@@ -53,17 +53,17 @@ we encourage you to book your visit during <strong>July</strong>.
 
     buttonBook: {
 
-        pl: "Umów wizytę",
+    pl: "Umów wizytę",
 
-        en: "Book appointment"
+    en: "Book appointment"
 
     },
 
     button: {
 
-        pl: "Rozumiem",
+        pl: "Zamknij",
 
-        en: "OK"
+        en: "Close"
 
     }
 
