@@ -25,29 +25,29 @@ const ANNOUNCEMENT = {
     message: {
 
         pl: `
-<p>
-Gabinet będzie <strong>nieczynny od 1 sierpnia do 3 września 2026 r.</strong>
-z powodu urlopu.
-</p>
+        <p>
+        Gabinet będzie <strong>nieczynny od 1 sierpnia do 3 września 2026 r.</strong>
+        z powodu urlopu.
+        </p>
 
-<p>
-Jeżeli planują Państwo wizytę przed tym terminem,
-zachęcamy do wcześniejszej rezerwacji dostępnych terminów
-jeszcze w <strong>lipcu</strong>.
-</p>
-`,
-
+        <p>
+        W tym okresie, w bardzo pilnych sprawach, prosimy o kontakt za pośrednictwem formularza dostępnego na stronie
+        <strong>www.kingabobinska.pl</strong>.
+        Zapisy na wizyty będą możliwe wyłącznie przez stronę internetową.
+        </p>
+        `,
         en: `
-<p>
-The clinic will be <strong>closed from August 1 to September 3, 2026</strong>
-due to summer holidays.
-</p>
+        <p>
+        The clinic will be <strong>closed from August 1 to September 3, 2026</strong>
+        due to summer holidays.
+        </p>
 
-<p>
-If you are planning an appointment before this period,
-we encourage you to book your visit during <strong>July</strong>.
-</p>
-`
+        <p>
+        During this period, for urgent matters, please contact us using the contact form available at
+        <strong>www.kingabobinska.pl</strong>.
+        Appointments can be booked exclusively through the website.
+        </p>
+        `,
 
     },
 
