@@ -212,6 +212,43 @@
     </div>
   </div>
 </div>
+<!-- ================================================= -->
+<!-- MODAL: BRAK GRAFIKU -->
+<!-- ================================================= -->
+<div id="generateDayModal" class="modal fade" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+        <h4 class="modal-title">📅 Brak grafiku</h4>
+      </div>
+
+      <div class="modal-body">
+
+        <p id="generate-day-text" class="text-center"></p>
+
+      </div>
+
+      <div class="modal-footer">
+
+        <button
+            id="btn-generate-day"
+            class="btn btn-primary btn-block">
+            ➕ Generuj grafik
+        </button>
+
+        <button
+            class="btn btn-default btn-block"
+            data-dismiss="modal">
+            Zamknij
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
 <div id="availabilityCalendar"
      data-hidden-days='{{ hidden_days | default([]) | tojson }}'>
 </div>
@@ -224,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 let currentAppointmentId = null;
 let currentSlotEvent = null;
+let generateDayDate = null;
 
 const pad = n => n.toString().padStart(2,'0');
 const fmt = d => ({
@@ -272,36 +310,34 @@ calendar = new FullCalendar.Calendar(calEl, {
       info.startStr.substring(0, 10)
     );
   },
-  
-  dayCellDidMount: function(info) {
 
-    info.el.addEventListener('contextmenu', function(e){
+  dateClick: function(info) {
 
-        e.preventDefault();
+    const clickedDate = info.dateStr.substring(0,10);
 
-        const clickedDate =
-              info.date.getFullYear() + "-" +
-              String(info.date.getMonth() + 1).padStart(2, "0") + "-" +
-              String(info.date.getDate()).padStart(2, "0");
+    // sprawdzenie czy w tym dniu istnieje choć jeden slot
+    const hasSlots = calendar.getEvents().some(ev => {
 
-        // sprawdzenie czy w tym dniu istnieje choć jeden slot
-        const hasSlots = calendar.getEvents().some(ev => {
-
-            return ev.id.startsWith("slot-") &&
-                   ev.startStr.substring(0,10) === clickedDate;
-
-        });
-
-        if(hasSlots){
-            return;
-        }
-
-        alert("PPM na pustym dniu: " + clickedDate);
+        return ev.id.startsWith("slot-") &&
+               ev.startStr.substring(0,10) === clickedDate;
 
     });
 
-},
+    // jeśli są sloty, nic nie robimy
+    if (hasSlots) {
+        return;
+    }
 
+    // zapamiętujemy datę
+    generateDayDate = clickedDate;
+
+    // ustawiamy tekst w oknie
+    document.getElementById("generate-day-text").innerHTML =
+        "W dniu <b>" + clickedDate + "</b><br>nie ma jeszcze wygenerowanego grafiku.";
+
+    // pokazujemy modal
+    $("#generateDayModal").modal("show");
+},
 
 eventContent: function(arg) {
 
@@ -715,18 +751,31 @@ document.getElementById('btn-create-visit').onclick = function () {
   });
 };
 
-document.getElementById('btn-slot-deactivate').onclick=function(){
-  fetch('/doctor/availability/toggle',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      slot_id:currentSlotEvent.extendedProps.slot_id,
-      active:false
+document.getElementById('btn-slot-deactivate').onclick = function () {
+
+    fetch('/doctor/availability/toggle', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            slot_id: currentSlotEvent.extendedProps.slot_id,
+            active: false
+        })
     })
-  }).then(()=>{
-    $('#slotActionModal').modal('hide');
-    calendar.refetchEvents();
-  });
+    .then(() => {
+        $('#slotActionModal').modal('hide');
+        calendar.refetchEvents();
+    });
+
+};
+
+document.getElementById("btn-generate-day").onclick = function () {
+
+    $("#generateDayModal").modal("hide");
+
+    alert("Tutaj wygenerujemy grafik dla dnia: " + generateDayDate);
+
 };
 
 });
