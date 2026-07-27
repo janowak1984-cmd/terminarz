@@ -841,20 +841,12 @@ def generate_day():
             "%Y-%m-%d"
         ).date()
 
-        start_time = datetime.strptime(
-            data["start"],
-            "%H:%M"
-        ).time()
-
-        end_time = datetime.strptime(
-            data["end"],
-            "%H:%M"
-        ).time()
-
     except Exception:
         return jsonify({"error": "Nieprawidłowe dane"}), 400
 
-    active = not bool(data.get("inactive", True))
+    start_time = time(8, 0)
+    end_time = time(19, 0)
+    active = False
 
     # nie generujemy w święta
     if is_polish_holiday(day):
