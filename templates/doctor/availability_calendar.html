@@ -862,6 +862,23 @@ document.getElementById("btn-generate-day").onclick = function () {
 
 };
 
+document.getElementById("btn-generate-confirm").onclick = function () {
+
+    const data = {
+        date: generateDayDate,
+        start: document.getElementById("generate-start").value,
+        end: document.getElementById("generate-end").value,
+        inactive: document.getElementById("generate-inactive").checked
+    };
+
+    console.log(data);
+
+    alert(
+        JSON.stringify(data, null, 2)
+    );
+
+};
+
 });
 
 document.getElementById('btn-confirm-blacklist').onclick = function () {
