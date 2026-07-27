@@ -845,9 +845,20 @@ document.getElementById('btn-slot-deactivate').onclick = function () {
 
 document.getElementById("btn-generate-day").onclick = function () {
 
+    // zamknij pierwszy modal
     $("#generateDayModal").modal("hide");
 
-    alert("Tutaj wygenerujemy grafik dla dnia: " + generateDayDate);
+    // ustaw datę
+    document.getElementById("generate-schedule-date").textContent =
+        generateDayDate;
+
+    // wartości domyślne
+    document.getElementById("generate-start").value = "08:00";
+    document.getElementById("generate-end").value = "18:00";
+    document.getElementById("generate-inactive").checked = true;
+
+    // pokaż drugi modal
+    $("#generateScheduleModal").modal("show");
 
 };
 
