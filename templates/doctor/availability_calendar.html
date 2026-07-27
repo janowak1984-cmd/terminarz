@@ -263,40 +263,20 @@
 
       <div class="modal-body">
 
-        <p>
-          <strong>Data:</strong>
-          <span id="generate-schedule-date"></span>
-        </p>
-
         <div class="form-group">
-          <label>Od</label>
-          <input
-              id="generate-start"
-              type="time"
-              class="form-control"
-              value="08:00">
-        </div>
+                <label>Data:</label>
+                <p id="generate-schedule-date"></p>
+            </div>
 
-        <div class="form-group">
-          <label>Do</label>
-          <input
-              id="generate-end"
-              type="time"
-              class="form-control"
-              value="18:00">
-        </div>
+            <p>
+                Grafik zostanie wygenerowany w godzinach
+                <strong>08:00–19:00</strong>.
+            </p>
 
-        <div class="checkbox">
-          <label>
-            <input
-                id="generate-inactive"
-                type="checkbox"
-                checked>
-
-            Utwórz terminy jako nieaktywne
-          </label>
-        </div>
-
+            <p>
+                Wszystkie terminy zostaną utworzone jako
+                <strong>nieaktywne</strong>.
+            </p>
       </div>
 
       <div class="modal-footer">
@@ -852,11 +832,6 @@ document.getElementById("btn-generate-day").onclick = function () {
     document.getElementById("generate-schedule-date").textContent =
         generateDayDate;
 
-    // wartości domyślne
-    document.getElementById("generate-start").value = "08:00";
-    document.getElementById("generate-end").value = "18:00";
-    document.getElementById("generate-inactive").checked = true;
-
     // pokaż drugi modal
     $("#generateScheduleModal").modal("show");
 
@@ -865,10 +840,7 @@ document.getElementById("btn-generate-day").onclick = function () {
 document.getElementById("btn-generate-confirm").onclick = function () {
 
     const data = {
-        date: generateDayDate,
-        start: document.getElementById("generate-start").value,
-        end: document.getElementById("generate-end").value,
-        inactive: document.getElementById("generate-inactive").checked
+      date: generateDayDate
     };
 
     fetch("/doctor/availability/generate-day", {
