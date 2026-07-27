@@ -272,6 +272,35 @@ calendar = new FullCalendar.Calendar(calEl, {
       info.startStr.substring(0, 10)
     );
   },
+  
+  dayCellDidMount: function(info) {
+
+    info.el.addEventListener('contextmenu', function(e){
+
+        e.preventDefault();
+
+        const clickedDate =
+              info.date.getFullYear() + "-" +
+              String(info.date.getMonth() + 1).padStart(2, "0") + "-" +
+              String(info.date.getDate()).padStart(2, "0");
+
+        // sprawdzenie czy w tym dniu istnieje choć jeden slot
+        const hasSlots = calendar.getEvents().some(ev => {
+
+            return ev.id.startsWith("slot-") &&
+                   ev.startStr.substring(0,10) === clickedDate;
+
+        });
+
+        if(hasSlots){
+            return;
+        }
+
+        alert("PPM na pustym dniu: " + clickedDate);
+
+    });
+
+},
 
 
 eventContent: function(arg) {
