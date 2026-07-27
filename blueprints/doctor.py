@@ -826,7 +826,72 @@ def generate_schedule():
     return jsonify({"status": "ok"})
 
 
+# =================================================
+# GENEROWANIE GRAFIKU JEDNEGO DNIA
+# =================================================
+@doctor_bp.route("/availability/generate-day", methods=["POST"])
+@login_required
+def generate_day():
 
+    data = request.get_json() or {}
+
+    try:
+        day = datetime.strptime(
+            data["date"],
+            "%Y-%m-%d"
+        ).date()
+
+        start_time = datetime.strptime(
+            data["start"],
+            "%H:%M"
+        ).time()
+
+        end_time = datetime.strptime(
+            data["end"],
+            "%H:%M"
+        ).time()
+
+    except Exception:
+        return jsonify({"error": "Nieprawidłowe dane"}), 400
+
+    active = not bool(data.get("inactive", True))
+
+    # nie generujemy w święta
+    if is_polish_holiday(day):
+        return jsonify({"error": "To jest święto"}), 400
+
+    # nie generujemy podczas urlopu
+    vacation = Vacation.query.filter(
+        Vacation.doctor_id == current_user.id,
+        Vacation.active.is_(True),
+        Vacation.date_from <= day,
+        Vacation.date_to >= day
+    ).first()
+
+    if vacation:
+        return jsonify({"error": "Ten dzień przypada na urlop"}), 400
+
+    start = datetime.combine(day, start_time)
+    end = datetime.combine(day, end_time)
+
+    current = start
+
+    while current < end:
+
+        db.session.add(
+            Availability(
+                doctor_id=current_user.id,
+                start=current,
+                end=current + timedelta(minutes=15),
+                active=active
+            )
+        )
+
+        current += timedelta(minutes=15)
+
+    db.session.commit()
+
+    return jsonify({"status": "ok"})
 
 # =================================================
 # TOGGLE SLOTU
