@@ -215,67 +215,107 @@ def api_hours():
 
     day = datetime.strptime(day_str, "%Y-%m-%d").date()
 
+    # ───── aktywny urlop ─────
     if is_active_vacation_day(day):
         return jsonify([])
 
-    visit_type = VisitType.query.filter_by(code=visit_code, active=True).first()
+    # ───── typ wizyty ─────
+    visit_type = VisitType.query.filter_by(
+        code=visit_code,
+        active=True
+    ).first()
+
     if not visit_type:
         return jsonify([])
 
     visit_minutes = visit_type.duration_minutes
     required_slots = visit_minutes // SLOT_MINUTES
 
-    # ───── dostępne sloty dnia
+    day_start = datetime.combine(day, time.min)
+    day_end = datetime.combine(day + timedelta(days=1), time.min)
+
+    # ───── dostępne sloty dnia ─────
     slots = (
         Availability.query
         .filter(
             Availability.doctor_id == 1,
-            Availability.start >= datetime.combine(day, time.min),
-            Availability.start < datetime.combine(day + timedelta(days=1), time.min),
+            Availability.start >= day_start,
+            Availability.start < day_end,
             Availability.active.is_(True)
         )
         .order_by(Availability.start)
         .all()
     )
 
-    # ───── istniejące wizyty
+    # ───── istniejące wizyty ─────
     appointments = (
         Appointment.query
         .filter(
             Appointment.status.in_(["scheduled", "completed"]),
-            Appointment.start >= datetime.combine(day, time.min),
-            Appointment.start < datetime.combine(day + timedelta(days=1), time.min)
+            Appointment.start < day_end,
+            Appointment.end > day_start
         )
         .all()
     )
 
     is_empty_day = len(appointments) == 0
 
-    # ✅ JEDYNE ŹRÓDŁO PRAWDY – dozwolone minuty startu
+    # ============================================================
+    # SPRAWDZANIE W PAMIĘCI - BEZ DODATKOWYCH ZAPYTAŃ SQL
+    # ============================================================
+
+    def window_is_free_and_continuous(window):
+        if len(window) < required_slots:
+            return False
+
+        # ciągłość slotów
+        for i in range(1, len(window)):
+            if window[i].start != window[i - 1].end:
+                return False
+
+        start = window[0].start
+        end = start + timedelta(minutes=visit_minutes)
+
+        # konflikt z istniejącymi wizytami
+        for appt in appointments:
+            if appt.start < end and appt.end > start:
+                return False
+
+        return True
+
+    # ============================================================
+    # DOZWOLONE MINUTY STARTU
+    # ============================================================
+
     def is_nice_start(start):
         if visit_minutes == 60:
             return start.minute == 0
+
         if visit_minutes == 30:
             return start.minute in (0, 30)
+
         if visit_minutes == 45:
             return start.minute in (0, 15)
+
         return True
+
+    # ============================================================
+    # SZUKANIE KANDYDATÓW
+    # ============================================================
 
     candidates = []
     all_starts = []
 
     for i in range(len(slots)):
         window = slots[i:i + required_slots]
-        if len(window) < required_slots:
-            continue
 
-        if not _window_is_free_and_continuous(window):
+        if not window_is_free_and_continuous(window):
             continue
 
         start = window[0].start
         end = start + timedelta(minutes=visit_minutes)
 
-        # ⛔ twarda blokada złych minut (ZAWSZE)
+        # twarda blokada złych minut
         if not is_nice_start(start):
             continue
 
@@ -284,12 +324,14 @@ def api_hours():
         if not is_empty_day:
             for appt in appointments:
                 if appt.end == start:
-                    score += 50   # doklejenie po
+                    score += 50       # doklejenie po
+
                 if appt.start == end:
-                    score += 40   # doklejenie przed
+                    score += 40       # doklejenie przed
 
         if start.hour <= 12:
             score += 10
+
         if start.hour >= 16:
             score += 10
 
@@ -300,7 +342,10 @@ def api_hours():
 
         all_starts.append(start)
 
-    # ───── PUSTY DZIEŃ + 30 MIN → STRATEGICZNE GODZINY
+    # ============================================================
+    # PUSTY DZIEŃ + 30 MIN
+    # ============================================================
+
     if is_empty_day and visit_minutes == 30 and all_starts:
         all_starts = sorted(set(all_starts))
 
@@ -312,20 +357,39 @@ def api_hours():
             len(all_starts) - 1
         ]
 
-        picked = [all_starts[i] for i in idx if 0 <= i < len(all_starts)]
+        picked = [
+            all_starts[i]
+            for i in idx
+            if 0 <= i < len(all_starts)
+        ]
+
         picked = sorted(set(picked))
 
-        return jsonify([dt.strftime("%H:%M") for dt in picked[:5]])
+        return jsonify([
+            dt.strftime("%H:%M")
+            for dt in picked[:5]
+        ])
 
-    # ───── NORMALNY TRYB (SCORING)
-    candidates.sort(key=lambda x: (-x["score"], x["start"]))
+    # ============================================================
+    # NORMALNY TRYB - SCORING
+    # ============================================================
 
-    chosen = [c["start"] for c in candidates[:5]]
+    candidates.sort(
+        key=lambda x: (-x["score"], x["start"])
+    )
 
-    # ✅ KOŃCOWE SORTOWANIE PREZENTACYJNE
+    chosen = [
+        c["start"]
+        for c in candidates[:5]
+    ]
+
+    # końcowe sortowanie prezentacyjne
     chosen.sort()
 
-    return jsonify([dt.strftime("%H:%M") for dt in chosen])
+    return jsonify([
+        dt.strftime("%H:%M")
+        for dt in chosen
+    ])
 
 # ───────────────────────────────────────
 # REZERWACJA WIZYTY
