@@ -234,11 +234,6 @@ def api_hours():
         )
         return jsonify([])
 
-    print(
-        f"[PERF /api/hours] vacation check: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
-
     # ───── typ wizyty ─────
     t = _time.perf_counter()
 
@@ -246,11 +241,6 @@ def api_hours():
         code=visit_code,
         active=True
     ).first()
-
-    print(
-        f"[PERF /api/hours] visit_type query: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
 
     if not visit_type:
         print(
@@ -280,12 +270,6 @@ def api_hours():
         .all()
     )
 
-    print(
-        f"[PERF /api/hours] availability query: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(rows={len(slots)})"
-    )
-
     # ───── istniejące wizyty ─────
     t = _time.perf_counter()
 
@@ -297,12 +281,6 @@ def api_hours():
             Appointment.end > day_start
         )
         .all()
-    )
-
-    print(
-        f"[PERF /api/hours] appointments query: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(rows={len(appointments)})"
     )
 
     is_empty_day = len(appointments) == 0
@@ -391,13 +369,6 @@ def api_hours():
 
         all_starts.append(start)
 
-    print(
-        f"[PERF /api/hours] Python candidate calculation: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(slots={len(slots)}, appointments={len(appointments)}, "
-        f"candidates={len(candidates)})"
-    )
-
     # ============================================================
     # PUSTY DZIEŃ + 30 MIN
     # ============================================================
@@ -426,11 +397,6 @@ def api_hours():
             for dt in picked[:5]
         ]
 
-        print(
-            f"[PERF /api/hours] TOTAL: "
-            f"{_time.perf_counter() - debug_start:.4f}s"
-        )
-
         return jsonify(result)
 
     # ============================================================
@@ -454,16 +420,6 @@ def api_hours():
         dt.strftime("%H:%M")
         for dt in chosen
     ]
-
-    print(
-        f"[PERF /api/hours] sorting + response preparation: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
-
-    print(
-        f"[PERF /api/hours] TOTAL: "
-        f"{_time.perf_counter() - debug_start:.4f}s"
-    )
 
     return jsonify(result)
 # ───────────────────────────────────────
