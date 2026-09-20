@@ -207,56 +207,25 @@ def api_days():
 
 @patient_bp.route("/api/hours")
 def api_hours():
-    import time as _time
-
-    debug_start = _time.perf_counter()
-
     visit_code = request.args.get("visit_type")
     day_str = request.args.get("day")
 
     if not visit_code or not day_str:
-        print("[PERF /api/hours] brak parametrów")
         return jsonify([])
 
     day = datetime.strptime(day_str, "%Y-%m-%d").date()
 
     # ───── aktywny urlop ─────
-    t = _time.perf_counter()
-
     if is_active_vacation_day(day):
-        print(
-            f"[PERF /api/hours] vacation check: "
-            f"{_time.perf_counter() - t:.4f}s"
-        )
-        print(
-            f"[PERF /api/hours] TOTAL: "
-            f"{_time.perf_counter() - debug_start:.4f}s"
-        )
         return jsonify([])
 
-    print(
-        f"[PERF /api/hours] vacation check: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
-
     # ───── typ wizyty ─────
-    t = _time.perf_counter()
-
     visit_type = VisitType.query.filter_by(
         code=visit_code,
         active=True
     ).first()
 
-    print(
-        f"[PERF /api/hours] visit_type query: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
-
     if not visit_type:
-        print(
-            f"[PERF /api/hours] TOTAL: "
-            f"{_time.perf_counter() - debug_start:.4f}s"
-        )
         return jsonify([])
 
     visit_minutes = visit_type.duration_minutes
@@ -266,8 +235,6 @@ def api_hours():
     day_end = datetime.combine(day + timedelta(days=1), time.min)
 
     # ───── dostępne sloty dnia ─────
-    t = _time.perf_counter()
-
     slots = (
         Availability.query
         .filter(
@@ -280,15 +247,7 @@ def api_hours():
         .all()
     )
 
-    print(
-        f"[PERF /api/hours] availability query: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(rows={len(slots)})"
-    )
-
     # ───── istniejące wizyty ─────
-    t = _time.perf_counter()
-
     appointments = (
         Appointment.query
         .filter(
@@ -299,19 +258,11 @@ def api_hours():
         .all()
     )
 
-    print(
-        f"[PERF /api/hours] appointments query: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(rows={len(appointments)})"
-    )
-
     is_empty_day = len(appointments) == 0
 
     # ============================================================
     # SPRAWDZANIE W PAMIĘCI - BEZ DODATKOWYCH ZAPYTAŃ SQL
     # ============================================================
-
-    t = _time.perf_counter()
 
     def window_is_free_and_continuous(window):
         if len(window) < required_slots:
@@ -373,10 +324,10 @@ def api_hours():
         if not is_empty_day:
             for appt in appointments:
                 if appt.end == start:
-                    score += 50
+                    score += 50       # doklejenie po
 
                 if appt.start == end:
-                    score += 40
+                    score += 40       # doklejenie przed
 
         if start.hour <= 12:
             score += 10
@@ -390,13 +341,6 @@ def api_hours():
         })
 
         all_starts.append(start)
-
-    print(
-        f"[PERF /api/hours] Python candidate calculation: "
-        f"{_time.perf_counter() - t:.4f}s "
-        f"(slots={len(slots)}, appointments={len(appointments)}, "
-        f"candidates={len(candidates)})"
-    )
 
     # ============================================================
     # PUSTY DZIEŃ + 30 MIN
@@ -421,23 +365,14 @@ def api_hours():
 
         picked = sorted(set(picked))
 
-        result = [
+        return jsonify([
             dt.strftime("%H:%M")
             for dt in picked[:5]
-        ]
-
-        print(
-            f"[PERF /api/hours] TOTAL: "
-            f"{_time.perf_counter() - debug_start:.4f}s"
-        )
-
-        return jsonify(result)
+        ])
 
     # ============================================================
     # NORMALNY TRYB - SCORING
     # ============================================================
-
-    t = _time.perf_counter()
 
     candidates.sort(
         key=lambda x: (-x["score"], x["start"])
@@ -448,24 +383,14 @@ def api_hours():
         for c in candidates[:5]
     ]
 
+    # końcowe sortowanie prezentacyjne
     chosen.sort()
 
-    result = [
+    return jsonify([
         dt.strftime("%H:%M")
         for dt in chosen
-    ]
+    ])
 
-    print(
-        f"[PERF /api/hours] sorting + response preparation: "
-        f"{_time.perf_counter() - t:.4f}s"
-    )
-
-    print(
-        f"[PERF /api/hours] TOTAL: "
-        f"{_time.perf_counter() - debug_start:.4f}s"
-    )
-
-    return jsonify(result)
 # ───────────────────────────────────────
 # REZERWACJA WIZYTY
 # ───────────────────────────────────────
